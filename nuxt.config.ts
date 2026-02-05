@@ -8,7 +8,7 @@ export default defineNuxtConfig({
     apiSecret: process.env.API_SECRET || '',
     // Public - available on client & server
     public: {
-      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:9001'
     }
   },
 
@@ -18,7 +18,7 @@ export default defineNuxtConfig({
       '/api/**': {
         proxy: process.env.NUXT_PUBLIC_API_BASE_URL
           ? `${process.env.NUXT_PUBLIC_API_BASE_URL}/**`
-          : 'http://localhost:3000/**'
+          : 'http://localhost:9001/**'
       }
     }
   },
