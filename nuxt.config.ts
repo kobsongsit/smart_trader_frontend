@@ -1,0 +1,52 @@
+// https://nuxt.com/docs/api/configuration/nuxt-config
+export default defineNuxtConfig({
+  compatibilityDate: '2025-07-15',
+  devtools: { enabled: true },
+
+  modules: [
+    'vuetify-nuxt-module'
+  ],
+
+  vuetify: {
+    moduleOptions: {
+      // Use default Vuetify styles
+      styles: true
+    },
+    vuetifyOptions: {
+      theme: {
+        defaultTheme: 'dark',
+        themes: {
+          dark: {
+            colors: {
+              primary: '#00DC82',
+              secondary: '#1E88E5',
+              accent: '#FFD54F',
+              error: '#FF5252',
+              info: '#2196F3',
+              success: '#4CAF50',
+              warning: '#FB8C00',
+              background: '#121212',
+              surface: '#1E1E1E'
+            }
+          },
+          light: {
+            colors: {
+              primary: '#00DC82',
+              secondary: '#1E88E5',
+              accent: '#FFD54F',
+              error: '#FF5252',
+              info: '#2196F3',
+              success: '#4CAF50',
+              warning: '#FB8C00'
+            }
+          }
+        }
+      },
+      icons: {
+        defaultSet: 'mdi'
+      }
+    }
+  },
+
+  css: ['@mdi/font/css/materialdesignicons.css']
+})
