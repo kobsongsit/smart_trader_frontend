@@ -13,9 +13,10 @@ npm ci --production=false
 echo "Building application..."
 npm run build
 
-# Restart PM2 process
-echo "Restarting PM2..."
-pm2 restart ecosystem.config.cjs --env production || pm2 start ecosystem.config.cjs --env production
-
 echo "=== Deployment Complete ==="
-pm2 status
+echo ""
+echo "Build output: .output/server/index.mjs"
+echo ""
+echo "สำหรับ Plesk Node.js Extension:"
+echo "  - Application Startup File: .output/server/index.mjs"
+echo "  - กด 'Restart App' ใน Plesk panel"
