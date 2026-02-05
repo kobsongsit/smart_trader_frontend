@@ -308,7 +308,7 @@ onUnmounted(() => {
     <!-- Timeline -->
     <v-row class="mt-4">
       <v-col cols="12">
-        <ValidationValidationTimeline
+        <ValidationTimeline
           :events="state.timelineEvents"
           :max-items="15"
           :loading="isLoading"

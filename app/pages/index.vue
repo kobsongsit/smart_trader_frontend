@@ -12,5 +12,5 @@ useHead({
 </script>
 
 <template>
-  <ValidationValidationDashboard />
+  <ValidationDashboard />
 </template>
