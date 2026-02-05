@@ -4,8 +4,9 @@ import type { SymbolIndicators, ApiResponse } from '../../types/trading'
  * Composable สำหรับจัดการ Indicators
  */
 export function useIndicators() {
-  const config = useRuntimeConfig()
-  const baseUrl = config.public.apiBaseUrl || 'http://localhost:3000'
+  // Use proxy path to avoid CORS issues
+  // Requests to /api/* will be proxied to the backend
+  const baseUrl = ''
 
   // State - cache indicators by symbolId
   const indicatorsCache = ref<Map<number, SymbolIndicators>>(new Map())

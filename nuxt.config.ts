@@ -4,8 +4,22 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
 
   runtimeConfig: {
+    // Private - only available on server
+    apiSecret: process.env.API_SECRET || '',
+    // Public - available on client & server
     public: {
       apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'
+    }
+  },
+
+  // Proxy API requests to avoid CORS
+  nitro: {
+    routeRules: {
+      '/api/**': {
+        proxy: process.env.NUXT_PUBLIC_API_BASE_URL
+          ? `${process.env.NUXT_PUBLIC_API_BASE_URL}/**`
+          : 'http://localhost:3000/**'
+      }
     }
   },
 
