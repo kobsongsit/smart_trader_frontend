@@ -101,7 +101,13 @@ export interface SymbolIndicators {
   symbol: string
   symbolName: string
   currentPrice?: number
+  priceChange?: number
+  priceChangePercent?: number
+  high24h?: number
+  low24h?: number
+  volume24h?: number
   indicators: Indicators
+  warnings?: string[]
   timestamp: string
 }
 

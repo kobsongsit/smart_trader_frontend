@@ -12,16 +12,6 @@ export default defineNuxtConfig({
     }
   },
 
-  // Proxy API requests to avoid CORS
-  nitro: {
-    routeRules: {
-      '/api/**': {
-        proxy: process.env.NUXT_PUBLIC_API_BASE_URL
-          ? `${process.env.NUXT_PUBLIC_API_BASE_URL}/**`
-          : 'http://localhost:9001/**'
-      }
-    }
-  },
 
   modules: [
     'vuetify-nuxt-module'

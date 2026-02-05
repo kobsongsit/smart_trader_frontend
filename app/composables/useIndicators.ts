@@ -1,12 +1,12 @@
+import axios from 'axios'
 import type { SymbolIndicators, ApiResponse } from '../../types/trading'
 
 /**
  * Composable สำหรับจัดการ Indicators
  */
 export function useIndicators() {
-  // Use proxy path to avoid CORS issues
-  // Requests to /api/* will be proxied to the backend
-  const baseUrl = ''
+  const config = useRuntimeConfig()
+  const baseUrl = config.public.apiBaseUrl
 
   // State - cache indicators by symbolId
   const indicatorsCache = ref<Map<number, SymbolIndicators>>(new Map())
@@ -41,7 +41,7 @@ export function useIndicators() {
 
     try {
       const url = `${baseUrl}/api/indicators/${symbolId}`
-      const response = await $fetch<ApiResponse<SymbolIndicators>>(url)
+      const { data: response } = await axios.get<ApiResponse<SymbolIndicators>>(url)
 
       if (response.success) {
         indicatorsCache.value.set(symbolId, response.data)

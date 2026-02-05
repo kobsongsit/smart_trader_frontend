@@ -1,12 +1,12 @@
+import axios from 'axios'
 import type { Symbol, ApiResponse } from '../../types/trading'
 
 /**
  * Composable สำหรับจัดการ Symbols
  */
 export function useSymbols() {
-  // Use proxy path to avoid CORS issues
-  // Requests to /api/* will be proxied to the backend
-  const baseUrl = ''
+  const config = useRuntimeConfig()
+  const baseUrl = config.public.apiBaseUrl
 
   // State
   const symbols = ref<Symbol[]>([])
@@ -24,7 +24,7 @@ export function useSymbols() {
       if (options?.isActive !== undefined) params.append('isActive', String(options.isActive))
 
       const url = `${baseUrl}/api/symbols${params.toString() ? '?' + params.toString() : ''}`
-      const response = await $fetch<ApiResponse<Symbol[]>>(url)
+      const { data: response } = await axios.get<ApiResponse<Symbol[]>>(url)
 
       if (response.success) {
         symbols.value = response.data
