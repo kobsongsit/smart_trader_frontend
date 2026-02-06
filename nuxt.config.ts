@@ -12,6 +12,25 @@ export default defineNuxtConfig({
     }
   },
 
+  app: {
+    head: {
+      link: [
+        {
+          rel: 'preconnect',
+          href: 'https://fonts.googleapis.com'
+        },
+        {
+          rel: 'preconnect',
+          href: 'https://fonts.gstatic.com',
+          crossorigin: ''
+        },
+        {
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap'
+        }
+      ]
+    }
+  },
 
   modules: [
     'vuetify-nuxt-module'
@@ -54,9 +73,12 @@ export default defineNuxtConfig({
       },
       icons: {
         defaultSet: 'mdi'
-      }
+      },
     }
   },
 
-  css: ['@mdi/font/css/materialdesignicons.css']
+  css: [
+    '@mdi/font/css/materialdesignicons.css',
+    '~/assets/css/global.css'
+  ]
 })

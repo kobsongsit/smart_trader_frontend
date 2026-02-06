@@ -25,6 +25,7 @@ const icon = computed(() => getTrendIcon(props.trend))
     class="font-weight-bold"
   >
     <v-icon
+      v-if="props.trend !== 'NEUTRAL'"
       :icon="icon"
       :size="props.size === 'x-small' ? 12 : 16"
       :start="props.showLabel"

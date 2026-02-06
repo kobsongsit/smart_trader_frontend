@@ -1,140 +1,133 @@
 <script setup lang="ts">
-import type { Symbol, SymbolIndicators, TrendDirection, Signal, SymbolTrends, SymbolValidation } from '../../../types/trading'
-import { formatPrice, getRSIStatus, getADXStrength, formatNumber, getTrendColor } from '../../../types/trading'
+import type { Symbol, SignalData, TrendDirection } from '../../../types/trading'
+import {
+  formatNumber,
+  formatPrice,
+  formatTimeAgo,
+  formatPriceChange,
+  getPriceChangeColor,
+  getTrendColor,
+  getZoneColor,
+  getZoneLabel,
+  getCrossColor,
+  getCrossLabel,
+  getCrossIcon,
+  getMACDTrendColor,
+  getMomentumIcon,
+  getBBPositionColor,
+  getOBVConfirmationColor,
+  getATRLevelColor,
+  getADXStrengthColor,
+  getADXStrengthIcon,
+  getADXDirectionColor,
+  getBiasColor,
+  getBiasIcon,
+  getSymbolTypeIcon,
+  getConsensusColor,
+  getStrategyColor,
+  getStrategyIcon,
+  getConfidenceColor,
+  getPerformanceStatusColor,
+} from '../../../types/trading'
 
 interface Props {
   symbol: Symbol
-  indicators?: SymbolIndicators | null
-  loading?: boolean
-  error?: string | null
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  loading: false,
-  error: null
-})
+const props = defineProps<Props>()
 
-const emit = defineEmits<{
-  expand: [symbolId: number]
-}>()
+// Unified Analysis composable (singleton)
+const {
+  getCachedAnalysis,
+  isLoadingSymbol,
+  analyzeSignal,
+  fetchSignalHistory,
+  isAnalyzing,
+  analyzeError,
+} = useAnalysis()
 
-// Use Signals composable
-const { analyzeSignal, fetchSignalHistory, isAnalyzing, signalHistory, error: signalError } = useSignals()
-
-// Use Trends composable (Layer 2)
-const { fetchTrends, getCachedTrends, isLoadingSymbol: isLoadingTrends } = useTrends()
-
-// Use Validation composable (Layer 3)
-const { fetchValidation, getCachedValidation, isLoadingSymbol: isLoadingValidation } = useValidation()
-
-// State
-const isExpanded = ref(false)
+// ─── State ───
+const expanded = ref(false)
 const showSignalResult = ref(false)
-const currentSignal = ref<Signal | null>(null)
+const currentSignal = ref<SignalData | null>(null)
 const showHistory = ref(false)
-const trendsData = ref<SymbolTrends | null>(null)
-const validationData = ref<SymbolValidation | null>(null)
+const signalHistory = ref<SignalData[]>([])
 
-// Computed - Price Info
-const currentPrice = computed(() => props.indicators?.currentPrice || null)
-const priceChange = computed(() => props.indicators?.priceChange || null)
-const priceChangePercent = computed(() => props.indicators?.priceChangePercent || null)
-const high24h = computed(() => props.indicators?.high24h || null)
-const low24h = computed(() => props.indicators?.low24h || null)
-const volume24h = computed(() => props.indicators?.volume24h || null)
-const timestamp = computed(() => props.indicators?.timestamp || null)
+// ─── Analysis data (safe computed, no null assertions) ───
+const analysis = computed(() => getCachedAnalysis(props.symbol.id))
+const isLoading = computed(() => isLoadingSymbol(props.symbol.id))
 
-// Computed - Indicators
-const majorityTrend = computed(() => props.indicators?.indicators?.majorityTrend || 'NEUTRAL')
-const rsi = computed(() => props.indicators?.indicators?.rsi || null)
-const adx = computed(() => props.indicators?.indicators?.adx?.adx || null)
-const trends = computed(() => props.indicators?.indicators?.trends)
-const warnings = computed(() => props.indicators?.warnings || [])
+const price = computed(() => analysis.value?.price ?? null)
+const indicators = computed(() => analysis.value?.indicators ?? null)
+const trends = computed(() => analysis.value?.trends ?? null)
+const validation = computed(() => analysis.value?.validation ?? null)
+const signal = computed(() => analysis.value?.signal ?? null)
+const meta = computed(() => analysis.value?.meta ?? null)
 
-const rsiStatus = computed(() => getRSIStatus(rsi.value))
-const adxStrength = computed(() => getADXStrength(adx.value))
+// ─── Summary derived values (safe for templates) ───
 
-const isPriceUp = computed(() => (priceChange.value || 0) >= 0)
+// Majority trend
+const majorityTrend = computed((): TrendDirection =>
+  trends.value?.analysis?.majorityTrend ?? 'NEUTRAL'
+)
+const trendAvatarColor = computed(() =>
+  analysis.value ? getTrendColor(majorityTrend.value) : 'grey-darken-1'
+)
 
-// Format timestamp to relative time
-const timeAgo = computed(() => {
-  if (!timestamp.value) return null
-  const date = new Date(timestamp.value)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMins = Math.floor(diffMs / 60000)
+// Indicator summary
+const overallBias = computed(() => indicators.value?.summary?.overallBias ?? 'neutral')
+const overallBiasLabel = computed(() => indicators.value?.summary?.overallBiasLabel ?? '-')
+const biasStrength = computed(() => indicators.value?.summary?.strength ?? 'weak')
+const bullishCount = computed(() => indicators.value?.summary?.bullishCount ?? 0)
+const bearishCount = computed(() => indicators.value?.summary?.bearishCount ?? 0)
+const neutralCount = computed(() => indicators.value?.summary?.neutralCount ?? 0)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins} min ago`
-  const diffHours = Math.floor(diffMins / 60)
-  if (diffHours < 24) return `${diffHours}h ago`
-  return date.toLocaleDateString()
+// Trend summary text
+const trendSummaryText = computed(() => {
+  if (!trends.value?.analysis) return ''
+  const a = trends.value.analysis
+  return `${a.majorityTrend} ${Math.max(a.upCount, a.downCount)}/5`
 })
 
-// Count trends
-const trendCount = computed(() => {
-  if (!trends.value) return { up: 0, down: 0, neutral: 0, total: 0 }
-  const values = Object.values(trends.value) as TrendDirection[]
-  return {
-    up: values.filter(t => t === 'UP').length,
-    down: values.filter(t => t === 'DOWN').length,
-    neutral: values.filter(t => t === 'NEUTRAL').length,
-    total: values.length
-  }
+// Signal derived
+const performanceColor = computed(() =>
+  signal.value?.performance ? getPerformanceStatusColor(signal.value.performance.status) : 'grey'
+)
+const profitLossText = computed(() => {
+  if (!signal.value?.performance) return ''
+  const pnl = signal.value.performance.profitLossPercent
+  return `${pnl >= 0 ? '+' : ''}${pnl.toFixed(3)}%`
+})
+const profitLossClass = computed(() => {
+  if (!signal.value?.performance) return ''
+  return signal.value.performance.profitLossPercent >= 0 ? 'text-success' : 'text-error'
 })
 
-// Methods
-async function toggleExpand() {
-  isExpanded.value = !isExpanded.value
-  if (isExpanded.value) {
-    emit('expand', props.symbol.id)
+// Stale data warnings
+const isSignalStale = computed(() => {
+  if (!meta.value?.dataAge) return false
+  return meta.value.dataAge.signalSeconds > 86400
+})
+const isPriceStale = computed(() => {
+  if (!meta.value?.dataAge) return false
+  return meta.value.dataAge.priceSeconds > 300
+})
 
-    // Fetch trends and validation data when expanding
-    await Promise.all([
-      loadTrendsData(),
-      loadValidationData()
-    ])
-  }
+// ─── Moving Averages safe access ───
+const maData = computed(() => indicators.value?.movingAverages ?? null)
+const macdData = computed(() => indicators.value?.macd ?? null)
+const bbData = computed(() => indicators.value?.bollingerBands ?? null)
+const rsiData = computed(() => indicators.value?.rsi ?? null)
+const stochData = computed(() => indicators.value?.stochastic ?? null)
+const obvData = computed(() => indicators.value?.obv ?? null)
+const atrData = computed(() => indicators.value?.atr ?? null)
+const adxData = computed(() => indicators.value?.adx ?? null)
+
+// ─── Handlers ───
+function toggleExpand() {
+  expanded.value = !expanded.value
 }
 
-// Load Trends data (Layer 2)
-async function loadTrendsData() {
-  const cached = getCachedTrends(props.symbol.id)
-  if (cached) {
-    trendsData.value = cached
-    return
-  }
-
-  const data = await fetchTrends(props.symbol.id)
-  if (data) {
-    trendsData.value = data
-  }
-}
-
-// Load Validation data (Layer 3)
-async function loadValidationData() {
-  const cached = getCachedValidation(props.symbol.id)
-  if (cached) {
-    validationData.value = cached
-    return
-  }
-
-  const data = await fetchValidation(props.symbol.id, '15m')
-  if (data) {
-    validationData.value = data
-  }
-}
-
-function getSymbolIcon(type: string): string {
-  switch (type) {
-    case 'CRYPTO': return 'mdi-bitcoin'
-    case 'STOCK': return 'mdi-chart-line'
-    case 'FOREX': return 'mdi-currency-usd'
-    default: return 'mdi-chart-box'
-  }
-}
-
-// AI Analysis functions
 async function handleAnalyze(includeNews: boolean) {
   const result = await analyzeSignal(props.symbol.id, includeNews)
   if (result) {
@@ -146,462 +139,527 @@ async function handleAnalyze(includeNews: boolean) {
 async function loadSignalHistory() {
   showHistory.value = !showHistory.value
   if (showHistory.value) {
-    await fetchSignalHistory(props.symbol.id, 5)
+    signalHistory.value = await fetchSignalHistory(props.symbol.id, 5)
   }
 }
 
-function handleSelectHistorySignal(signal: Signal) {
-  currentSignal.value = signal
+function handleSelectHistorySignal(sig: SignalData) {
+  currentSignal.value = sig
   showSignalResult.value = true
 }
 </script>
 
 <template>
-  <v-card
-    class="symbol-card mb-3"
-    elevation="2"
-    @click="toggleExpand"
-  >
-    <!-- Header - Always Visible -->
-    <v-card-text class="pb-2">
-      <div class="d-flex align-center justify-space-between">
-        <div class="d-flex align-center">
-          <v-avatar
-            :color="props.symbol.isActive ? 'success' : 'grey'"
-            size="40"
-            class="mr-3"
-          >
-            <v-icon
-              :icon="getSymbolIcon(props.symbol.type)"
-              color="white"
-            />
+  <v-card elevation="2" rounded="lg" class="mb-3 symbol-card">
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- SUMMARY SECTION (always visible)                    -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <v-card-text class="pb-1">
+
+      <!-- Row 1: Symbol Info + Price -->
+      <div class="d-flex align-center justify-space-between mb-2">
+        <div class="d-flex align-center" style="min-width: 0;">
+          <v-avatar :color="trendAvatarColor" size="42" class="mr-3 flex-shrink-0">
+            <v-icon :icon="getSymbolTypeIcon(props.symbol.type)" color="white" size="20" />
           </v-avatar>
-          <div>
-            <div class="text-subtitle-1 font-weight-bold">
-              {{ props.symbol.name }}
+          <div style="min-width: 0;">
+            <div class="d-flex align-center ga-2">
+              <span class="text-subtitle-1 font-weight-bold text-truncate">{{ props.symbol.name }}</span>
+              <v-chip size="x-small" variant="tonal" color="secondary">{{ props.symbol.type }}</v-chip>
             </div>
-            <div class="text-caption text-medium-emphasis">
+            <div class="text-caption text-medium-emphasis text-truncate">
               {{ props.symbol.displayName }}
+              <span v-if="price">
+                · {{ formatTimeAgo(price.timestamp) }}
+              </span>
             </div>
           </div>
         </div>
 
-        <div class="d-flex align-center">
-          <TradingTrendBadge
-            v-if="!props.loading && props.indicators"
-            :trend="majorityTrend as TrendDirection"
-            size="small"
-            class="mr-2"
-          />
-          <v-icon
-            :icon="isExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down'"
-            size="24"
-          />
-        </div>
-      </div>
-
-      <!-- Price Info -->
-      <div v-if="props.loading" class="mt-3">
-        <v-skeleton-loader type="text" width="150" />
-        <v-skeleton-loader type="text" width="100" class="mt-1" />
-      </div>
-      <div v-else-if="props.indicators" class="mt-3">
-        <div class="d-flex align-center">
-          <span class="text-h6 font-weight-bold">
-            {{ formatPrice(currentPrice) }}
-          </span>
-          <v-chip
-            v-if="priceChangePercent !== null"
-            :color="isPriceUp ? 'success' : 'error'"
-            size="x-small"
-            variant="flat"
-            class="ml-2"
-          >
-            <v-icon
-              :icon="isPriceUp ? 'mdi-arrow-up' : 'mdi-arrow-down'"
-              size="12"
-              start
-            />
-            {{ Math.abs(priceChangePercent).toFixed(2) }}%
+        <!-- Price -->
+        <div v-if="price" class="text-right flex-shrink-0 ml-2">
+          <div class="text-h6 font-weight-bold">{{ formatPrice(price.current) }}</div>
+          <v-chip :color="getPriceChangeColor(price.changePercent)" size="x-small" variant="flat">
+            {{ formatPriceChange(price.changePercent) }}
           </v-chip>
         </div>
-        <div class="text-caption text-medium-emphasis mt-1">
-          <span v-if="high24h && low24h">
-            24h: {{ formatPrice(high24h) }} / {{ formatPrice(low24h) }}
-          </span>
-          <span v-if="timeAgo" class="ml-2">
-            <v-icon icon="mdi-clock-outline" size="12" />
-            {{ timeAgo }}
-          </span>
+        <div v-else-if="isLoading" class="text-right flex-shrink-0 ml-2">
+          <v-skeleton-loader type="text" width="80" />
         </div>
       </div>
-      <div v-else class="text-caption text-medium-emphasis mt-3">
-        Click to load indicators
+
+      <!-- Stale price warning -->
+      <v-alert
+        v-if="isPriceStale"
+        type="warning"
+        variant="tonal"
+        density="compact"
+        class="mb-2"
+        icon="mdi-clock-alert-outline"
+      >
+        <span class="text-caption">ข้อมูลราคาเก่ากว่า 5 นาที</span>
+      </v-alert>
+
+      <!-- Row 2: Quick Status Chips -->
+      <div v-if="analysis" class="d-flex flex-wrap ga-1 mb-2">
+        <!-- Indicator Bias -->
+        <v-chip :color="getBiasColor(overallBias)" size="x-small" variant="flat">
+          <v-icon :icon="getBiasIcon(overallBias)" size="12" start />
+          {{ bullishCount }}/{{ bullishCount + bearishCount + neutralCount }} {{ overallBiasLabel }}
+        </v-chip>
+
+        <!-- Trend -->
+        <v-chip v-if="trends" :color="getTrendColor(majorityTrend)" size="x-small" variant="tonal">
+          <v-icon :icon="majorityTrend === 'UP' ? 'mdi-trending-up' : majorityTrend === 'DOWN' ? 'mdi-trending-down' : 'mdi-trending-neutral'" size="12" start />
+          {{ trendSummaryText }}
+        </v-chip>
+
+        <!-- Consensus -->
+        <v-chip
+          v-if="trends?.analysis?.consensus"
+          :color="getConsensusColor(trends.analysis.consensus)"
+          size="x-small"
+          variant="tonal"
+        >
+          {{ trends.analysis.consensus }}
+        </v-chip>
+
+        <!-- Validation -->
+        <v-chip
+          v-if="validation"
+          :color="validation.overallStatus === 'pass' ? 'success' : validation.overallStatus === 'fail' ? 'error' : 'warning'"
+          size="x-small"
+          variant="tonal"
+        >
+          <v-icon
+            :icon="validation.overallStatus === 'pass' ? 'mdi-shield-check' : validation.overallStatus === 'fail' ? 'mdi-shield-off' : 'mdi-shield-alert'"
+            size="12"
+            start
+          />
+          {{ validation.overallStatus === 'pass' ? 'Valid' : validation.overallStatus === 'fail' ? 'Fail' : 'Warn' }}
+        </v-chip>
+
+        <!-- Pre-Filter -->
+        <v-chip
+          v-if="trends?.preFilter"
+          :color="trends.preFilter.shouldAnalyze ? 'success' : 'error'"
+          size="x-small"
+          variant="tonal"
+        >
+          <v-icon :icon="trends.preFilter.shouldAnalyze ? 'mdi-filter-check' : 'mdi-filter-remove'" size="12" start />
+          Filter
+        </v-chip>
       </div>
 
-      <!-- Quick Stats -->
-      <div v-if="props.indicators && !props.loading" class="d-flex flex-wrap gap-1 mt-2">
-        <v-chip size="x-small" variant="tonal" :color="rsiStatus.color">
-          RSI: {{ rsi !== null ? rsi.toFixed(0) : 'N/A' }}
-        </v-chip>
-        <v-chip size="x-small" variant="tonal" :color="adxStrength.color">
-          ADX: {{ adx !== null ? adx.toFixed(0) : 'N/A' }}
-        </v-chip>
-        <v-chip v-if="volume24h" size="x-small" variant="tonal" color="info">
-          Vol: {{ formatNumber(volume24h, 0) }}
-        </v-chip>
+      <!-- Row 3: Latest Signal Preview -->
+      <v-sheet v-if="signal" color="grey-darken-4" rounded="lg" class="pa-2">
+        <div class="d-flex align-center justify-space-between">
+          <div class="d-flex align-center ga-2">
+            <v-chip :color="getStrategyColor(signal.strategy)" size="small" variant="elevated">
+              <v-icon :icon="getStrategyIcon(signal.strategy)" start size="14" />
+              {{ signal.strategy }}
+            </v-chip>
+            <v-progress-circular
+              :model-value="signal.confidence"
+              :color="getConfidenceColor(signal.confidence)"
+              :size="30"
+              :width="3"
+            >
+              <span style="font-size: 9px;" class="font-weight-bold">{{ signal.confidence }}</span>
+            </v-progress-circular>
+            <v-chip size="x-small" variant="tonal" color="info">
+              R:R {{ signal.prices.riskRewardRatio }}
+            </v-chip>
+          </div>
+          <div v-if="signal.performance" class="text-right">
+            <v-chip :color="performanceColor" size="x-small" variant="flat" class="mb-1">
+              {{ signal.performance.statusLabel }}
+            </v-chip>
+            <div :class="['text-caption font-weight-bold', profitLossClass]">
+              {{ profitLossText }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Stale signal warning -->
+        <v-alert
+          v-if="isSignalStale"
+          type="warning"
+          variant="tonal"
+          density="compact"
+          class="mt-2"
+          icon="mdi-clock-alert-outline"
+        >
+          <span class="text-caption">Signal เก่ากว่า 1 วัน — ควรวิเคราะห์ใหม่</span>
+        </v-alert>
+      </v-sheet>
+
+      <!-- Loading skeleton for summary -->
+      <div v-if="isLoading && !analysis" class="mt-2">
+        <v-skeleton-loader type="chip@3" />
       </div>
     </v-card-text>
 
-    <!-- Expanded Content -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- EXPAND/COLLAPSE TOGGLE                              -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <v-card-actions class="pt-0 px-4 pb-2">
+      <v-btn
+        variant="text"
+        size="small"
+        color="primary"
+        block
+        @click="toggleExpand"
+      >
+        <v-icon :icon="expanded ? 'mdi-chevron-up' : 'mdi-chevron-down'" start />
+        {{ expanded ? 'ซ่อนรายละเอียด' : 'รายละเอียด' }}
+      </v-btn>
+    </v-card-actions>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- DETAIL SECTION (expandable)                         -->
+    <!-- ═══════════════════════════════════════════════════ -->
     <v-expand-transition>
-      <div v-show="isExpanded">
+      <div v-show="expanded">
         <v-divider />
+        <v-card-text v-if="analysis">
 
-        <!-- Loading State -->
-        <v-card-text v-if="props.loading">
-          <v-skeleton-loader type="list-item@6" />
-        </v-card-text>
+          <!-- ══════ Indicator Summary ══════ -->
+          <div v-if="indicators" class="mb-4">
+            <div class="text-overline text-primary mb-2">
+              <v-icon icon="mdi-chart-box" size="16" class="mr-1" />
+              Indicator Summary
+            </div>
+            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3">
+              <div class="d-flex align-center justify-space-between mb-2">
+                <v-chip :color="getBiasColor(overallBias)" variant="flat" size="small">
+                  <v-icon :icon="getBiasIcon(overallBias)" start size="14" />
+                  {{ overallBiasLabel }}
+                </v-chip>
+                <v-chip variant="tonal" size="x-small">
+                  {{ biasStrength }}
+                </v-chip>
+              </div>
 
-        <!-- Error State -->
-        <v-card-text v-else-if="props.error">
-          <v-alert type="error" variant="tonal" density="compact">
-            {{ props.error }}
-          </v-alert>
-        </v-card-text>
+              <!-- Bullish / Bearish / Neutral counts -->
+              <v-row dense>
+                <v-col cols="4">
+                  <div class="text-center">
+                    <div class="text-caption text-success">Bullish</div>
+                    <div class="text-body-2 font-weight-bold text-success">{{ bullishCount }}</div>
+                  </div>
+                </v-col>
+                <v-col cols="4">
+                  <div class="text-center">
+                    <div class="text-caption text-error">Bearish</div>
+                    <div class="text-body-2 font-weight-bold text-error">{{ bearishCount }}</div>
+                  </div>
+                </v-col>
+                <v-col cols="4">
+                  <div class="text-center">
+                    <div class="text-caption text-grey">Neutral</div>
+                    <div class="text-body-2 font-weight-bold">{{ neutralCount }}</div>
+                  </div>
+                </v-col>
+              </v-row>
 
-        <!-- Indicators Content -->
-        <v-card-text v-else-if="props.indicators" class="pt-2">
+              <!-- Visual bar -->
+              <div class="d-flex mt-2 rounded overflow-hidden" style="height: 6px;">
+                <div :style="{ flex: bullishCount, background: '#4CAF50' }" />
+                <div :style="{ flex: neutralCount, background: '#9E9E9E' }" />
+                <div :style="{ flex: bearishCount, background: '#FF5252' }" />
+              </div>
+            </v-sheet>
+          </div>
 
-          <!-- Multi-Timeframe Trends with ADX (Layer 2) -->
-          <div class="indicator-section">
+          <!-- ══════ Multi-Timeframe Trends ══════ -->
+          <div v-if="trends" class="mb-4">
             <div class="text-overline text-primary mb-2">
               <v-icon icon="mdi-clock-outline" size="16" class="mr-1" />
               Multi-Timeframe Trends
             </div>
+            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3">
+              <!-- Trends Grid -->
+              <v-row dense class="mb-2">
+                <v-col
+                  v-for="(tf, key) in trends.timeframes"
+                  :key="key"
+                  class="text-center"
+                >
+                  <div class="text-caption font-weight-medium mb-1">{{ key }}</div>
+                  <v-chip
+                    :color="getTrendColor(tf.direction || 'NEUTRAL')"
+                    variant="flat"
+                    size="x-small"
+                    class="justify-center font-weight-bold"
+                    style="min-width: 36px;"
+                  >
+                    {{ tf.adx !== null ? tf.adx.toFixed(0) : '-' }}
+                  </v-chip>
+                </v-col>
+              </v-row>
 
-            <!-- Loading Trends -->
-            <div v-if="isLoadingTrends(props.symbol.id)" class="text-center py-2">
-              <v-progress-circular indeterminate size="20" width="2" />
-              <span class="text-caption ml-2">Loading trends...</span>
-            </div>
-
-            <!-- Trends Grid with ADX -->
-            <div v-else-if="trendsData" class="trends-grid-adx mb-2">
-              <div
-                v-for="(trend, timeframe) in trendsData.trends"
-                :key="timeframe"
-                class="trend-item-adx"
-              >
-                <span class="text-caption font-weight-medium">{{ timeframe }}</span>
-                <TradingTrendBadge
-                  :trend="trend.direction || 'NEUTRAL'"
-                  size="x-small"
-                />
-                <span class="text-caption text-medium-emphasis">
-                  ADX: {{ trend.adx !== null ? trend.adx.toFixed(0) : 'N/A' }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Fallback: Old trends display -->
-            <div v-else-if="trends" class="trends-grid mb-2">
-              <div
-                v-for="(trend, timeframe) in trends"
-                :key="timeframe"
-                class="trend-item"
-              >
-                <span class="text-caption">{{ timeframe }}</span>
-                <TradingTrendBadge
-                  :trend="trend"
-                  size="x-small"
-                />
-              </div>
-            </div>
-
-            <!-- Majority Chip -->
-            <v-chip
-              v-if="trendsData || trends"
-              :color="getTrendColor((trendsData?.analysis?.majorityTrend || majorityTrend) as TrendDirection)"
-              size="small"
-              variant="flat"
-            >
-              <v-icon icon="mdi-check-circle" size="14" start />
-              Majority: {{ trendsData?.analysis?.majorityTrend || majorityTrend }}
-              ({{ trendsData ? (trendsData.analysis.upCount > trendsData.analysis.downCount ? trendsData.analysis.upCount : trendsData.analysis.downCount) : (trendCount.up > trendCount.down ? trendCount.up : trendCount.down) }}/5)
-            </v-chip>
-          </div>
-
-          <!-- Pre-Filter Status (Layer 2) -->
-          <template v-if="trendsData">
-            <v-divider class="my-2" />
-            <TradingPreFilterStatus
-              :pre-filter="trendsData.preFilter"
-              :analysis="trendsData.analysis"
-            />
-          </template>
-
-          <!-- ProIndicator Validation (Layer 3) -->
-          <template v-if="validationData || isLoadingValidation(props.symbol.id)">
-            <v-divider class="my-2" />
-            <div class="indicator-section">
-              <!-- Loading Validation -->
-              <div v-if="isLoadingValidation(props.symbol.id)" class="text-center py-2">
-                <v-progress-circular indeterminate size="20" width="2" />
-                <span class="text-caption ml-2">Loading validation...</span>
-              </div>
-
-              <!-- Validation Status -->
-              <TradingValidationStatus
-                v-else-if="validationData"
-                :validation="validationData.validation"
-                :bollinger-bands="validationData.bollingerBands"
-                :current-price="validationData.currentPrice"
-                :next-candle-close="validationData.nextCandleClose"
-              />
-            </div>
-          </template>
-
-          <!-- Warnings -->
-          <template v-if="warnings.length > 0">
-            <v-divider class="my-2" />
-            <div class="indicator-section">
-              <div class="text-overline text-warning mb-1">
-                <v-icon icon="mdi-alert" size="16" class="mr-1" />
-                Warnings
-              </div>
-              <v-alert
-                v-for="(warning, idx) in warnings"
-                :key="idx"
-                type="warning"
-                variant="tonal"
-                density="compact"
-                class="mb-1"
-              >
-                {{ warning }}
-              </v-alert>
-            </div>
-          </template>
-
-          <v-divider class="my-2" />
-
-          <!-- Moving Averages -->
-          <div class="indicator-section">
-            <div class="text-overline text-primary mb-1">
-              <v-icon icon="mdi-chart-line" size="16" class="mr-1" />
-              Moving Averages
-            </div>
-            <v-row dense>
-              <v-col cols="4">
-                <TradingIndicatorValue
-                  label="SMA 50"
-                  :value="props.indicators.indicators.movingAverages.sma50"
-                  :decimals="4"
-                />
-              </v-col>
-              <v-col cols="4">
-                <TradingIndicatorValue
-                  label="SMA 200"
-                  :value="props.indicators.indicators.movingAverages.sma200"
-                  :decimals="4"
-                />
-              </v-col>
-              <v-col cols="4">
-                <TradingIndicatorValue
-                  label="EMA 20"
-                  :value="props.indicators.indicators.movingAverages.ema20"
-                  :decimals="4"
-                />
-              </v-col>
-            </v-row>
-          </div>
-
-          <v-divider class="my-2" />
-
-          <!-- MACD -->
-          <div class="indicator-section">
-            <div class="text-overline text-primary mb-1">
-              <v-icon icon="mdi-chart-bar" size="16" class="mr-1" />
-              MACD
-            </div>
-            <v-row dense>
-              <v-col cols="4">
-                <TradingIndicatorValue
-                  label="Line"
-                  :value="props.indicators.indicators.macd.line"
-                  :decimals="4"
-                />
-              </v-col>
-              <v-col cols="4">
-                <TradingIndicatorValue
-                  label="Signal"
-                  :value="props.indicators.indicators.macd.signal"
-                  :decimals="4"
-                />
-              </v-col>
-              <v-col cols="4">
-                <TradingIndicatorValue
-                  label="Histogram"
-                  :value="props.indicators.indicators.macd.histogram"
-                  :decimals="4"
-                />
-              </v-col>
-            </v-row>
-          </div>
-
-          <v-divider class="my-2" />
-
-          <!-- Bollinger Bands -->
-          <div class="indicator-section">
-            <div class="text-overline text-primary mb-1">
-              <v-icon icon="mdi-chart-bell-curve" size="16" class="mr-1" />
-              Bollinger Bands
-            </div>
-            <v-row dense>
-              <v-col cols="4">
-                <TradingIndicatorValue
-                  label="Upper"
-                  :value="props.indicators.indicators.bollingerBands.upper"
-                  :decimals="4"
-                />
-              </v-col>
-              <v-col cols="4">
-                <TradingIndicatorValue
-                  label="Middle"
-                  :value="props.indicators.indicators.bollingerBands.middle"
-                  :decimals="4"
-                />
-              </v-col>
-              <v-col cols="4">
-                <TradingIndicatorValue
-                  label="Lower"
-                  :value="props.indicators.indicators.bollingerBands.lower"
-                  :decimals="4"
-                />
-              </v-col>
-            </v-row>
-          </div>
-
-          <v-divider class="my-2" />
-
-          <!-- Oscillators -->
-          <div class="indicator-section">
-            <div class="text-overline text-primary mb-1">
-              <v-icon icon="mdi-sine-wave" size="16" class="mr-1" />
-              Oscillators
-            </div>
-            <v-row dense>
-              <v-col cols="6">
-                <TradingIndicatorValue
-                  label="RSI"
-                  :value="rsi"
-                  :decimals="1"
-                  :color="rsiStatus.color"
-                  show-bar
-                />
+              <!-- Majority + Consensus -->
+              <div class="d-flex align-center ga-2">
                 <v-chip
-                  :color="rsiStatus.color"
+                  :color="getTrendColor(trends.analysis.majorityTrend)"
+                  size="small"
+                  variant="flat"
+                >
+                  <v-icon icon="mdi-check-circle" size="14" start />
+                  {{ trends.analysis.majorityTrendLabel }}
+                </v-chip>
+                <v-chip
+                  :color="getConsensusColor(trends.analysis.consensus)"
                   size="x-small"
                   variant="tonal"
-                  class="mt-1"
                 >
-                  {{ rsiStatus.label }}
+                  {{ trends.analysis.consensus }}
                 </v-chip>
-              </v-col>
-              <v-col cols="6">
-                <TradingIndicatorValue
-                  label="Stoch %K"
-                  :value="props.indicators.indicators.stochastic.k"
-                  :decimals="1"
-                />
-                <TradingIndicatorValue
-                  label="Stoch %D"
-                  :value="props.indicators.indicators.stochastic.d"
-                  :decimals="1"
-                />
-              </v-col>
-            </v-row>
+              </div>
+            </v-sheet>
           </div>
 
-          <v-divider class="my-2" />
+          <!-- ══════ Pre-Filter Status ══════ -->
+          <div v-if="trends" class="mb-4">
+            <TradingPreFilterStatus
+              :pre-filter="trends.preFilter"
+              :analysis="trends.analysis"
+            />
+          </div>
 
-          <!-- Volume & Volatility -->
-          <div class="indicator-section">
-            <div class="text-overline text-primary mb-1">
-              <v-icon icon="mdi-chart-areaspline" size="16" class="mr-1" />
-              Volume & Volatility
+          <!-- ══════ Validation ══════ -->
+          <div v-if="validation" class="mb-4">
+            <TradingValidationStatus :validation="validation" />
+          </div>
+
+          <!-- ══════ Technical Indicators ══════ -->
+          <div v-if="indicators" class="mb-4">
+            <div class="text-overline text-primary mb-2">
+              <v-icon icon="mdi-chart-line" size="16" class="mr-1" />
+              Technical Indicators
             </div>
-            <v-row dense>
-              <v-col cols="6">
-                <TradingIndicatorValue
-                  label="OBV"
-                  :value="props.indicators.indicators.obv"
-                  :decimals="0"
-                />
-              </v-col>
-              <v-col cols="6">
-                <TradingIndicatorValue
-                  label="ATR"
-                  :value="props.indicators.indicators.atr"
-                  :decimals="4"
-                />
-              </v-col>
-            </v-row>
+
+            <!-- Moving Averages -->
+            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3 mb-2">
+              <div class="text-caption font-weight-bold mb-2">
+                <v-icon icon="mdi-chart-timeline-variant" size="14" color="info" class="mr-1" />
+                Moving Averages
+              </div>
+              <v-row dense>
+                <v-col cols="4">
+                  <TradingIndicatorValue label="SMA 50" :value="maData?.sma50 ?? null" :decimals="4" />
+                </v-col>
+                <v-col cols="4">
+                  <TradingIndicatorValue label="SMA 200" :value="maData?.sma200 ?? null" :decimals="4" />
+                </v-col>
+                <v-col cols="4">
+                  <TradingIndicatorValue label="EMA 20" :value="maData?.ema20 ?? null" :decimals="4" />
+                </v-col>
+              </v-row>
+              <div v-if="maData" class="d-flex flex-wrap ga-1 mt-2">
+                <v-chip :color="getCrossColor(maData.sma50VsSma200)" size="x-small" variant="flat">
+                  <v-icon :icon="getCrossIcon(maData.sma50VsSma200)" size="12" start />
+                  {{ getCrossLabel(maData.sma50VsSma200) }}
+                </v-chip>
+                <v-chip
+                  :color="maData.priceVsSma50 === 'above' ? 'success' : 'error'"
+                  size="x-small"
+                  variant="tonal"
+                >
+                  Price {{ maData.priceVsSma50 }} SMA50
+                </v-chip>
+                <v-chip
+                  :color="maData.priceVsEma20 === 'above' ? 'success' : 'error'"
+                  size="x-small"
+                  variant="tonal"
+                >
+                  Price {{ maData.priceVsEma20 }} EMA20
+                </v-chip>
+              </div>
+            </v-sheet>
+
+            <!-- MACD -->
+            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3 mb-2">
+              <div class="text-caption font-weight-bold mb-2">
+                <v-icon icon="mdi-chart-bar" size="14" color="orange" class="mr-1" />
+                MACD
+              </div>
+              <v-row dense>
+                <v-col cols="4">
+                  <TradingIndicatorValue label="Line" :value="macdData?.line ?? null" :decimals="4" />
+                </v-col>
+                <v-col cols="4">
+                  <TradingIndicatorValue label="Signal" :value="macdData?.signal ?? null" :decimals="4" />
+                </v-col>
+                <v-col cols="4">
+                  <TradingIndicatorValue
+                    label="Histogram"
+                    :value="macdData?.histogram ?? null"
+                    :decimals="4"
+                    :color="(macdData?.histogram ?? 0) >= 0 ? 'success' : 'error'"
+                    show-bar
+                    :bar-max="Math.abs(macdData?.histogram ?? 0) * 3 || 1"
+                  />
+                </v-col>
+              </v-row>
+              <div v-if="macdData" class="d-flex ga-1 mt-2">
+                <v-chip :color="getMACDTrendColor(macdData.trend)" size="x-small" variant="flat">
+                  {{ macdData.trend }}
+                </v-chip>
+                <v-chip size="x-small" variant="tonal">
+                  <v-icon :icon="getMomentumIcon(macdData.momentum)" size="12" start />
+                  {{ macdData.momentum }}
+                </v-chip>
+              </div>
+            </v-sheet>
+
+            <!-- Bollinger Bands -->
+            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3 mb-2">
+              <div class="text-caption font-weight-bold mb-2">
+                <v-icon icon="mdi-chart-bell-curve" size="14" color="cyan" class="mr-1" />
+                Bollinger Bands
+              </div>
+              <v-row dense>
+                <v-col cols="4">
+                  <TradingIndicatorValue label="Upper" :value="bbData?.upper ?? null" :decimals="4" />
+                </v-col>
+                <v-col cols="4">
+                  <TradingIndicatorValue label="Middle" :value="bbData?.middle ?? null" :decimals="4" />
+                </v-col>
+                <v-col cols="4">
+                  <TradingIndicatorValue label="Lower" :value="bbData?.lower ?? null" :decimals="4" />
+                </v-col>
+              </v-row>
+              <div v-if="bbData" class="d-flex flex-wrap ga-1 mt-2">
+                <v-chip :color="getBBPositionColor(bbData.pricePosition)" size="x-small" variant="tonal">
+                  {{ bbData.pricePosition }} ({{ bbData.percentB.toFixed(0) }}%)
+                </v-chip>
+                <v-chip v-if="bbData.squeeze" color="warning" size="x-small" variant="flat">
+                  <v-icon icon="mdi-flash" size="12" start />
+                  Squeeze!
+                </v-chip>
+              </div>
+            </v-sheet>
+
+            <!-- Oscillators: RSI + Stochastic -->
+            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3 mb-2">
+              <div class="text-caption font-weight-bold mb-2">
+                <v-icon icon="mdi-sine-wave" size="14" color="green" class="mr-1" />
+                Oscillators
+              </div>
+              <v-row dense>
+                <v-col cols="6">
+                  <TradingIndicatorValue
+                    v-if="rsiData"
+                    label="RSI"
+                    :value="rsiData.value"
+                    :decimals="1"
+                    :color="getZoneColor(rsiData.zone)"
+                    show-bar
+                  />
+                  <v-chip v-if="rsiData" :color="getZoneColor(rsiData.zone)" size="x-small" variant="tonal" class="mt-1">
+                    {{ getZoneLabel(rsiData.zone) }}
+                  </v-chip>
+                  <div v-if="rsiData" class="text-caption text-medium-emphasis mt-1">{{ rsiData.description }}</div>
+                </v-col>
+                <v-col cols="6">
+                  <TradingIndicatorValue label="Stoch %K" :value="stochData?.k ?? null" :decimals="1" />
+                  <TradingIndicatorValue label="Stoch %D" :value="stochData?.d ?? null" :decimals="1" />
+                  <div v-if="stochData" class="d-flex flex-wrap ga-1 mt-1">
+                    <v-chip :color="getZoneColor(stochData.zone)" size="x-small" variant="tonal">
+                      {{ getZoneLabel(stochData.zone) }}
+                    </v-chip>
+                    <v-chip
+                      v-if="stochData.crossover !== 'none'"
+                      :color="stochData.crossover === 'bullish_cross' ? 'success' : 'error'"
+                      size="x-small"
+                      variant="flat"
+                    >
+                      {{ stochData.crossover === 'bullish_cross' ? 'Bullish Cross' : 'Bearish Cross' }}
+                    </v-chip>
+                  </div>
+                </v-col>
+              </v-row>
+            </v-sheet>
+
+            <!-- Volume & Volatility: OBV + ATR -->
+            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3 mb-2">
+              <div class="text-caption font-weight-bold mb-2">
+                <v-icon icon="mdi-chart-areaspline" size="14" color="blue" class="mr-1" />
+                Volume & Volatility
+              </div>
+              <v-row dense>
+                <v-col cols="6">
+                  <TradingIndicatorValue label="OBV" :value="obvData?.value ?? null" :decimals="0" />
+                  <div v-if="obvData" class="d-flex flex-wrap ga-1 mt-1">
+                    <v-chip :color="getOBVConfirmationColor(obvData.confirmation)" size="x-small" variant="tonal">
+                      {{ obvData.confirmation }}
+                    </v-chip>
+                  </div>
+                  <div v-if="obvData" class="text-caption text-medium-emphasis mt-1">{{ obvData.description }}</div>
+                </v-col>
+                <v-col cols="6">
+                  <TradingIndicatorValue label="ATR" :value="atrData?.value ?? null" :decimals="4" />
+                  <v-chip v-if="atrData" :color="getATRLevelColor(atrData.level)" size="x-small" variant="tonal" class="mt-1">
+                    {{ atrData.level }}
+                  </v-chip>
+                  <div v-if="atrData" class="text-caption text-medium-emphasis mt-1">
+                    SL: {{ formatNumber(atrData.suggestedSL, 4) }} |
+                    TP: {{ formatNumber(atrData.suggestedTP, 4) }}
+                  </div>
+                </v-col>
+              </v-row>
+            </v-sheet>
+
+            <!-- Trend Strength: ADX -->
+            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3">
+              <div class="text-caption font-weight-bold mb-2">
+                <v-icon icon="mdi-trending-up" size="14" color="amber" class="mr-1" />
+                Trend Strength (ADX)
+              </div>
+              <v-row dense>
+                <v-col cols="4">
+                  <TradingIndicatorValue
+                    label="ADX"
+                    :value="adxData?.value ?? null"
+                    :decimals="1"
+                    :color="adxData ? getADXStrengthColor(adxData.trendStrength) : 'grey'"
+                    show-bar
+                    :bar-max="60"
+                  />
+                </v-col>
+                <v-col cols="4">
+                  <TradingIndicatorValue label="+DI" :value="adxData?.plusDI ?? null" :decimals="1" color="success" />
+                </v-col>
+                <v-col cols="4">
+                  <TradingIndicatorValue label="-DI" :value="adxData?.minusDI ?? null" :decimals="1" color="error" />
+                </v-col>
+              </v-row>
+              <div v-if="adxData" class="d-flex flex-wrap ga-1 mt-2">
+                <v-chip :color="getADXStrengthColor(adxData.trendStrength)" size="x-small" variant="tonal">
+                  <v-icon :icon="getADXStrengthIcon(adxData.trendStrength)" size="12" start />
+                  {{ adxData.trendStrength }}
+                </v-chip>
+                <v-chip :color="getADXDirectionColor(adxData.trendDirection)" size="x-small" variant="tonal">
+                  {{ adxData.trendDirection }}
+                </v-chip>
+              </div>
+              <div v-if="adxData" class="text-caption text-medium-emphasis mt-1">{{ adxData.description }}</div>
+            </v-sheet>
           </div>
 
-          <v-divider class="my-2" />
-
-          <!-- ADX -->
-          <div class="indicator-section">
-            <div class="text-overline text-primary mb-1">
-              <v-icon icon="mdi-trending-up" size="16" class="mr-1" />
-              Trend Strength (ADX)
-            </div>
-            <v-row dense>
-              <v-col cols="4">
-                <TradingIndicatorValue
-                  label="ADX"
-                  :value="adx"
-                  :decimals="1"
-                  :color="adxStrength.color"
-                  show-bar
-                  :bar-max="50"
-                />
-              </v-col>
-              <v-col cols="4">
-                <TradingIndicatorValue
-                  label="+DI"
-                  :value="props.indicators.indicators.adx.plusDI"
-                  :decimals="1"
-                  color="success"
-                />
-              </v-col>
-              <v-col cols="4">
-                <TradingIndicatorValue
-                  label="-DI"
-                  :value="props.indicators.indicators.adx.minusDI"
-                  :decimals="1"
-                  color="error"
-                />
-              </v-col>
-            </v-row>
-            <v-chip
-              :color="adxStrength.color"
-              size="x-small"
-              variant="tonal"
-              class="mt-1"
-            >
-              {{ adxStrength.label }} Trend
-            </v-chip>
-          </div>
-
-          <v-divider class="my-3" />
-
-          <!-- AI Signal Analysis -->
-          <div class="indicator-section">
+          <!-- ══════ AI Signal Analysis ══════ -->
+          <div class="mb-4">
             <div class="text-overline text-primary mb-2">
               <v-icon icon="mdi-robot" size="16" class="mr-1" />
               AI Signal Analysis
+            </div>
+
+            <!-- Existing Signal from API (full detail) -->
+            <div v-if="signal && !showSignalResult" class="mb-3">
+              <TradingSignalResult :signal="signal" />
             </div>
 
             <!-- Analyze Button -->
@@ -611,31 +669,19 @@ function handleSelectHistorySignal(signal: Signal) {
             />
 
             <!-- Signal Error -->
-            <v-alert
-              v-if="signalError"
-              type="error"
-              variant="tonal"
-              density="compact"
-              class="mt-2"
-            >
-              {{ signalError }}
+            <v-alert v-if="analyzeError" type="error" variant="tonal" density="compact" class="mt-2">
+              {{ analyzeError }}
             </v-alert>
 
-            <!-- Signal Result -->
+            <!-- New Signal Result -->
             <div v-if="showSignalResult && currentSignal" class="mt-3">
               <TradingSignalResult :signal="currentSignal" />
             </div>
 
             <!-- History Toggle -->
-            <v-btn
-              variant="text"
-              size="small"
-              color="primary"
-              class="mt-2"
-              @click="loadSignalHistory"
-            >
+            <v-btn variant="text" size="small" color="primary" class="mt-2" @click="loadSignalHistory">
               <v-icon :icon="showHistory ? 'mdi-chevron-up' : 'mdi-chevron-down'" start />
-              {{ showHistory ? 'Hide' : 'Show' }} Signal History
+              {{ showHistory ? 'ซ่อน' : 'ดู' }} Signal History
             </v-btn>
 
             <!-- Signal History -->
@@ -650,6 +696,27 @@ function handleSelectHistorySignal(signal: Signal) {
             </v-expand-transition>
           </div>
 
+          <!-- ══════ Meta Info ══════ -->
+          <v-sheet v-if="meta" color="grey-darken-4" rounded="lg" class="pa-2">
+            <div class="d-flex justify-space-between text-caption text-medium-emphasis">
+              <span>
+                <v-icon icon="mdi-clock-outline" size="12" />
+                อัพเดท: {{ formatTimeAgo(meta.timestamp) }}
+              </span>
+              <span v-if="meta.nextUpdate">
+                ถัดไป: {{ formatTimeAgo(meta.nextUpdate) }}
+              </span>
+            </div>
+            <div class="text-caption text-medium-emphasis mt-1">
+              v{{ meta.version }} · {{ meta.source }}
+            </div>
+          </v-sheet>
+
+        </v-card-text>
+
+        <!-- Loading state for detail -->
+        <v-card-text v-else-if="isLoading">
+          <v-skeleton-loader type="list-item@6" />
         </v-card-text>
       </div>
     </v-expand-transition>
@@ -658,53 +725,9 @@ function handleSelectHistorySignal(signal: Signal) {
 
 <style scoped>
 .symbol-card {
-  cursor: pointer;
-  transition: all 0.2s ease;
+  transition: box-shadow 0.2s ease;
 }
-
 .symbol-card:hover {
-  transform: translateY(-2px);
-}
-
-.indicator-section {
-  padding: 4px 0;
-}
-
-.gap-1 {
-  gap: 4px;
-}
-
-.gap-2 {
-  gap: 8px;
-}
-
-.trends-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-}
-
-.trend-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.trends-grid-adx {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  background: rgba(var(--v-theme-surface-variant), 0.3);
-  border-radius: 8px;
-  padding: 8px;
-}
-
-.trend-item-adx {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
+  box-shadow: 0 4px 12px rgba(0, 220, 130, 0.08) !important;
 }
 </style>

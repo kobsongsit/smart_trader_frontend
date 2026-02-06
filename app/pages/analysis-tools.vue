@@ -36,20 +36,15 @@ const indicatorPanel = ref<number[]>([])
 <template>
   <v-container fluid class="analysis-page pa-3 pa-sm-4">
 
-    <!-- Back Button + Header -->
-    <div class="d-flex align-center mb-3">
-      <v-btn icon variant="text" size="small" to="/">
-        <v-icon icon="mdi-arrow-left" />
-      </v-btn>
-      <div class="ml-2">
-        <h1 class="text-h6 text-sm-h5 font-weight-bold">
-          <v-icon icon="mdi-book-open-variant" color="primary" class="mr-1" />
-          Analysis Tools
-        </h1>
-        <p class="text-caption text-medium-emphasis">
-          สรุปเครื่องมือวิเคราะห์ทั้งหมดในระบบ Smart Trader
-        </p>
-      </div>
+    <!-- Header -->
+    <div class="mb-3">
+      <h1 class="text-h6 text-sm-h5 font-weight-bold">
+        <v-icon icon="mdi-book-open-variant" color="primary" class="mr-1" />
+        Analysis Tools
+      </h1>
+      <p class="text-caption text-medium-emphasis mt-1">
+        สรุปเครื่องมือวิเคราะห์ทั้งหมดในระบบ Smart Trader
+      </p>
     </div>
 
     <!-- Table of Contents - Scrollable Chips -->

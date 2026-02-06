@@ -15,7 +15,6 @@ const emit = defineEmits<{
   analyze: [includeNews: boolean]
 }>()
 
-// Local state for includeNews toggle
 const localIncludeNews = ref(props.includeNews)
 
 function handleAnalyze() {
@@ -24,7 +23,7 @@ function handleAnalyze() {
 </script>
 
 <template>
-  <div class="signal-analyze-button">
+  <div>
     <v-btn
       color="primary"
       variant="elevated"
@@ -32,6 +31,7 @@ function handleAnalyze() {
       :disabled="props.disabled || props.loading"
       block
       size="large"
+      rounded="lg"
       @click="handleAnalyze"
     >
       <v-icon icon="mdi-robot" start />
@@ -48,9 +48,3 @@ function handleAnalyze() {
     />
   </div>
 </template>
-
-<style scoped>
-.signal-analyze-button {
-  width: 100%;
-}
-</style>

@@ -33,7 +33,7 @@ const barValue = computed(() => {
 </script>
 
 <template>
-  <div class="indicator-value">
+  <v-sheet class="py-1" color="transparent">
     <div class="d-flex justify-space-between align-center">
       <span class="text-caption text-medium-emphasis">{{ props.label }}</span>
       <span class="text-body-2 font-weight-medium">{{ displayValue }}</span>
@@ -46,11 +46,5 @@ const barValue = computed(() => {
       rounded
       class="mt-1"
     />
-  </div>
+  </v-sheet>
 </template>
-
-<style scoped>
-.indicator-value {
-  padding: 4px 0;
-}
-</style>

@@ -1,0 +1,5 @@
+/* Global font: Noto Sans Thai */
+body,
+.v-application {
+  font-family: 'Noto Sans Thai', sans-serif !important;
+}

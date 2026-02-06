@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import type { PreFilterResult, TrendAnalysis } from '../../../types/trading'
+import type { PreFilterResult, TrendsAnalysis } from '../../../types/trading'
 import { getPreFilterStatus } from '../../../types/trading'
 
 interface Props {
   preFilter: PreFilterResult
-  analysis?: TrendAnalysis
+  analysis?: TrendsAnalysis
 }
 
 const props = defineProps<Props>()
 
 const filterStatus = computed(() => getPreFilterStatus(props.preFilter))
 
-// Pre-filter rules based on analysis
 const rules = computed(() => {
   if (!props.analysis) return []
 
@@ -42,7 +41,7 @@ const rules = computed(() => {
     color: hasMajority ? 'success' : 'error'
   })
 
-  // Rule 3: Higher Timeframe Weight (from passedRules/warnings)
+  // Rule 3: Higher Timeframe Weight
   const higherTFWarning = props.preFilter.warnings?.find(w => w.includes('Higher timeframes'))
   const higherTFPassed = props.preFilter.passedRules?.some(r => r.includes('Higher timeframes'))
   items.push({
@@ -58,42 +57,36 @@ const rules = computed(() => {
 </script>
 
 <template>
-  <div class="pre-filter-status">
+  <div class="py-2">
     <!-- Header -->
     <div class="d-flex align-center justify-space-between mb-2">
       <div class="text-overline text-primary">
         <v-icon icon="mdi-filter-check" size="16" class="mr-1" />
         Pre-Filter Status
       </div>
-      <v-chip
-        :color="filterStatus.color"
-        size="small"
-        variant="flat"
-      >
+      <v-chip :color="filterStatus.color" size="small" variant="flat">
         <v-icon :icon="filterStatus.icon" size="14" start />
         {{ filterStatus.label }}
       </v-chip>
     </div>
 
     <!-- Rules List -->
-    <div class="rules-list">
-      <div
-        v-for="(rule, idx) in rules"
-        :key="idx"
-        class="rule-item d-flex align-center py-1"
-      >
-        <v-icon
-          :icon="rule.icon"
-          :color="rule.color"
-          size="18"
-          class="mr-2"
-        />
-        <div class="flex-grow-1">
-          <div class="text-body-2 font-weight-medium">{{ rule.name }}</div>
-          <div class="text-caption text-medium-emphasis">{{ rule.description }}</div>
-        </div>
-      </div>
-    </div>
+    <v-sheet color="grey-darken-4" rounded="lg" class="pa-1">
+      <v-list density="compact" class="bg-transparent pa-0">
+        <v-list-item
+          v-for="(rule, idx) in rules"
+          :key="idx"
+          class="px-2"
+          :style="idx < rules.length - 1 ? 'border-bottom: 1px solid rgba(255,255,255,0.06)' : ''"
+        >
+          <template #prepend>
+            <v-icon :icon="rule.icon" :color="rule.color" size="18" class="mr-2" />
+          </template>
+          <v-list-item-title class="text-body-2 font-weight-medium">{{ rule.name }}</v-list-item-title>
+          <v-list-item-subtitle class="text-caption">{{ rule.description }}</v-list-item-subtitle>
+        </v-list-item>
+      </v-list>
+    </v-sheet>
 
     <!-- Reason (if filtered out) -->
     <v-alert
@@ -121,19 +114,3 @@ const rules = computed(() => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.pre-filter-status {
-  padding: 8px 0;
-}
-
-.rules-list {
-  background: rgba(var(--v-theme-surface-variant), 0.3);
-  border-radius: 8px;
-  padding: 8px 12px;
-}
-
-.rule-item:not(:last-child) {
-  border-bottom: 1px solid rgba(var(--v-border-color), 0.1);
-}
-</style>

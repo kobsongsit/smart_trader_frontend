@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { Signal, SignalStrategy } from '../../../types/trading'
-import { formatPrice } from '../../../types/trading'
+import type { SignalData } from '../../../types/trading'
+import { formatPrice, formatThaiDate, getStrategyColor, getStrategyIcon } from '../../../types/trading'
 
 interface Props {
-  signals: Signal[]
+  signals: SignalData[]
   loading?: boolean
 }
 
@@ -12,45 +12,16 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  select: [signal: Signal]
+  select: [signal: SignalData]
 }>()
 
-// Computed
-function getStrategyColor(strategy: SignalStrategy): string {
-  switch (strategy) {
-    case 'BUY': return 'success'
-    case 'SELL': return 'error'
-    case 'WAIT': return 'warning'
-    default: return 'grey'
-  }
-}
-
-function getStrategyIcon(strategy: SignalStrategy): string {
-  switch (strategy) {
-    case 'BUY': return 'mdi-arrow-up-bold'
-    case 'SELL': return 'mdi-arrow-down-bold'
-    case 'WAIT': return 'mdi-pause'
-    default: return 'mdi-help'
-  }
-}
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleString('th-TH', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-function handleSelect(signal: Signal) {
+function handleSelect(signal: SignalData) {
   emit('select', signal)
 }
 </script>
 
 <template>
-  <div class="signal-history">
+  <div>
     <div class="text-overline text-primary mb-2">
       <v-icon icon="mdi-history" size="16" class="mr-1" />
       Signal History
@@ -72,19 +43,17 @@ function handleSelect(signal: Signal) {
     </v-alert>
 
     <!-- Signal List -->
-    <v-list v-else density="compact" class="bg-transparent">
+    <v-list v-else density="compact" class="bg-transparent pa-0">
       <v-list-item
         v-for="signal in props.signals"
         :key="signal.id"
-        class="signal-history-item mb-1"
-        rounded
+        rounded="lg"
+        border
+        class="mb-1"
         @click="handleSelect(signal)"
       >
         <template #prepend>
-          <v-avatar
-            :color="getStrategyColor(signal.strategy)"
-            size="32"
-          >
+          <v-avatar :color="getStrategyColor(signal.strategy)" size="32">
             <v-icon :icon="getStrategyIcon(signal.strategy)" size="18" color="white" />
           </v-avatar>
         </template>
@@ -97,25 +66,10 @@ function handleSelect(signal: Signal) {
         </v-list-item-title>
 
         <v-list-item-subtitle class="d-flex justify-space-between">
-          <span>
-            Entry: {{ formatPrice(signal.entryPrice) }}
-          </span>
-          <span class="text-caption">
-            {{ formatDate(signal.createdAt) }}
-          </span>
+          <span>Entry: {{ formatPrice(signal.prices.entry) }}</span>
+          <span class="text-caption">{{ formatThaiDate(signal.timestamp) }}</span>
         </v-list-item-subtitle>
       </v-list-item>
     </v-list>
   </div>
 </template>
-
-<style scoped>
-.signal-history-item {
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  cursor: pointer;
-}
-
-.signal-history-item:hover {
-  background-color: rgba(var(--v-theme-primary), 0.08);
-}
-</style>
