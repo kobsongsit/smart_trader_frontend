@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Symbol, SymbolIndicators, TrendDirection } from '../../../types/trading'
+import type { Symbol, SymbolIndicators, TrendDirection, Signal } from '../../../types/trading'
 import { formatPrice, getRSIStatus, getADXStrength, formatNumber, getTrendColor } from '../../../types/trading'
 
 interface Props {
@@ -18,8 +18,14 @@ const emit = defineEmits<{
   expand: [symbolId: number]
 }>()
 
+// Use Signals composable
+const { analyzeSignal, fetchSignalHistory, isAnalyzing, signalHistory, error: signalError } = useSignals()
+
 // State
 const isExpanded = ref(false)
+const showSignalResult = ref(false)
+const currentSignal = ref<Signal | null>(null)
+const showHistory = ref(false)
 
 // Computed - Price Info
 const currentPrice = computed(() => props.indicators?.currentPrice || null)
@@ -84,6 +90,27 @@ function getSymbolIcon(type: string): string {
     case 'FOREX': return 'mdi-currency-usd'
     default: return 'mdi-chart-box'
   }
+}
+
+// AI Analysis functions
+async function handleAnalyze(includeNews: boolean) {
+  const result = await analyzeSignal(props.symbol.id, includeNews)
+  if (result) {
+    currentSignal.value = result
+    showSignalResult.value = true
+  }
+}
+
+async function loadSignalHistory() {
+  showHistory.value = !showHistory.value
+  if (showHistory.value) {
+    await fetchSignalHistory(props.symbol.id, 5)
+  }
+}
+
+function handleSelectHistorySignal(signal: Signal) {
+  currentSignal.value = signal
+  showSignalResult.value = true
 }
 </script>
 
@@ -464,6 +491,61 @@ function getSymbolIcon(type: string): string {
             >
               {{ adxStrength.label }} Trend
             </v-chip>
+          </div>
+
+          <v-divider class="my-3" />
+
+          <!-- AI Signal Analysis -->
+          <div class="indicator-section">
+            <div class="text-overline text-primary mb-2">
+              <v-icon icon="mdi-robot" size="16" class="mr-1" />
+              AI Signal Analysis
+            </div>
+
+            <!-- Analyze Button -->
+            <TradingSignalAnalyzeButton
+              :loading="isAnalyzing"
+              @analyze="handleAnalyze"
+            />
+
+            <!-- Signal Error -->
+            <v-alert
+              v-if="signalError"
+              type="error"
+              variant="tonal"
+              density="compact"
+              class="mt-2"
+            >
+              {{ signalError }}
+            </v-alert>
+
+            <!-- Signal Result -->
+            <div v-if="showSignalResult && currentSignal" class="mt-3">
+              <TradingSignalResult :signal="currentSignal" />
+            </div>
+
+            <!-- History Toggle -->
+            <v-btn
+              variant="text"
+              size="small"
+              color="primary"
+              class="mt-2"
+              @click="loadSignalHistory"
+            >
+              <v-icon :icon="showHistory ? 'mdi-chevron-up' : 'mdi-chevron-down'" start />
+              {{ showHistory ? 'Hide' : 'Show' }} Signal History
+            </v-btn>
+
+            <!-- Signal History -->
+            <v-expand-transition>
+              <div v-show="showHistory" class="mt-2">
+                <TradingSignalHistory
+                  :signals="signalHistory"
+                  :loading="false"
+                  @select="handleSelectHistorySignal"
+                />
+              </div>
+            </v-expand-transition>
           </div>
 
         </v-card-text>
