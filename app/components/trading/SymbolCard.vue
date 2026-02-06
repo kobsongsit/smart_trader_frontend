@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Symbol, SymbolIndicators, TrendDirection, Signal } from '../../../types/trading'
+import type { Symbol, SymbolIndicators, TrendDirection, Signal, SymbolTrends, SymbolValidation } from '../../../types/trading'
 import { formatPrice, getRSIStatus, getADXStrength, formatNumber, getTrendColor } from '../../../types/trading'
 
 interface Props {
@@ -21,11 +21,19 @@ const emit = defineEmits<{
 // Use Signals composable
 const { analyzeSignal, fetchSignalHistory, isAnalyzing, signalHistory, error: signalError } = useSignals()
 
+// Use Trends composable (Layer 2)
+const { fetchTrends, getCachedTrends, isLoadingSymbol: isLoadingTrends } = useTrends()
+
+// Use Validation composable (Layer 3)
+const { fetchValidation, getCachedValidation, isLoadingSymbol: isLoadingValidation } = useValidation()
+
 // State
 const isExpanded = ref(false)
 const showSignalResult = ref(false)
 const currentSignal = ref<Signal | null>(null)
 const showHistory = ref(false)
+const trendsData = ref<SymbolTrends | null>(null)
+const validationData = ref<SymbolValidation | null>(null)
 
 // Computed - Price Info
 const currentPrice = computed(() => props.indicators?.currentPrice || null)
@@ -76,10 +84,44 @@ const trendCount = computed(() => {
 })
 
 // Methods
-function toggleExpand() {
+async function toggleExpand() {
   isExpanded.value = !isExpanded.value
   if (isExpanded.value) {
     emit('expand', props.symbol.id)
+
+    // Fetch trends and validation data when expanding
+    await Promise.all([
+      loadTrendsData(),
+      loadValidationData()
+    ])
+  }
+}
+
+// Load Trends data (Layer 2)
+async function loadTrendsData() {
+  const cached = getCachedTrends(props.symbol.id)
+  if (cached) {
+    trendsData.value = cached
+    return
+  }
+
+  const data = await fetchTrends(props.symbol.id)
+  if (data) {
+    trendsData.value = data
+  }
+}
+
+// Load Validation data (Layer 3)
+async function loadValidationData() {
+  const cached = getCachedValidation(props.symbol.id)
+  if (cached) {
+    validationData.value = cached
+    return
+  }
+
+  const data = await fetchValidation(props.symbol.id, '15m')
+  if (data) {
+    validationData.value = data
   }
 }
 
@@ -231,13 +273,39 @@ function handleSelectHistorySignal(signal: Signal) {
         <!-- Indicators Content -->
         <v-card-text v-else-if="props.indicators" class="pt-2">
 
-          <!-- Multi-Timeframe Trends (TOP PRIORITY) -->
-          <div v-if="trends" class="indicator-section">
+          <!-- Multi-Timeframe Trends with ADX (Layer 2) -->
+          <div class="indicator-section">
             <div class="text-overline text-primary mb-2">
               <v-icon icon="mdi-clock-outline" size="16" class="mr-1" />
               Multi-Timeframe Trends
             </div>
-            <div class="trends-grid mb-2">
+
+            <!-- Loading Trends -->
+            <div v-if="isLoadingTrends(props.symbol.id)" class="text-center py-2">
+              <v-progress-circular indeterminate size="20" width="2" />
+              <span class="text-caption ml-2">Loading trends...</span>
+            </div>
+
+            <!-- Trends Grid with ADX -->
+            <div v-else-if="trendsData" class="trends-grid-adx mb-2">
+              <div
+                v-for="(trend, timeframe) in trendsData.trends"
+                :key="timeframe"
+                class="trend-item-adx"
+              >
+                <span class="text-caption font-weight-medium">{{ timeframe }}</span>
+                <TradingTrendBadge
+                  :trend="trend.direction || 'NEUTRAL'"
+                  size="x-small"
+                />
+                <span class="text-caption text-medium-emphasis">
+                  ADX: {{ trend.adx !== null ? trend.adx.toFixed(0) : 'N/A' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Fallback: Old trends display -->
+            <div v-else-if="trends" class="trends-grid mb-2">
               <div
                 v-for="(trend, timeframe) in trends"
                 :key="timeframe"
@@ -250,15 +318,49 @@ function handleSelectHistorySignal(signal: Signal) {
                 />
               </div>
             </div>
+
+            <!-- Majority Chip -->
             <v-chip
-              :color="getTrendColor(majorityTrend as TrendDirection)"
+              v-if="trendsData || trends"
+              :color="getTrendColor((trendsData?.analysis?.majorityTrend || majorityTrend) as TrendDirection)"
               size="small"
               variant="flat"
             >
               <v-icon icon="mdi-check-circle" size="14" start />
-              Majority: {{ majorityTrend }} ({{ trendCount.up > trendCount.down ? trendCount.up : trendCount.down }}/{{ trendCount.total }})
+              Majority: {{ trendsData?.analysis?.majorityTrend || majorityTrend }}
+              ({{ trendsData ? (trendsData.analysis.upCount > trendsData.analysis.downCount ? trendsData.analysis.upCount : trendsData.analysis.downCount) : (trendCount.up > trendCount.down ? trendCount.up : trendCount.down) }}/5)
             </v-chip>
           </div>
+
+          <!-- Pre-Filter Status (Layer 2) -->
+          <template v-if="trendsData">
+            <v-divider class="my-2" />
+            <TradingPreFilterStatus
+              :pre-filter="trendsData.preFilter"
+              :analysis="trendsData.analysis"
+            />
+          </template>
+
+          <!-- ProIndicator Validation (Layer 3) -->
+          <template v-if="validationData || isLoadingValidation(props.symbol.id)">
+            <v-divider class="my-2" />
+            <div class="indicator-section">
+              <!-- Loading Validation -->
+              <div v-if="isLoadingValidation(props.symbol.id)" class="text-center py-2">
+                <v-progress-circular indeterminate size="20" width="2" />
+                <span class="text-caption ml-2">Loading validation...</span>
+              </div>
+
+              <!-- Validation Status -->
+              <TradingValidationStatus
+                v-else-if="validationData"
+                :validation="validationData.validation"
+                :bollinger-bands="validationData.bollingerBands"
+                :current-price="validationData.currentPrice"
+                :next-candle-close="validationData.nextCandleClose"
+              />
+            </div>
+          </template>
 
           <!-- Warnings -->
           <template v-if="warnings.length > 0">
@@ -587,5 +689,22 @@ function handleSelectHistorySignal(signal: Signal) {
   flex-direction: column;
   align-items: center;
   gap: 4px;
+}
+
+.trends-grid-adx {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  background: rgba(var(--v-theme-surface-variant), 0.3);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.trend-item-adx {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
 }
 </style>

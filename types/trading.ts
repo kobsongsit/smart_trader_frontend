@@ -84,6 +84,94 @@ export interface MultiTimeframeTrends {
   '1D': TrendDirection
 }
 
+// ============================================================================
+// Multi-Timeframe Trends API Types (Layer 2)
+// ============================================================================
+
+export interface TrendWithADX {
+  direction: TrendDirection | null
+  adx: number | null
+}
+
+export interface TimeframeTrendsWithADX {
+  '15m': TrendWithADX
+  '30m': TrendWithADX
+  '1H': TrendWithADX
+  '4H': TrendWithADX
+  '1D': TrendWithADX
+}
+
+export interface TrendAnalysis {
+  majorityTrend: TrendDirection
+  upCount: number
+  downCount: number
+  neutralCount: number
+  sidewaysCount: number
+  isSideways: boolean
+}
+
+export interface PreFilterResult {
+  shouldAnalyze: boolean
+  reason?: string | null
+  passedRules?: string[]
+  warnings?: string[]
+}
+
+export interface SymbolTrends {
+  symbol: string
+  symbolName: string
+  trends: TimeframeTrendsWithADX
+  analysis: TrendAnalysis
+  preFilter: PreFilterResult
+}
+
+// ============================================================================
+// ProIndicator Validation API Types (Layer 3)
+// ============================================================================
+
+export interface ValidationCheck {
+  passed: boolean
+  message: string
+  isWarning?: boolean
+}
+
+export interface ValidationChecks {
+  insideChannel: ValidationCheck
+  newHighLow: ValidationCheck
+  candleClose: ValidationCheck
+}
+
+export interface BollingerBandsPosition {
+  upper: number
+  middle: number
+  lower: number
+  pricePosition: string
+  percentB: string
+}
+
+export interface NextCandleClose {
+  timeframe: string
+  secondsRemaining: number
+  minutesRemaining: number
+}
+
+export interface ValidationResult {
+  isValid: boolean
+  checks: ValidationChecks
+  warnings?: string[]
+  reason?: string
+}
+
+export interface SymbolValidation {
+  symbol: string
+  symbolName: string
+  currentPrice: number
+  timestamp: string
+  validation: ValidationResult
+  bollingerBands: BollingerBandsPosition
+  nextCandleClose?: NextCandleClose
+}
+
 export interface Indicators {
   movingAverages: MovingAverages
   macd: MACD
@@ -198,4 +286,47 @@ export function formatPrice(value: number | null): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: value < 1 ? 6 : 2
   }).format(value)
+}
+
+// ============================================================================
+// Validation Helpers
+// ============================================================================
+
+export function getValidationCheckStatus(check: ValidationCheck): { icon: string; color: string } {
+  if (check.passed) {
+    return { icon: 'mdi-check-circle', color: 'success' }
+  }
+  if (check.isWarning) {
+    return { icon: 'mdi-alert', color: 'warning' }
+  }
+  return { icon: 'mdi-close-circle', color: 'error' }
+}
+
+export function getPreFilterStatus(preFilter: PreFilterResult): { label: string; color: string; icon: string } {
+  if (preFilter.shouldAnalyze) {
+    return { label: 'Ready to Analyze', color: 'success', icon: 'mdi-check-circle' }
+  }
+  return { label: 'Filtered Out', color: 'error', icon: 'mdi-filter-remove' }
+}
+
+export function getBBPositionColor(position: string): string {
+  if (position.includes('above upper') || position.includes('below lower')) {
+    return 'warning'
+  }
+  if (position.includes('upper zone')) {
+    return 'orange'
+  }
+  if (position.includes('lower zone')) {
+    return 'cyan'
+  }
+  return 'grey'
+}
+
+export function formatTimeRemaining(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds}s`
+  }
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${mins}m ${secs}s`
 }
