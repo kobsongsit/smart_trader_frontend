@@ -24,10 +24,6 @@ import {
   getBiasIcon,
   getSymbolTypeIcon,
   getConsensusColor,
-  getStrategyColor,
-  getStrategyIcon,
-  getConfidenceColor,
-  getPerformanceStatusColor,
 } from '../../../types/trading'
 
 interface Props {
@@ -40,6 +36,7 @@ const props = defineProps<Props>()
 const {
   getCachedAnalysis,
   isLoadingSymbol,
+  isAIAnalyzing,
   analyzeSignal,
   fetchSignalHistory,
   isAnalyzing,
@@ -56,6 +53,7 @@ const signalHistory = ref<SignalData[]>([])
 // ─── Analysis data (safe computed, no null assertions) ───
 const analysis = computed(() => getCachedAnalysis(props.symbol.id))
 const isLoading = computed(() => isLoadingSymbol(props.symbol.id))
+const isAIWorking = computed(() => isAIAnalyzing(props.symbol.id))
 
 const price = computed(() => analysis.value?.price ?? null)
 const indicators = computed(() => analysis.value?.indicators ?? null)
@@ -89,29 +87,6 @@ const trendSummaryText = computed(() => {
   return `${a.majorityTrend} ${Math.max(a.upCount, a.downCount)}/5`
 })
 
-// Signal derived
-const performanceColor = computed(() =>
-  signal.value?.performance ? getPerformanceStatusColor(signal.value.performance.status) : 'grey'
-)
-const profitLossText = computed(() => {
-  if (!signal.value?.performance) return ''
-  const pnl = signal.value.performance.profitLossPercent
-  return `${pnl >= 0 ? '+' : ''}${pnl.toFixed(3)}%`
-})
-const profitLossClass = computed(() => {
-  if (!signal.value?.performance) return ''
-  return signal.value.performance.profitLossPercent >= 0 ? 'text-success' : 'text-error'
-})
-
-// Stale data warnings
-const isSignalStale = computed(() => {
-  if (!meta.value?.dataAge) return false
-  return meta.value.dataAge.signalSeconds > 86400
-})
-const isPriceStale = computed(() => {
-  if (!meta.value?.dataAge) return false
-  return meta.value.dataAge.priceSeconds > 300
-})
 
 // ─── Moving Averages safe access ───
 const maData = computed(() => indicators.value?.movingAverages ?? null)
@@ -189,18 +164,6 @@ function handleSelectHistorySignal(sig: SignalData) {
         </div>
       </div>
 
-      <!-- Stale price warning -->
-      <v-alert
-        v-if="isPriceStale"
-        type="warning"
-        variant="tonal"
-        density="compact"
-        class="mb-2"
-        icon="mdi-clock-alert-outline"
-      >
-        <span class="text-caption">ข้อมูลราคาเก่ากว่า 5 นาที</span>
-      </v-alert>
-
       <!-- Row 2: Quick Status Chips -->
       <div v-if="analysis" class="d-flex flex-wrap ga-1 mb-2">
         <!-- Indicator Bias -->
@@ -252,47 +215,14 @@ function handleSelectHistorySignal(sig: SignalData) {
         </v-chip>
       </div>
 
-      <!-- Row 3: Latest Signal Preview -->
-      <v-sheet v-if="signal" color="grey-darken-4" rounded="lg" class="pa-2">
-        <div class="d-flex align-center justify-space-between">
-          <div class="d-flex align-center ga-2">
-            <v-chip :color="getStrategyColor(signal.strategy)" size="small" variant="elevated">
-              <v-icon :icon="getStrategyIcon(signal.strategy)" start size="14" />
-              {{ signal.strategy }}
-            </v-chip>
-            <v-progress-circular
-              :model-value="signal.confidence"
-              :color="getConfidenceColor(signal.confidence)"
-              :size="30"
-              :width="3"
-            >
-              <span style="font-size: 9px;" class="font-weight-bold">{{ signal.confidence }}</span>
-            </v-progress-circular>
-            <v-chip size="x-small" variant="tonal" color="info">
-              R:R {{ signal.prices.riskRewardRatio }}
-            </v-chip>
-          </div>
-          <div v-if="signal.performance" class="text-right">
-            <v-chip :color="performanceColor" size="x-small" variant="flat" class="mb-1">
-              {{ signal.performance.statusLabel }}
-            </v-chip>
-            <div :class="['text-caption font-weight-bold', profitLossClass]">
-              {{ profitLossText }}
-            </div>
-          </div>
+      <!-- AI Analyzing Indicator -->
+      <v-sheet v-if="isAIWorking" color="grey-darken-4" rounded="lg" class="pa-2 mt-2">
+        <div class="d-flex align-center ga-2">
+          <v-progress-circular indeterminate color="primary" size="18" width="2" />
+          <span class="text-caption text-primary font-weight-medium">
+            AI กำลังวิเคราะห์...
+          </span>
         </div>
-
-        <!-- Stale signal warning -->
-        <v-alert
-          v-if="isSignalStale"
-          type="warning"
-          variant="tonal"
-          density="compact"
-          class="mt-2"
-          icon="mdi-clock-alert-outline"
-        >
-          <span class="text-caption">Signal เก่ากว่า 1 วัน — ควรวิเคราะห์ใหม่</span>
-        </v-alert>
       </v-sheet>
 
       <!-- Loading skeleton for summary -->

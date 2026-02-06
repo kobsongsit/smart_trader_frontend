@@ -1,15 +1,28 @@
 <script setup lang="ts">
 const { symbols, isLoading, error, fetchActiveSymbols } = useSymbols()
 const { fetchAnalysis } = useAnalysis()
+const { connect, disconnect, subscribeSymbol, unsubscribeSymbol, isConnected } = useSocket()
 
-// Fetch symbols on mount, then sequentially fetch analysis for each
+// Fetch symbols on mount, connect WebSocket, then fetch analysis for each
 onMounted(async () => {
+  // Connect WebSocket
+  connect()
+
   await fetchActiveSymbols()
 
-  // Fetch analysis for each symbol sequentially
+  // Subscribe & fetch analysis for each symbol sequentially
   for (const symbol of symbols.value) {
+    subscribeSymbol(symbol.id)
     await fetchAnalysis(symbol.id)
   }
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  for (const symbol of symbols.value) {
+    unsubscribeSymbol(symbol.id)
+  }
+  disconnect()
 })
 </script>
 
@@ -48,8 +61,23 @@ onMounted(async () => {
     <!-- Symbol Cards -->
     <div v-else>
       <div class="d-flex align-center justify-space-between mb-3">
-        <div class="text-caption text-medium-emphasis">
-          {{ symbols.length }} symbol{{ symbols.length > 1 ? 's' : '' }}
+        <div class="d-flex align-center ga-2">
+          <span class="text-caption text-medium-emphasis">
+            {{ symbols.length }} symbol{{ symbols.length > 1 ? 's' : '' }}
+          </span>
+          <!-- WebSocket status indicator -->
+          <v-chip
+            :color="isConnected ? 'success' : 'grey'"
+            size="x-small"
+            variant="tonal"
+          >
+            <v-icon
+              :icon="isConnected ? 'mdi-access-point' : 'mdi-access-point-off'"
+              size="12"
+              start
+            />
+            {{ isConnected ? 'Live' : 'Offline' }}
+          </v-chip>
         </div>
         <v-btn
           variant="text"

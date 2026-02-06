@@ -414,6 +414,7 @@ export type WSServerEvent =
   | 'trends:update'
   | 'validation:update'
   | 'signal:new'
+  | 'signal:loading'
   | 'news:update'
   | 'error'
 
