@@ -1,7 +1,8 @@
 <script setup lang="ts">
-const { fetchSummary, clearCache } = useAnalysis()
+const { clearCache } = useAnalysis()
 
 const isRefreshing = ref(false)
+const refreshKey = ref(0)
 
 useHead({
   title: 'Smart Trader - AI Trading Signals',
@@ -14,9 +15,11 @@ async function handleRefresh() {
   isRefreshing.value = true
   try {
     clearCache()
-    await fetchSummary({ forceRefresh: true })
+    // Increment key → remount SymbolList → triggers progressive loading fresh
+    refreshKey.value++
   } finally {
-    isRefreshing.value = false
+    // Small delay so user sees the loading indicator
+    setTimeout(() => { isRefreshing.value = false }, 500)
   }
 }
 </script>
@@ -47,8 +50,8 @@ async function handleRefresh() {
 
     <v-divider class="mb-4" />
 
-    <!-- Symbol List -->
-    <TradingSymbolList />
+    <!-- Symbol List (key change → remount → progressive loading fresh) -->
+    <TradingSymbolList :key="refreshKey" />
 
     <!-- Footer -->
     <v-sheet color="transparent" class="pa-3 text-center mt-4">

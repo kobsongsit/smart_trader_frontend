@@ -90,6 +90,7 @@ export function useAnalysis() {
 
   /**
    * Fetch summary for all active symbols — 1 request for the entire list
+   * (Legacy: ใช้ได้ถ้าต้องการดึงทั้งหมดในครั้งเดียว)
    */
   async function fetchSummary(options?: { forceRefresh?: boolean }): Promise<SymbolSummary[]> {
     const { forceRefresh = false } = options || {}
@@ -123,6 +124,41 @@ export function useAnalysis() {
       return []
     } finally {
       summaryLoading.value = false
+    }
+  }
+
+  /**
+   * Fetch summary for a single symbol (Progressive Loading)
+   * GET /api/analysis/summary?symbolId=X
+   *
+   * เรียกทีละ symbol แล้วเติมลงใน summaryList ทันที
+   * UI จะ reactive update เพราะ summaryList เป็น ref
+   */
+  async function fetchSymbolSummary(symbolId: number): Promise<SymbolSummary | null> {
+    try {
+      const url = `${baseUrl}/api/analysis/summary?symbolId=${symbolId}`
+      const { data: response } = await axios.get<ApiResponse<SummaryResponse>>(url)
+
+      if (response.success && response.data.symbols.length > 0) {
+        const summary = response.data.symbols[0] as SymbolSummary
+
+        // Upsert into summaryList — replace if exists, push if new
+        const idx = summaryList.value.findIndex(s => s.id === symbolId)
+        if (idx >= 0) {
+          summaryList.value.splice(idx, 1, summary)
+        } else {
+          summaryList.value.push(summary)
+        }
+
+        // Update lastRefresh
+        summaryLastRefresh.value = response.data.lastRefresh
+
+        return summary
+      }
+      return null
+    } catch (err: any) {
+      console.error(`[useAnalysis] Error fetching summary for symbol ${symbolId}:`, err)
+      return null
     }
   }
 
@@ -330,6 +366,7 @@ export function useAnalysis() {
 
     // Summary actions
     fetchSummary,
+    fetchSymbolSummary,
     getCachedSummary,
 
     // Analysis actions

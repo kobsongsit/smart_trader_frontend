@@ -1,28 +1,62 @@
 <script setup lang="ts">
 const {
-  summaryList,
-  summaryLoading,
   summaryError,
   summaryLastRefresh,
-  fetchSummary,
+  fetchSymbolSummary,
+  getCachedSummary,
 } = useAnalysis()
 
+const { symbols: symbolsList, fetchActiveSymbols } = useSymbols()
 const { connect, disconnect, subscribeSymbol, unsubscribeSymbol, isConnected } = useSocket()
 
-// Fetch summary on mount + connect WebSocket
-onMounted(async () => {
-  connect()
-  await fetchSummary()
+// Track which symbols are still loading their summary
+const loadingSymbolIds = ref<Set<number>>(new Set())
+const symbolsLoaded = ref(false)
 
-  // Subscribe WebSocket for each symbol
-  for (const s of summaryList.value) {
+function isSymbolLoading(symbolId: number): boolean {
+  return loadingSymbolIds.value.has(symbolId)
+}
+
+/**
+ * Progressive Loading Flow:
+ * 1. GET /api/symbols?isActive=true  → ได้ list ทันที (เร็ว ~50ms)
+ * 2. แต่ละ symbol เรียก GET /api/analysis/summary?symbolId=X ทีละตัว
+ *    → ทยอยเติม detail ลง summaryList (reactive)
+ */
+async function loadProgressively() {
+  // Step 1: Fetch active symbols list (fast — just name, type, id)
+  await fetchActiveSymbols()
+  symbolsLoaded.value = true
+
+  if (symbolsList.value.length === 0) return
+
+  // Connect WebSocket + subscribe
+  connect()
+  for (const s of symbolsList.value) {
     subscribeSymbol(s.id)
   }
+
+  // Step 2: Fetch summary for each symbol progressively (parallel)
+  const promises = symbolsList.value.map(async (s) => {
+    loadingSymbolIds.value.add(s.id)
+    try {
+      await fetchSymbolSummary(s.id)
+    } finally {
+      loadingSymbolIds.value.delete(s.id)
+    }
+  })
+
+  await Promise.allSettled(promises)
+}
+
+// Fetch on mount
+onMounted(() => {
+  loadProgressively()
 })
 
 // Cleanup on unmount
 onUnmounted(() => {
-  for (const s of summaryList.value) {
+  for (const s of symbolsList.value) {
     unsubscribeSymbol(s.id)
   }
   disconnect()
@@ -31,22 +65,22 @@ onUnmounted(() => {
 
 <template>
   <div>
-    <!-- Loading State -->
-    <div v-if="summaryLoading && summaryList.length === 0" class="text-center py-8">
+    <!-- Loading State (initial — waiting for symbol list) -->
+    <div v-if="!symbolsLoaded" class="text-center py-8">
       <v-progress-circular indeterminate color="primary" />
       <div class="text-caption mt-2">กำลังโหลดข้อมูล...</div>
     </div>
 
     <!-- Error State -->
     <v-alert
-      v-else-if="summaryError && summaryList.length === 0"
+      v-else-if="summaryError && symbolsList.length === 0"
       type="error"
       variant="tonal"
       class="mb-4"
     >
       {{ summaryError }}
       <template #append>
-        <v-btn variant="text" size="small" @click="fetchSummary({ forceRefresh: true })">
+        <v-btn variant="text" size="small" @click="loadProgressively">
           ลองใหม่
         </v-btn>
       </template>
@@ -54,14 +88,14 @@ onUnmounted(() => {
 
     <!-- Empty State -->
     <div
-      v-else-if="summaryList.length === 0"
+      v-else-if="symbolsList.length === 0"
       class="text-center py-8 text-medium-emphasis"
     >
       <v-icon icon="mdi-chart-box-outline" size="48" class="mb-2" />
       <div>ไม่พบ Symbol</div>
     </div>
 
-    <!-- Symbol Cards -->
+    <!-- Symbol Cards (Progressive) -->
     <div v-else>
       <!-- Header: N SYMBOLS LIVE ... Last Update -->
       <div class="d-flex align-center justify-space-between mb-3">
@@ -72,7 +106,7 @@ onUnmounted(() => {
             size="10"
           />
           <span class="text-caption font-weight-bold text-uppercase">
-            {{ summaryList.length }} Symbols {{ isConnected ? 'Live' : 'Offline' }}
+            {{ symbolsList.length }} Symbols {{ isConnected ? 'Live' : 'Offline' }}
           </span>
         </div>
         <span v-if="summaryLastRefresh" class="text-caption text-medium-emphasis">
@@ -80,11 +114,42 @@ onUnmounted(() => {
         </span>
       </div>
 
-      <TradingSymbolCard
-        v-for="summary in summaryList"
-        :key="summary.id"
-        :summary="summary"
-      />
+      <!-- Render cards for ALL symbols — show skeleton if summary not loaded yet -->
+      <template v-for="sym in symbolsList" :key="sym.id">
+        <!-- Has summary data → render full card -->
+        <TradingSymbolCard
+          v-if="getCachedSummary(sym.id)"
+          :summary="getCachedSummary(sym.id)!"
+        />
+
+        <!-- Still loading → skeleton card -->
+        <v-card v-else elevation="0" rounded="lg" class="mb-3 glass-card">
+          <v-card-text>
+            <div class="d-flex align-center justify-space-between mb-3">
+              <div class="d-flex align-center">
+                <v-avatar color="grey-darken-3" size="46" rounded="lg" class="mr-3">
+                  <span class="text-white font-weight-bold text-body-1">{{ sym.name?.charAt(0)?.toUpperCase() || '?' }}</span>
+                </v-avatar>
+                <div>
+                  <div class="d-flex align-center ga-2">
+                    <span class="text-body-1 font-weight-bold">{{ sym.name || sym.displayName }}</span>
+                    <v-chip size="x-small" variant="outlined" rounded="lg">{{ sym.type }}</v-chip>
+                  </div>
+                  <div class="text-caption text-medium-emphasis">กำลังโหลด...</div>
+                </div>
+              </div>
+              <v-progress-circular
+                v-if="isSymbolLoading(sym.id)"
+                indeterminate
+                color="primary"
+                size="20"
+                width="2"
+              />
+            </div>
+            <v-skeleton-loader type="text@2" />
+          </v-card-text>
+        </v-card>
+      </template>
     </div>
   </div>
 </template>
