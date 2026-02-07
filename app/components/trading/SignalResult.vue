@@ -4,9 +4,7 @@ import {
   formatPrice,
   formatThaiDate,
   getStrategyColor,
-  getStrategyIcon,
   getConfidenceColor,
-  getPerformanceStatusColor
 } from '../../../types/trading'
 
 interface Props {
@@ -19,197 +17,128 @@ const formattedDate = computed(() => {
   if (!props.signal.timestamp) return ''
   return formatThaiDate(props.signal.timestamp)
 })
+
+const strategyIcon = computed(() => {
+  return props.signal.strategy === 'BUY' ? 'mdi-arrow-top-right' : 'mdi-arrow-bottom-right'
+})
 </script>
 
 <template>
-  <v-card variant="outlined" rounded="lg">
-    <v-card-text class="pb-2">
+  <v-sheet rounded="xl" class="glass-card pa-4">
 
-      <!-- Header - Strategy & Confidence -->
-      <div class="d-flex align-center justify-space-between mb-3">
-        <div>
-          <v-chip :color="getStrategyColor(signal.strategy)" size="large" variant="elevated">
-            <v-icon :icon="getStrategyIcon(signal.strategy)" start size="20" />
-            <span class="text-h6 font-weight-bold">{{ signal.strategy }}</span>
-          </v-chip>
-          <div class="text-caption text-medium-emphasis mt-1">{{ signal.strategyLabel }}</div>
-        </div>
-
-        <div class="text-right">
-          <div class="text-caption text-medium-emphasis">Confidence</div>
-          <v-progress-circular
-            :model-value="signal.confidence"
-            :color="getConfidenceColor(signal.confidence)"
-            :size="50"
-            :width="5"
-          >
-            <span class="text-caption font-weight-bold">{{ signal.confidence }}%</span>
-          </v-progress-circular>
-          <div class="text-caption text-medium-emphasis">{{ signal.confidenceLabel }}</div>
-        </div>
+    <!-- Header - Strategy & Confidence -->
+    <div class="d-flex align-center justify-space-between mb-3">
+      <div>
+        <v-btn
+          :color="getStrategyColor(signal.strategy)"
+          variant="elevated"
+          size="large"
+          rounded="lg"
+          class="font-weight-black text-h6 px-6"
+        >
+          <v-icon :icon="strategyIcon" start size="24" />
+          {{ signal.strategy }}
+        </v-btn>
+        <div class="text-caption text-medium-emphasis mt-2">{{ signal.strategyLabel }}</div>
       </div>
 
-      <!-- Price Levels -->
-      <v-divider class="mb-3" />
-      <div class="text-overline text-primary mb-2">
-        <v-icon icon="mdi-target" size="16" class="mr-1" />
-        Price Levels
+      <div class="text-center">
+        <v-progress-circular
+          :model-value="signal.confidence"
+          :color="getConfidenceColor(signal.confidence)"
+          :size="70"
+          :width="6"
+        >
+          <div>
+            <div class="font-weight-black font-mono" style="font-size: 13px; line-height: 1.2;">{{ signal.confidence }}%</div>
+            <div class="text-medium-emphasis" style="font-size: 7px; line-height: 1;">CONFIDENCE</div>
+          </div>
+        </v-progress-circular>
       </div>
-      <v-row dense>
-        <v-col cols="4">
-          <div class="text-center">
-            <div class="text-caption text-medium-emphasis">Entry</div>
-            <div class="text-subtitle-2 font-weight-bold">
-              {{ formatPrice(signal.prices.entry) }}
-            </div>
-          </div>
-        </v-col>
-        <v-col cols="4">
-          <div class="text-center">
-            <div class="text-caption text-success">Take Profit</div>
-            <div class="text-subtitle-2 font-weight-bold text-success">
-              {{ formatPrice(signal.prices.takeProfit) }}
-            </div>
-            <div class="text-caption text-success">+{{ signal.prices.profitPips }} pips</div>
-          </div>
-        </v-col>
-        <v-col cols="4">
-          <div class="text-center">
-            <div class="text-caption text-error">Stop Loss</div>
-            <div class="text-subtitle-2 font-weight-bold text-error">
-              {{ formatPrice(signal.prices.stopLoss) }}
-            </div>
-            <div class="text-caption text-error">-{{ signal.prices.lossPips }} pips</div>
-          </div>
-        </v-col>
-      </v-row>
+    </div>
 
-      <!-- Risk/Reward + Potential -->
-      <div class="d-flex justify-center ga-2 mt-3">
-        <v-chip size="small" variant="tonal" color="info">
-          <v-icon icon="mdi-scale-balance" start size="14" />
-          R:R {{ signal.prices.riskRewardRatio }}
-        </v-chip>
-        <v-chip size="small" variant="tonal" color="success">
-          +{{ signal.prices.potentialProfit }}%
-        </v-chip>
-        <v-chip size="small" variant="tonal" color="error">
-          -{{ signal.prices.potentialLoss }}%
-        </v-chip>
+    <!-- Price Levels -->
+    <v-row dense class="mb-3">
+      <v-col cols="4" class="d-flex">
+        <v-sheet rounded="lg" class="glass-sheet pa-3 flex-fill">
+          <div class="text-caption text-medium-emphasis font-weight-bold">ENTRY</div>
+          <div class="text-subtitle-1 font-weight-bold font-mono">
+            {{ formatPrice(signal.prices.entry) }}
+          </div>
+        </v-sheet>
+      </v-col>
+      <v-col cols="4" class="d-flex">
+        <v-sheet rounded="lg" class="glass-sheet pa-3 flex-fill">
+          <div class="text-caption text-success font-weight-bold">TAKE PROFIT</div>
+          <div class="text-subtitle-1 font-weight-bold text-success font-mono">
+            {{ formatPrice(signal.prices.takeProfit) }}
+          </div>
+          <div class="text-caption text-success">+{{ signal.prices.profitPips }} pips</div>
+        </v-sheet>
+      </v-col>
+      <v-col cols="4" class="d-flex">
+        <v-sheet rounded="lg" class="glass-sheet pa-3 flex-fill">
+          <div class="text-caption text-error font-weight-bold">STOP LOSS</div>
+          <div class="text-subtitle-1 font-weight-bold text-error font-mono">
+            {{ formatPrice(signal.prices.stopLoss) }}
+          </div>
+          <div class="text-caption text-error">-{{ signal.prices.lossPips }} pips</div>
+        </v-sheet>
+      </v-col>
+    </v-row>
+
+    <!-- Risk/Reward + Potential -->
+    <div class="d-flex flex-wrap ga-2 mb-4">
+      <v-chip size="small" variant="tonal" color="info" class="font-mono">
+        <v-icon icon="mdi-scale-balance" start size="14" />
+        R:R {{ signal.prices.riskRewardRatio }}
+      </v-chip>
+      <v-chip size="small" variant="tonal" color="success" class="font-mono">
+        +{{ signal.prices.potentialProfit }}%
+      </v-chip>
+      <v-chip size="small" variant="tonal" color="error" class="font-mono">
+        -{{ signal.prices.potentialLoss }}%
+      </v-chip>
+    </div>
+
+    <!-- Analysis Summary -->
+    <v-sheet rounded="lg" class="glass-sheet pa-3 mb-3">
+      <div class="text-caption font-weight-bold mb-2">
+        <v-icon icon="mdi-text-box-outline" size="14" class="mr-1" />
+        ANALYSIS SUMMARY
       </div>
-
-      <!-- Support & Resistance -->
-      <v-divider class="my-3" />
-      <v-row dense>
-        <v-col cols="6">
-          <div class="text-caption text-success mb-1">
-            <v-icon icon="mdi-arrow-up" size="14" />
-            Support Levels
-          </div>
-          <div v-if="signal.levels.support?.length > 0">
-            <v-chip
-              v-for="(level, idx) in signal.levels.support"
-              :key="'s-' + idx"
-              size="x-small"
-              variant="tonal"
-              color="success"
-              class="mr-1 mb-1"
-            >
-              {{ formatPrice(level) }}
-            </v-chip>
-          </div>
-          <div v-else class="text-caption text-medium-emphasis">N/A</div>
-        </v-col>
-        <v-col cols="6">
-          <div class="text-caption text-error mb-1">
-            <v-icon icon="mdi-arrow-down" size="14" />
-            Resistance Levels
-          </div>
-          <div v-if="signal.levels.resistance?.length > 0">
-            <v-chip
-              v-for="(level, idx) in signal.levels.resistance"
-              :key="'r-' + idx"
-              size="x-small"
-              variant="tonal"
-              color="error"
-              class="mr-1 mb-1"
-            >
-              {{ formatPrice(level) }}
-            </v-chip>
-          </div>
-          <div v-else class="text-caption text-medium-emphasis">N/A</div>
-        </v-col>
-      </v-row>
-
-      <!-- Analysis Summary -->
-      <v-divider class="my-3" />
-      <div class="text-overline text-primary mb-2">
-        <v-icon icon="mdi-text-box-outline" size="16" class="mr-1" />
-        Analysis Summary
-      </div>
-      <p class="text-body-2 mb-2">{{ signal.analysis.summary }}</p>
+      <p class="text-body-2 text-medium-emphasis mb-0">{{ signal.analysis.summary }}</p>
 
       <!-- Key Factors -->
       <div v-if="signal.analysis.keyFactors?.length > 0" class="mt-3">
-        <div class="text-caption text-medium-emphasis mb-1">Key Factors:</div>
-        <ul class="text-body-2 pl-4">
-          <li v-for="(factor, idx) in signal.analysis.keyFactors" :key="'f-' + idx">
+        <ul class="text-body-2 pl-4 mb-0">
+          <li v-for="(factor, idx) in signal.analysis.keyFactors" :key="'f-' + idx" class="text-medium-emphasis mb-1">
             {{ factor }}
           </li>
         </ul>
       </div>
+    </v-sheet>
 
-      <!-- Warnings -->
-      <template v-if="signal.analysis.warnings?.length > 0">
-        <v-divider class="my-3" />
-        <v-alert
-          v-for="(warning, idx) in signal.analysis.warnings"
-          :key="'w-' + idx"
-          type="warning"
-          variant="tonal"
-          density="compact"
-          class="mb-1"
-        >
-          {{ warning }}
-        </v-alert>
-      </template>
-
-      <!-- Performance (if active signal) -->
-      <template v-if="signal.performance">
-        <v-divider class="my-3" />
-        <div class="text-overline text-primary mb-2">
-          <v-icon icon="mdi-chart-timeline-variant" size="16" class="mr-1" />
-          Performance
+    <!-- Warnings -->
+    <div v-if="signal.analysis.warnings?.length > 0">
+      <v-sheet
+        v-for="(warning, idx) in signal.analysis.warnings"
+        :key="'w-' + idx"
+        rounded="lg"
+        class="pa-3 mb-2"
+        style="background: rgba(251, 140, 0, 0.08); border: 1px solid rgba(251, 140, 0, 0.2);"
+      >
+        <div class="d-flex ga-2">
+          <v-icon icon="mdi-alert-circle-outline" color="warning" size="18" class="flex-shrink-0 mt-1" />
+          <span class="text-body-2" style="color: rgba(251, 192, 45, 0.9);">{{ warning }}</span>
         </div>
-        <div class="d-flex align-center justify-space-between">
-          <v-chip :color="getPerformanceStatusColor(signal.performance.status)" size="small" variant="flat">
-            {{ signal.performance.statusLabel }}
-          </v-chip>
-          <v-chip
-            :color="signal.performance.profitLossPercent >= 0 ? 'success' : 'error'"
-            size="small"
-            variant="tonal"
-          >
-            {{ signal.performance.profitLossPercent >= 0 ? '+' : '' }}{{ signal.performance.profitLossPercent.toFixed(3) }}%
-          </v-chip>
-        </div>
-        <v-row dense class="mt-2">
-          <v-col cols="6">
-            <div class="text-caption text-medium-emphasis">Max Profit</div>
-            <div class="text-body-2 text-success">+{{ signal.performance.maxProfit }}%</div>
-          </v-col>
-          <v-col cols="6">
-            <div class="text-caption text-medium-emphasis">Max Drawdown</div>
-            <div class="text-body-2 text-error">{{ signal.performance.maxDrawdown }}%</div>
-          </v-col>
-        </v-row>
-      </template>
+      </v-sheet>
+    </div>
 
-      <!-- Timestamp -->
-      <div class="text-caption text-medium-emphasis text-right mt-3">
-        <v-icon icon="mdi-clock-outline" size="12" />
-        {{ formattedDate }}
-      </div>
-    </v-card-text>
-  </v-card>
+    <!-- Timestamp -->
+    <div class="text-caption text-medium-emphasis text-center mt-3">
+      <v-icon icon="mdi-clock-outline" size="12" class="mr-1" />
+      {{ formattedDate }}
+    </div>
+  </v-sheet>
 </template>

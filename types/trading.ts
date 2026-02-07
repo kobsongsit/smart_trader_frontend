@@ -881,3 +881,22 @@ export interface ChartApiResponse {
   data: ChartData
   meta: ChartMeta
 }
+
+// ============================================================================
+// Timestamp Check API Types (GET /api/analysis/timestamps)
+// ============================================================================
+
+export interface SymbolTimestamps {
+  symbolId: number
+  timestamps: {
+    price: string
+    indicators: string
+    trends: string
+    signal: string | null
+    summary: string
+  }
+}
+
+export interface TimestampCheckResponse {
+  symbols: SymbolTimestamps[]
+}

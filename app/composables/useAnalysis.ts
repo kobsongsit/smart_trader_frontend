@@ -1,6 +1,6 @@
 import { ref, computed, readonly } from 'vue'
 import axios from 'axios'
-import type { AnalysisData, ApiResponse, SignalData, SymbolSummary, SummaryResponse } from '../../types/trading'
+import type { AnalysisData, ApiResponse, SignalData, SymbolSummary, SummaryResponse, TimestampCheckResponse } from '../../types/trading'
 
 /**
  * Composable สำหรับ Analysis API + WebSocket integration
@@ -8,6 +8,7 @@ import type { AnalysisData, ApiResponse, SignalData, SymbolSummary, SummaryRespo
  * APIs:
  * - GET /api/analysis/summary     → ข้อมูลสรุปทุก symbol (เรียกครั้งเดียว)
  * - GET /api/analysis/:symbolId   → full analysis สำหรับ detail (lazy load)
+ * - GET /api/analysis/timestamps  → lightweight timestamp check (cache freshness)
  * - POST /api/signals/analyze     → request AI signal analysis
  * - GET /api/signals/:symbolId    → signal history
  *
@@ -315,6 +316,105 @@ export function useAnalysis() {
     }
   }
 
+  // ============================================================
+  // Cache Freshness Check (GET /api/analysis/timestamps)
+  // ============================================================
+
+  /**
+   * ตรวจสอบ data freshness ของ 1 symbol
+   * เปรียบเทียบ cached meta.timestamp กับ backend timestamp
+   * ถ้า backend ใหม่กว่า → auto re-fetch analysis + summary
+   *
+   * @returns true ถ้ามีการ refresh, false ถ้า data ยัง fresh
+   */
+  async function checkFreshness(symbolId: number): Promise<boolean> {
+    try {
+      const url = `${baseUrl}/api/analysis/timestamps?symbolIds=${symbolId}`
+      const { data: response } = await axios.get<ApiResponse<TimestampCheckResponse>>(url)
+
+      if (!response.success || !response.data.symbols?.length) {
+        return false
+      }
+
+      const serverTs = response.data.symbols[0]
+      if (!serverTs) return false
+
+      // เปรียบเทียบกับ cached timestamp
+      const cached = analysisCache.value.get(symbolId)
+      const cachedTimestamp = cached?.meta?.timestamp
+
+      // ถ้าไม่มี cache → ต้อง fetch ใหม่
+      // ถ้ามี cache แต่ server timestamp ใหม่กว่า → re-fetch
+      const serverLatest = serverTs.timestamps.price // ใช้ price timestamp เป็นตัวอ้างอิงหลัก
+      const needsRefresh = !cachedTimestamp || new Date(serverLatest) > new Date(cachedTimestamp)
+
+      if (needsRefresh) {
+        console.log(`[useAnalysis] Data stale for symbol ${symbolId}, refreshing...`)
+        // Re-fetch ทั้ง analysis และ summary พร้อมกัน
+        await Promise.all([
+          fetchAnalysis(symbolId, { forceRefresh: true }),
+          fetchSymbolSummary(symbolId),
+        ])
+        return true
+      }
+
+      return false
+    } catch (err: any) {
+      // Fail silently — ใช้ cached data ต่อไป ไม่ block UI
+      console.warn(`[useAnalysis] Freshness check failed for symbol ${symbolId}:`, err.message)
+      return false
+    }
+  }
+
+  /**
+   * ตรวจสอบ data freshness แบบ batch (หลาย symbol พร้อมกัน)
+   * เหมาะสำหรับ list page — เช็คทีเดียวหลาย symbol
+   *
+   * @returns list ของ symbolIds ที่ถูก refresh
+   */
+  async function checkFreshnessBatch(symbolIds: number[]): Promise<number[]> {
+    if (symbolIds.length === 0) return []
+
+    try {
+      const idsParam = symbolIds.join(',')
+      const url = `${baseUrl}/api/analysis/timestamps?symbolIds=${idsParam}`
+      const { data: response } = await axios.get<ApiResponse<TimestampCheckResponse>>(url)
+
+      if (!response.success || !response.data.symbols?.length) {
+        return []
+      }
+
+      const refreshedIds: number[] = []
+      const refreshPromises: Promise<any>[] = []
+
+      for (const serverTs of response.data.symbols) {
+        const cached = analysisCache.value.get(serverTs.symbolId)
+        const cachedTimestamp = cached?.meta?.timestamp
+        const serverLatest = serverTs.timestamps.price
+
+        const needsRefresh = !cachedTimestamp || new Date(serverLatest) > new Date(cachedTimestamp)
+
+        if (needsRefresh) {
+          refreshedIds.push(serverTs.symbolId)
+          refreshPromises.push(
+            fetchAnalysis(serverTs.symbolId, { forceRefresh: true }),
+            fetchSymbolSummary(serverTs.symbolId),
+          )
+        }
+      }
+
+      if (refreshPromises.length > 0) {
+        console.log(`[useAnalysis] Refreshing ${refreshedIds.length} stale symbols:`, refreshedIds)
+        await Promise.allSettled(refreshPromises)
+      }
+
+      return refreshedIds
+    } catch (err: any) {
+      console.warn('[useAnalysis] Batch freshness check failed:', err.message)
+      return []
+    }
+  }
+
   /**
    * Update a specific section in cache (for WebSocket partial updates)
    */
@@ -378,6 +478,10 @@ export function useAnalysis() {
     getCachedAnalysis,
     getError,
     updateCacheSection,
-    clearCache
+    clearCache,
+
+    // Freshness check
+    checkFreshness,
+    checkFreshnessBatch
   }
 }

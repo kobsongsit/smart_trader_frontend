@@ -56,7 +56,7 @@ const chartOptions: DeepPartial<ChartOptions> = {
   layout: {
     background: { color: 'transparent' },
     textColor: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 11,
+    fontSize: 9,
   },
   grid: {
     vertLines: { color: 'rgba(255, 255, 255, 0.06)' },
@@ -172,9 +172,26 @@ function createChartInstance() {
   resizeObserver.observe(chartContainer.value)
 }
 
+// ─── Determine price precision based on price range ───
+function getPriceFormat(candles: ChartData['candles']) {
+  if (!candles || candles.length === 0) return { precision: 2, minMove: 0.01 }
+
+  const samplePrice = candles[candles.length - 1].close
+  if (samplePrice < 0.01) return { precision: 8, minMove: 0.00000001 }
+  if (samplePrice < 1) return { precision: 5, minMove: 0.00001 }
+  if (samplePrice < 100) return { precision: 4, minMove: 0.0001 }
+  return { precision: 2, minMove: 0.01 }
+}
+
 // ─── Update Chart Data ───
 function updateChartData(data: ChartData) {
   if (!chart || !candleSeries || !volumeSeries) return
+
+  // Apply price precision based on price range
+  const pf = getPriceFormat(data.candles)
+  candleSeries.applyOptions({
+    priceFormat: { type: 'price', precision: pf.precision, minMove: pf.minMove },
+  })
 
   // Set candle data
   candleSeries.setData(data.candles as any)
@@ -297,7 +314,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div>
-    <div class="text-overline text-primary mb-2">
+    <div class="text-overline font-weight-bold mb-2" style="color: rgb(100 116 139);">
       <v-icon icon="mdi-chart-waterfall" size="16" class="mr-1" />
       Candlestick Chart
     </div>

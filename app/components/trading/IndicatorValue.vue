@@ -36,7 +36,7 @@ const barValue = computed(() => {
   <v-sheet class="py-1" color="transparent">
     <div class="d-flex justify-space-between align-center">
       <span class="text-caption text-medium-emphasis">{{ props.label }}</span>
-      <span class="text-body-2 font-weight-medium">{{ displayValue }}</span>
+      <span class="text-body-2 font-weight-medium font-mono">{{ displayValue }}</span>
     </div>
     <v-progress-linear
       v-if="props.showBar && props.value !== null"
