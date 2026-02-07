@@ -1,6 +1,5 @@
 <script setup lang="ts">
-const { symbols, fetchActiveSymbols } = useSymbols()
-const { fetchAnalysis, clearCache } = useAnalysis()
+const { fetchSummary, clearCache } = useAnalysis()
 
 const isRefreshing = ref(false)
 
@@ -15,10 +14,7 @@ async function handleRefresh() {
   isRefreshing.value = true
   try {
     clearCache()
-    await fetchActiveSymbols()
-    for (const symbol of symbols.value) {
-      await fetchAnalysis(symbol.id, { forceRefresh: true })
-    }
+    await fetchSummary({ forceRefresh: true })
   } finally {
     isRefreshing.value = false
   }
@@ -29,19 +25,21 @@ async function handleRefresh() {
   <v-container fluid class="page-container pa-3 pa-sm-4">
 
     <!-- Header: avatar + title + refresh on ONE line -->
-    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
-      <v-avatar color="primary" size="40" rounded="lg" style="flex-shrink: 0;">
+    <div class="d-flex align-center ga-3 mb-1">
+      <v-avatar color="primary" size="40" rounded="lg">
         <v-icon icon="mdi-flash" color="white" size="22" />
       </v-avatar>
-      <span style="font-size: 22px; font-weight: 700; flex-grow: 1;">Smart Trader</span>
-      <v-icon
-        icon="mdi-refresh"
-        size="22"
-        :class="{ 'spin-animation': isRefreshing }"
-        class="text-medium-emphasis"
-        style="cursor: pointer; flex-shrink: 0;"
+      <span class="text-h5 font-weight-bold">Smart Trader</span>
+      <v-spacer />
+      <v-btn
+        icon
+        variant="text"
+        size="small"
+        :loading="isRefreshing"
         @click="handleRefresh"
-      />
+      >
+        <v-icon icon="mdi-refresh" size="22" class="text-medium-emphasis" />
+      </v-btn>
     </div>
     <p class="text-body-2 text-medium-emphasis mb-4">
       AI-Powered Trading Signal Bot v5.1
@@ -66,12 +64,3 @@ async function handleRefresh() {
   </v-container>
 </template>
 
-<style scoped>
-.spin-animation {
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-</style>

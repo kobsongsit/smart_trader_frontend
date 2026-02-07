@@ -302,7 +302,7 @@ onBeforeUnmount(() => {
       Candlestick Chart
     </div>
 
-    <v-sheet color="grey-darken-4" rounded="lg" class="pa-3">
+    <v-sheet rounded="lg" class="glass-sheet pa-3">
       <!-- Timeframe selector + Overlay toggles -->
       <div class="d-flex align-center justify-space-between flex-wrap ga-2 mb-2">
         <!-- Timeframe -->

@@ -13,7 +13,7 @@ const isAnalysis = computed(() => route.path === '/analysis-tools')
     </v-main>
 
     <!-- Bottom Navigation -->
-    <v-bottom-navigation grow color="primary">
+    <v-bottom-navigation grow color="primary" bg-color="#0A0F1C">
       <v-btn to="/" :active="isHome">
         <v-icon icon="mdi-view-grid-outline" />
         <span class="text-uppercase text-caption">Markets</span>

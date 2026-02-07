@@ -26,7 +26,7 @@ export default defineNuxtConfig({
         },
         {
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap'
+          href: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap'
         }
       ]
     }
@@ -54,8 +54,8 @@ export default defineNuxtConfig({
               info: '#2196F3',
               success: '#4CAF50',
               warning: '#FB8C00',
-              background: '#121212',
-              surface: '#1E1E1E'
+              background: '#0B1120',
+              surface: '#131C2E'
             }
           },
           light: {

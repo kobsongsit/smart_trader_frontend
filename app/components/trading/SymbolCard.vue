@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { Symbol, SignalData, TrendDirection } from '../../../types/trading'
+import type { SymbolSummary, SignalData, TrendDirection } from '../../../types/trading'
 import {
   formatNumber,
   formatPrice,
-  formatTimeAgo,
   formatPriceChange,
+  formatTimeAgo,
   getPriceChangeColor,
   getTrendColor,
   getZoneColor,
@@ -26,14 +26,15 @@ import {
 } from '../../../types/trading'
 
 interface Props {
-  symbol: Symbol
+  summary: SymbolSummary
 }
 
 const props = defineProps<Props>()
 
-// Unified Analysis composable (singleton)
+// Full Analysis composable (singleton) — for detail lazy-load
 const {
   getCachedAnalysis,
+  fetchAnalysis,
   isLoadingSymbol,
   isAIAnalyzing,
   analyzeSignal,
@@ -44,52 +45,28 @@ const {
 
 // ─── State ───
 const expanded = ref(false)
+const detailLoaded = ref(false)
 const showSignalResult = ref(false)
 const currentSignal = ref<SignalData | null>(null)
 const showHistory = ref(false)
 const signalHistory = ref<SignalData[]>([])
 
-// ─── Analysis data (safe computed, no null assertions) ───
-const analysis = computed(() => getCachedAnalysis(props.symbol.id))
-const isLoading = computed(() => isLoadingSymbol(props.symbol.id))
-const isAIWorking = computed(() => isAIAnalyzing(props.symbol.id))
+// ─── Summary derived values (from props.summary — instant, no API call) ───
+const majorityTrend = computed((): TrendDirection => props.summary.trend.direction)
+const trendAvatarColor = computed(() => getTrendColor(majorityTrend.value))
 
-const price = computed(() => analysis.value?.price ?? null)
-const indicators = computed(() => analysis.value?.indicators ?? null)
-const trends = computed(() => analysis.value?.trends ?? null)
-const validation = computed(() => analysis.value?.validation ?? null)
-const signal = computed(() => analysis.value?.signal ?? null)
-const meta = computed(() => analysis.value?.meta ?? null)
+const avatarLetter = computed(() => props.summary.name?.charAt(0)?.toUpperCase() || '?')
 
-// ─── Summary derived values (safe for templates) ───
-
-// Majority trend
-const majorityTrend = computed((): TrendDirection =>
-  trends.value?.analysis?.majorityTrend ?? 'NEUTRAL'
-)
-const trendAvatarColor = computed(() =>
-  analysis.value ? getTrendColor(majorityTrend.value) : 'grey-darken-1'
-)
-
-// Indicator summary
-const overallBias = computed(() => indicators.value?.summary?.overallBias ?? 'neutral')
-const overallBiasLabel = computed(() => indicators.value?.summary?.overallBiasLabel ?? '-')
-const biasStrength = computed(() => indicators.value?.summary?.strength ?? 'weak')
-const bullishCount = computed(() => indicators.value?.summary?.bullishCount ?? 0)
-const bearishCount = computed(() => indicators.value?.summary?.bearishCount ?? 0)
-const neutralCount = computed(() => indicators.value?.summary?.neutralCount ?? 0)
-
-// Trend summary text
+// Trend summary text from summary API
 const trendSummaryText = computed(() => {
-  if (!trends.value?.analysis) return ''
-  const a = trends.value.analysis
-  if (a.majorityTrend === 'NEUTRAL') {
-    return `NEUTRAL ${a.neutralCount + a.sidewaysCount}/5`
+  const t = props.summary.trend
+  if (t.direction === 'NEUTRAL') {
+    return `NEUTRAL ${t.neutralCount}/${t.totalTimeframes}`
   }
-  return `${a.majorityTrend} ${Math.max(a.upCount, a.downCount)}/5`
+  return `${t.direction} ${Math.max(t.upCount, t.downCount)}/${t.totalTimeframes}`
 })
 
-// Strength bar
+// Strength bar — uses trend counts
 const strengthLabel = computed(() => {
   if (majorityTrend.value === 'UP') return 'UPTREND STRENGTH'
   if (majorityTrend.value === 'DOWN') return 'DOWNTREND STRENGTH'
@@ -101,23 +78,34 @@ const strengthIcon = computed(() => {
   return 'mdi-information-outline'
 })
 const strengthScore = computed(() => {
-  if (!indicators.value?.summary) return 0
-  const { bullishCount: bull, bearishCount: bear, neutralCount: neut } = indicators.value.summary
-  const total = bull + bear + neut
-  if (total === 0) return 0
-  if (majorityTrend.value === 'UP') return Math.round((bull / total) * 100)
-  if (majorityTrend.value === 'DOWN') return Math.round((bear / total) * 100)
-  return Math.round((neut / total) * 100)
+  const t = props.summary.trend
+  if (t.totalTimeframes === 0) return 0
+  if (t.direction === 'UP') return Math.round((t.upCount / t.totalTimeframes) * 100)
+  if (t.direction === 'DOWN') return Math.round((t.downCount / t.totalTimeframes) * 100)
+  return Math.round((t.neutralCount / t.totalTimeframes) * 100)
 })
 const strengthColor = computed(() => getTrendColor(majorityTrend.value))
 
-// Avatar letter
-const avatarLetter = computed(() => {
-  return props.symbol.name?.charAt(0)?.toUpperCase() || '?'
-})
+// ─── Full analysis data (lazy-loaded on expand) ───
+const analysis = computed(() => getCachedAnalysis(props.summary.id))
+const isLoading = computed(() => isLoadingSymbol(props.summary.id))
+const isAIWorking = computed(() => isAIAnalyzing(props.summary.id))
 
+const indicators = computed(() => analysis.value?.indicators ?? null)
+const trends = computed(() => analysis.value?.trends ?? null)
+const validation = computed(() => analysis.value?.validation ?? null)
+const signal = computed(() => analysis.value?.signal ?? null)
+const meta = computed(() => analysis.value?.meta ?? null)
 
-// ─── Moving Averages safe access ───
+// Indicator summary (from full analysis)
+const overallBias = computed(() => indicators.value?.summary?.overallBias ?? 'neutral')
+const overallBiasLabel = computed(() => indicators.value?.summary?.overallBiasLabel ?? '-')
+const biasStrength = computed(() => indicators.value?.summary?.strength ?? 'weak')
+const bullishCount = computed(() => indicators.value?.summary?.bullishCount ?? 0)
+const bearishCount = computed(() => indicators.value?.summary?.bearishCount ?? 0)
+const neutralCount = computed(() => indicators.value?.summary?.neutralCount ?? 0)
+
+// Moving Averages safe access (from full analysis)
 const maData = computed(() => indicators.value?.movingAverages ?? null)
 const macdData = computed(() => indicators.value?.macd ?? null)
 const bbData = computed(() => indicators.value?.bollingerBands ?? null)
@@ -128,12 +116,18 @@ const atrData = computed(() => indicators.value?.atr ?? null)
 const adxData = computed(() => indicators.value?.adx ?? null)
 
 // ─── Handlers ───
-function toggleExpand() {
+async function toggleExpand() {
   expanded.value = !expanded.value
+
+  // Lazy-load full analysis on first expand
+  if (expanded.value && !detailLoaded.value) {
+    detailLoaded.value = true
+    await fetchAnalysis(props.summary.id)
+  }
 }
 
 async function handleAnalyze(includeNews: boolean) {
-  const result = await analyzeSignal(props.symbol.id, includeNews)
+  const result = await analyzeSignal(props.summary.id, includeNews)
   if (result) {
     currentSignal.value = result
     showSignalResult.value = true
@@ -143,7 +137,7 @@ async function handleAnalyze(includeNews: boolean) {
 async function loadSignalHistory() {
   showHistory.value = !showHistory.value
   if (showHistory.value) {
-    signalHistory.value = await fetchSignalHistory(props.symbol.id, 5)
+    signalHistory.value = await fetchSignalHistory(props.summary.id, 5)
   }
 }
 
@@ -154,10 +148,10 @@ function handleSelectHistorySignal(sig: SignalData) {
 </script>
 
 <template>
-  <v-card elevation="2" rounded="lg" class="mb-3 symbol-card">
+  <v-card elevation="0" rounded="lg" class="mb-3 glass-card">
 
     <!-- ═══════════════════════════════════════════════════ -->
-    <!-- SUMMARY SECTION (always visible)                    -->
+    <!-- SUMMARY SECTION (always visible, from summary API) -->
     <!-- ═══════════════════════════════════════════════════ -->
     <v-card-text class="pb-1">
 
@@ -169,29 +163,26 @@ function handleSelectHistorySignal(sig: SignalData) {
           </v-avatar>
           <div style="min-width: 0;">
             <div class="d-flex align-center ga-2">
-              <span class="text-body-1 font-weight-bold text-truncate">{{ props.symbol.name }}</span>
-              <v-chip size="x-small" variant="outlined" rounded="lg">{{ props.symbol.type }}</v-chip>
+              <span class="text-body-1 font-weight-bold text-truncate">{{ props.summary.name }}</span>
+              <v-chip size="x-small" variant="outlined" rounded="lg">{{ props.summary.type }}</v-chip>
             </div>
             <div class="text-caption text-medium-emphasis text-truncate">
-              <span v-if="price">{{ formatTimeAgo(price.timestamp) }}</span>
+              {{ props.summary.price.updatedAgo }}
             </div>
           </div>
         </div>
 
         <!-- Price -->
-        <div v-if="price" class="text-right flex-shrink-0 ml-2">
-          <div class="text-h6 font-weight-bold">{{ formatPrice(price.current) }}</div>
-          <span :class="['text-caption font-weight-medium', getPriceChangeColor(price.changePercent) === 'success' ? 'text-success' : getPriceChangeColor(price.changePercent) === 'error' ? 'text-error' : 'text-grey']">
-            {{ formatPriceChange(price.changePercent) }}
+        <div class="text-right flex-shrink-0 ml-2">
+          <div class="text-h6 font-weight-bold font-mono">{{ formatPrice(props.summary.price.current) }}</div>
+          <span :class="['text-caption font-weight-medium font-mono', getPriceChangeColor(props.summary.price.changePercent) === 'success' ? 'text-success' : getPriceChangeColor(props.summary.price.changePercent) === 'error' ? 'text-error' : 'text-grey']">
+            {{ formatPriceChange(props.summary.price.changePercent) }}
           </span>
-        </div>
-        <div v-else-if="isLoading" class="text-right flex-shrink-0 ml-2">
-          <v-skeleton-loader type="text" width="80" />
         </div>
       </div>
 
       <!-- Row 2: Strength Bar -->
-      <div v-if="analysis && indicators" class="mb-3">
+      <div class="mb-3">
         <div class="d-flex align-center justify-space-between mb-1">
           <div class="d-flex align-center ga-1">
             <v-icon :icon="strengthIcon" :color="strengthColor" size="18" />
@@ -204,26 +195,26 @@ function handleSelectHistorySignal(sig: SignalData) {
           :color="strengthColor"
           rounded
           height="6"
-          bg-color="grey-darken-3"
+          bg-color="#1A2540"
         />
       </div>
 
       <!-- Row 3: Status Chips + Details Button -->
-      <div v-if="analysis" class="d-flex align-center justify-space-between">
+      <div class="d-flex align-center justify-space-between">
         <div class="d-flex flex-wrap ga-1">
           <!-- Trend -->
-          <v-chip v-if="trends" :color="getTrendColor(majorityTrend)" size="x-small" variant="tonal" rounded="lg">
+          <v-chip :color="getTrendColor(majorityTrend)" size="x-small" variant="tonal" rounded="lg">
             {{ trendSummaryText }}
           </v-chip>
 
           <!-- Consensus -->
           <v-chip
-            v-if="trends?.analysis?.consensus"
+            v-if="props.summary.trend.consensusLabel"
             size="x-small"
             variant="tonal"
             rounded="lg"
           >
-            {{ trends.analysis.consensus.toUpperCase() }}
+            {{ props.summary.trend.consensusLabel }}
           </v-chip>
         </div>
 
@@ -241,7 +232,7 @@ function handleSelectHistorySignal(sig: SignalData) {
       </div>
 
       <!-- AI Analyzing Indicator -->
-      <v-sheet v-if="isAIWorking" color="grey-darken-4" rounded="lg" class="pa-2 mt-2">
+      <v-sheet v-if="isAIWorking" rounded="lg" class="glass-sheet pa-2 mt-2">
         <div class="d-flex align-center ga-2">
           <v-progress-circular indeterminate color="primary" size="18" width="2" />
           <span class="text-caption text-primary font-weight-medium">
@@ -249,15 +240,10 @@ function handleSelectHistorySignal(sig: SignalData) {
           </span>
         </div>
       </v-sheet>
-
-      <!-- Loading skeleton for summary -->
-      <div v-if="isLoading && !analysis" class="mt-2">
-        <v-skeleton-loader type="chip@3" />
-      </div>
     </v-card-text>
 
     <!-- ═══════════════════════════════════════════════════ -->
-    <!-- DETAIL SECTION (expandable)                         -->
+    <!-- DETAIL SECTION (expandable, lazy-loaded)           -->
     <!-- ═══════════════════════════════════════════════════ -->
     <v-expand-transition>
       <div v-show="expanded">
@@ -266,7 +252,7 @@ function handleSelectHistorySignal(sig: SignalData) {
 
           <!-- ══════ Candlestick Chart ══════ -->
           <div class="mb-4">
-            <TradingCandlestickChart :symbol-id="props.symbol.id" />
+            <TradingCandlestickChart :symbol-id="props.summary.id" />
           </div>
 
           <!-- ══════ Indicator Summary ══════ -->
@@ -275,7 +261,7 @@ function handleSelectHistorySignal(sig: SignalData) {
               <v-icon icon="mdi-chart-box" size="16" class="mr-1" />
               Indicator Summary
             </div>
-            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3">
+            <v-sheet rounded="lg" class="glass-sheet pa-3">
               <div class="d-flex align-center justify-space-between mb-2">
                 <v-chip :color="getBiasColor(overallBias)" variant="flat" size="small">
                   <v-icon :icon="getBiasIcon(overallBias)" start size="14" />
@@ -323,7 +309,7 @@ function handleSelectHistorySignal(sig: SignalData) {
               <v-icon icon="mdi-clock-outline" size="16" class="mr-1" />
               Multi-Timeframe Trends
             </div>
-            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3">
+            <v-sheet rounded="lg" class="glass-sheet pa-3">
               <!-- Trends Grid -->
               <v-row dense class="mb-2">
                 <v-col
@@ -386,7 +372,7 @@ function handleSelectHistorySignal(sig: SignalData) {
             </div>
 
             <!-- Moving Averages -->
-            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3 mb-2">
+            <v-sheet rounded="lg" class="glass-sheet pa-3 mb-2">
               <div class="text-caption font-weight-bold mb-2">
                 <v-icon icon="mdi-chart-timeline-variant" size="14" color="info" class="mr-1" />
                 Moving Averages
@@ -425,7 +411,7 @@ function handleSelectHistorySignal(sig: SignalData) {
             </v-sheet>
 
             <!-- MACD -->
-            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3 mb-2">
+            <v-sheet rounded="lg" class="glass-sheet pa-3 mb-2">
               <div class="text-caption font-weight-bold mb-2">
                 <v-icon icon="mdi-chart-bar" size="14" color="orange" class="mr-1" />
                 MACD
@@ -460,7 +446,7 @@ function handleSelectHistorySignal(sig: SignalData) {
             </v-sheet>
 
             <!-- Bollinger Bands -->
-            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3 mb-2">
+            <v-sheet rounded="lg" class="glass-sheet pa-3 mb-2">
               <div class="text-caption font-weight-bold mb-2">
                 <v-icon icon="mdi-chart-bell-curve" size="14" color="cyan" class="mr-1" />
                 Bollinger Bands
@@ -488,7 +474,7 @@ function handleSelectHistorySignal(sig: SignalData) {
             </v-sheet>
 
             <!-- Oscillators: RSI + Stochastic -->
-            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3 mb-2">
+            <v-sheet rounded="lg" class="glass-sheet pa-3 mb-2">
               <div class="text-caption font-weight-bold mb-2">
                 <v-icon icon="mdi-sine-wave" size="14" color="green" class="mr-1" />
                 Oscillators
@@ -529,7 +515,7 @@ function handleSelectHistorySignal(sig: SignalData) {
             </v-sheet>
 
             <!-- Volume & Volatility: OBV + ATR -->
-            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3 mb-2">
+            <v-sheet rounded="lg" class="glass-sheet pa-3 mb-2">
               <div class="text-caption font-weight-bold mb-2">
                 <v-icon icon="mdi-chart-areaspline" size="14" color="blue" class="mr-1" />
                 Volume & Volatility
@@ -558,7 +544,7 @@ function handleSelectHistorySignal(sig: SignalData) {
             </v-sheet>
 
             <!-- Trend Strength: ADX -->
-            <v-sheet color="grey-darken-4" rounded="lg" class="pa-3">
+            <v-sheet rounded="lg" class="glass-sheet pa-3">
               <div class="text-caption font-weight-bold mb-2">
                 <v-icon icon="mdi-trending-up" size="14" color="amber" class="mr-1" />
                 Trend Strength (ADX)
@@ -641,7 +627,7 @@ function handleSelectHistorySignal(sig: SignalData) {
           </div>
 
           <!-- ══════ Meta Info ══════ -->
-          <v-sheet v-if="meta" color="grey-darken-4" rounded="lg" class="pa-2">
+          <v-sheet v-if="meta" rounded="lg" class="glass-sheet pa-2">
             <div class="d-flex justify-space-between text-caption text-medium-emphasis">
               <span>
                 <v-icon icon="mdi-clock-outline" size="12" />
@@ -666,12 +652,3 @@ function handleSelectHistorySignal(sig: SignalData) {
     </v-expand-transition>
   </v-card>
 </template>
-
-<style scoped>
-.symbol-card {
-  transition: box-shadow 0.2s ease;
-}
-.symbol-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 220, 130, 0.08) !important;
-}
-</style>

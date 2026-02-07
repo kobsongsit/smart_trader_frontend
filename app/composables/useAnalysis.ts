@@ -1,13 +1,15 @@
 import { ref, computed, readonly } from 'vue'
 import axios from 'axios'
-import type { AnalysisData, ApiResponse, SignalData } from '../../types/trading'
+import type { AnalysisData, ApiResponse, SignalData, SymbolSummary, SummaryResponse } from '../../types/trading'
 
 /**
- * Composable สำหรับ Unified Analysis API + WebSocket integration
- * เรียก GET /api/analysis/:symbolId
- * รวมทุกอย่าง: price, indicators, trends, validation, signal, news, meta
+ * Composable สำหรับ Analysis API + WebSocket integration
  *
- * Frontend ไม่ต้องคำนวณอะไรเพิ่ม - แสดงผลอย่างเดียว
+ * APIs:
+ * - GET /api/analysis/summary     → ข้อมูลสรุปทุก symbol (เรียกครั้งเดียว)
+ * - GET /api/analysis/:symbolId   → full analysis สำหรับ detail (lazy load)
+ * - POST /api/signals/analyze     → request AI signal analysis
+ * - GET /api/signals/:symbolId    → signal history
  *
  * WebSocket events ที่ listen:
  * - signal:loading → set AI analyzing state for symbolId
@@ -20,6 +22,14 @@ import type { AnalysisData, ApiResponse, SignalData } from '../../types/trading'
 // ============================================================
 // Shared state (module-level singleton)
 // ============================================================
+
+// Summary data (GET /api/analysis/summary)
+const summaryList = ref<SymbolSummary[]>([])
+const summaryLoading = ref(false)
+const summaryError = ref<string | null>(null)
+const summaryLastRefresh = ref<string | null>(null)
+
+// Full analysis cache per symbol (GET /api/analysis/:symbolId)
 const analysisCache = ref<Map<number, AnalysisData>>(new Map())
 const loadingSymbols = ref<Set<number>>(new Set())
 const errors = ref<Map<number, string>>(new Map())
@@ -74,6 +84,59 @@ export function useAnalysis() {
     }
   }
 
+  // ============================================================
+  // Summary API (GET /api/analysis/summary)
+  // ============================================================
+
+  /**
+   * Fetch summary for all active symbols — 1 request for the entire list
+   */
+  async function fetchSummary(options?: { forceRefresh?: boolean }): Promise<SymbolSummary[]> {
+    const { forceRefresh = false } = options || {}
+
+    // Return cached if available and not forcing refresh
+    if (!forceRefresh && summaryList.value.length > 0) {
+      return summaryList.value
+    }
+
+    // Skip if already loading
+    if (summaryLoading.value) return summaryList.value
+
+    summaryLoading.value = true
+    summaryError.value = null
+
+    try {
+      const url = `${baseUrl}/api/analysis/summary`
+      const { data: response } = await axios.get<ApiResponse<SummaryResponse>>(url)
+
+      if (response.success) {
+        summaryList.value = response.data.symbols
+        summaryLastRefresh.value = response.data.lastRefresh
+        return response.data.symbols
+      } else {
+        throw new Error(response.error || 'Failed to fetch summary')
+      }
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || err.message || 'Failed to fetch summary'
+      summaryError.value = errorMsg
+      console.error('[useAnalysis] Error fetching summary:', err)
+      return []
+    } finally {
+      summaryLoading.value = false
+    }
+  }
+
+  /**
+   * Get cached summary for a specific symbol
+   */
+  function getCachedSummary(symbolId: number): SymbolSummary | undefined {
+    return summaryList.value.find(s => s.id === symbolId)
+  }
+
+  // ============================================================
+  // Full Analysis API (GET /api/analysis/:symbolId) — lazy load
+  // ============================================================
+
   /**
    * Check if loading specific symbol (HTTP request)
    */
@@ -89,7 +152,7 @@ export function useAnalysis() {
   }
 
   /**
-   * Get cached analysis data
+   * Get cached full analysis data
    */
   function getCachedAnalysis(symbolId: number): AnalysisData | undefined {
     return analysisCache.value.get(symbolId)
@@ -103,7 +166,7 @@ export function useAnalysis() {
   }
 
   /**
-   * Fetch full analysis for a symbol
+   * Fetch full analysis for a symbol (used when expanding detail)
    * GET /api/analysis/:symbolId?includeNews=true
    */
   async function fetchAnalysis(
@@ -231,7 +294,7 @@ export function useAnalysis() {
   }
 
   /**
-   * Clear cache
+   * Clear all caches
    */
   function clearCache(symbolId?: number) {
     if (symbolId !== undefined) {
@@ -240,6 +303,8 @@ export function useAnalysis() {
     } else {
       analysisCache.value.clear()
       errors.value.clear()
+      summaryList.value = []
+      summaryLastRefresh.value = null
     }
   }
 
@@ -248,7 +313,13 @@ export function useAnalysis() {
   const hasAnyAIAnalyzing = computed(() => aiAnalyzingSymbols.value.size > 0)
 
   return {
-    // State
+    // Summary state
+    summaryList: readonly(summaryList),
+    summaryLoading: readonly(summaryLoading),
+    summaryError: readonly(summaryError),
+    summaryLastRefresh: readonly(summaryLastRefresh),
+
+    // Analysis state
     analysisCache: readonly(analysisCache),
     isAnalyzing: readonly(isAnalyzing),
     analyzeError: readonly(analyzeError),
@@ -257,7 +328,11 @@ export function useAnalysis() {
     hasAnyLoading,
     hasAnyAIAnalyzing,
 
-    // Actions
+    // Summary actions
+    fetchSummary,
+    getCachedSummary,
+
+    // Analysis actions
     fetchAnalysis,
     analyzeSignal,
     fetchSignalHistory,

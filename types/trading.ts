@@ -768,6 +768,51 @@ export function isDataStale(seconds: number, threshold: number = 300): boolean {
 }
 
 // ============================================================================
+// Summary API Types (GET /api/analysis/summary)
+// ============================================================================
+
+export interface SummaryPrice {
+  current: number
+  changePercent: number
+  updatedAt: string
+  updatedAgo: string
+}
+
+export interface SummaryTrend {
+  direction: TrendDirection
+  directionLabel: string
+  upCount: number
+  downCount: number
+  neutralCount: number
+  totalTimeframes: number
+  consensus: string
+  consensusLabel: string
+}
+
+export interface SummarySignal {
+  strategy: SignalStrategy
+  confidence: number
+  timestamp: string
+}
+
+export interface SymbolSummary {
+  id: number
+  symbol: string
+  name: string
+  type: 'FOREX' | 'CRYPTO' | 'STOCK' | 'COMMODITY'
+  exchange: string | null
+  price: SummaryPrice
+  trend: SummaryTrend
+  signal: SummarySignal | null
+}
+
+export interface SummaryResponse {
+  symbols: SymbolSummary[]
+  totalSymbols: number
+  lastRefresh: string
+}
+
+// ============================================================================
 // Chart API Types (GET /api/data/:symbolId/chart)
 // ============================================================================
 

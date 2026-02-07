@@ -1,60 +1,52 @@
 <script setup lang="ts">
-import { formatTimeAgo } from '../../../types/trading'
+const {
+  summaryList,
+  summaryLoading,
+  summaryError,
+  summaryLastRefresh,
+  fetchSummary,
+} = useAnalysis()
 
-const { symbols, isLoading, error, fetchActiveSymbols } = useSymbols()
-const { fetchAnalysis } = useAnalysis()
 const { connect, disconnect, subscribeSymbol, unsubscribeSymbol, isConnected } = useSocket()
 
-const lastUpdateTime = ref<string | null>(null)
-
-// Fetch symbols on mount, connect WebSocket, then fetch analysis for each
+// Fetch summary on mount + connect WebSocket
 onMounted(async () => {
-  // Connect WebSocket
   connect()
+  await fetchSummary()
 
-  await fetchActiveSymbols()
-
-  // Subscribe & fetch analysis for each symbol sequentially
-  for (const symbol of symbols.value) {
-    subscribeSymbol(symbol.id)
-    await fetchAnalysis(symbol.id)
+  // Subscribe WebSocket for each symbol
+  for (const s of summaryList.value) {
+    subscribeSymbol(s.id)
   }
-
-  lastUpdateTime.value = new Date().toISOString()
 })
 
 // Cleanup on unmount
 onUnmounted(() => {
-  for (const symbol of symbols.value) {
-    unsubscribeSymbol(symbol.id)
+  for (const s of summaryList.value) {
+    unsubscribeSymbol(s.id)
   }
   disconnect()
-})
-
-const lastUpdateLabel = computed(() => {
-  if (!lastUpdateTime.value) return ''
-  return formatTimeAgo(lastUpdateTime.value)
 })
 </script>
 
 <template>
   <div>
     <!-- Loading State -->
-    <div v-if="isLoading" class="text-center py-8">
+    <div v-if="summaryLoading && summaryList.length === 0" class="text-center py-8">
       <v-progress-circular indeterminate color="primary" />
       <div class="text-caption mt-2">กำลังโหลดข้อมูล...</div>
     </div>
 
     <!-- Error State -->
     <v-alert
-      v-else-if="error"
+      v-else-if="summaryError && summaryList.length === 0"
       type="error"
       variant="tonal"
       class="mb-4"
     >
-      {{ error }}
+      {{ summaryError }}
       <template #append>
-        <v-btn variant="text" size="small" @click="fetchActiveSymbols">
+        <v-btn variant="text" size="small" @click="fetchSummary({ forceRefresh: true })">
           ลองใหม่
         </v-btn>
       </template>
@@ -62,7 +54,7 @@ const lastUpdateLabel = computed(() => {
 
     <!-- Empty State -->
     <div
-      v-else-if="symbols.length === 0"
+      v-else-if="summaryList.length === 0"
       class="text-center py-8 text-medium-emphasis"
     >
       <v-icon icon="mdi-chart-box-outline" size="48" class="mb-2" />
@@ -80,18 +72,18 @@ const lastUpdateLabel = computed(() => {
             size="10"
           />
           <span class="text-caption font-weight-bold text-uppercase">
-            {{ symbols.length }} Symbols {{ isConnected ? 'Live' : 'Offline' }}
+            {{ summaryList.length }} Symbols {{ isConnected ? 'Live' : 'Offline' }}
           </span>
         </div>
-        <span class="text-caption text-medium-emphasis">
-          Last Update: {{ lastUpdateLabel || 'Just now' }}
+        <span v-if="summaryLastRefresh" class="text-caption text-medium-emphasis">
+          Last Refresh: {{ new Date(summaryLastRefresh).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) }}
         </span>
       </div>
 
       <TradingSymbolCard
-        v-for="symbol in symbols"
-        :key="symbol.id"
-        :symbol="symbol"
+        v-for="summary in summaryList"
+        :key="summary.id"
+        :summary="summary"
       />
     </div>
   </div>
