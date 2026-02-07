@@ -32,27 +32,46 @@ const {
   getCachedSummary,
   getCachedAnalysis,
   fetchAnalysis,
+  fetchSymbolSummary,
   checkFreshness,
   isLoadingSymbol,
   isAIAnalyzing,
   analyzeSignal,
-  isAnalyzing,
   analyzeError,
 } = useAnalysis()
 
-// ─── Summary (from cache — was loaded on list page) ───
-const summary = computed(() => getCachedSummary(symbolId.value))
+const { subscribeSymbol, unsubscribeSymbol } = useSocket()
 
-// ─── Fetch full analysis on mount + check freshness ───
+// ─── Summary (from cache or freshly fetched) ───
+const summary = computed(() => getCachedSummary(symbolId.value))
+const pageReady = ref(false)
+
+// ─── Fetch data on mount + subscribe WebSocket ───
 onMounted(async () => {
-  // 1. Load analysis data (from cache or API — user เห็น data ทันที)
+  // 1. Subscribe to this symbol's WebSocket channel (socket connected at app level)
+  subscribeSymbol(symbolId.value)
+
+  // 2. Fetch summary if not cached (e.g., direct navigation / page refresh)
+  if (!getCachedSummary(symbolId.value)) {
+    await fetchSymbolSummary(symbolId.value)
+  }
+
+  // 3. Load full analysis data (from cache or API)
   await fetchAnalysis(symbolId.value)
 
-  // 2. Check freshness — ถ้า cache มีอยู่แล้ว ตรวจว่ายัง fresh อยู่ไหม
+  // Mark page as ready — "ไม่พบข้อมูล" จะแสดงได้หลังจากนี้เท่านั้น
+  pageReady.value = true
+
+  // 4. Check freshness — ถ้า cache มีอยู่แล้ว ตรวจว่ายัง fresh อยู่ไหม
   //    ถ้า backend มี data ใหม่กว่า → auto re-fetch + update cache (UI reactive)
   if (getCachedAnalysis(symbolId.value)) {
     await checkFreshness(symbolId.value)
   }
+})
+
+// ─── Cleanup WebSocket on unmount ───
+onUnmounted(() => {
+  unsubscribeSymbol(symbolId.value)
 })
 
 // ─── Visibility change listener — เช็ค freshness เมื่อ user กลับมาที่ tab นี้ ───
@@ -161,9 +180,17 @@ async function handleAnalyze() {
     </div>
 
     <!-- ═══════════════════════════════════════════════════ -->
-    <!-- Not found state                                    -->
+    <!-- Page loading state (before data is ready)          -->
     <!-- ═══════════════════════════════════════════════════ -->
-    <div v-if="!summary" class="text-center py-12">
+    <div v-if="!pageReady" class="text-center py-12">
+      <v-progress-circular indeterminate color="primary" size="40" />
+      <div class="text-caption mt-3 text-medium-emphasis">กำลังโหลดข้อมูล...</div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════ -->
+    <!-- Not found state (only after fetch completed)       -->
+    <!-- ═══════════════════════════════════════════════════ -->
+    <div v-else-if="!summary" class="text-center py-12">
       <v-icon icon="mdi-alert-circle-outline" size="48" class="mb-3 text-medium-emphasis" />
       <div class="text-body-1 text-medium-emphasis mb-4">ไม่พบข้อมูล Symbol</div>
       <v-btn variant="tonal" color="primary" @click="goBack">
@@ -538,19 +565,9 @@ async function handleAnalyze() {
               <TradingValidationStatus :validation="validation" />
             </div>
 
-            <!-- AI Analyzing Indicator -->
-            <v-sheet v-if="isAIWorking" rounded="lg" class="glass-sheet pa-3 mb-3">
-              <div class="d-flex align-center ga-2">
-                <v-progress-circular indeterminate color="primary" size="20" width="2" />
-                <span class="text-body-2 text-primary font-weight-medium">
-                  AI กำลังวิเคราะห์...
-                </span>
-              </div>
-            </v-sheet>
-
             <!-- Analyze Button -->
             <TradingSignalAnalyzeButton
-              :loading="isAnalyzing"
+              :loading="isAIWorking"
               @analyze="handleAnalyze"
             />
 
@@ -562,12 +579,15 @@ async function handleAnalyze() {
         </div>
 
         <!-- ══════ AI SIGNAL ANALYSIS RESULT ══════ -->
-        <div v-if="signal" class="mb-4">
+        <div v-if="isAIWorking || signal" class="mb-4">
           <div class="text-overline font-weight-bold mb-2" style="color: rgb(100 116 139);">
             <v-icon icon="mdi-flash" size="16" class="mr-1" />
             AI Signal Analysis Result
           </div>
-          <TradingSignalResult :signal="signal" />
+          <!-- Skeleton while AI is analyzing -->
+          <TradingSignalResultSkeleton v-if="isAIWorking" />
+          <!-- Actual result -->
+          <TradingSignalResult v-else :signal="signal!" />
         </div>
 
         <!-- ══════ Meta Info Footer ══════ -->

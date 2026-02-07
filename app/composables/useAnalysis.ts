@@ -272,11 +272,15 @@ export function useAnalysis() {
       })
 
       if (response.success) {
-        // Update signal in cached analysis data
-        const cached = analysisCache.value.get(symbolId)
-        if (cached) {
-          cached.signal = response.data
+        // Update signal in cache only if backend returns actual data
+        // (avoid overwriting existing signal with null)
+        if (response.data) {
+          const cached = analysisCache.value.get(symbolId)
+          if (cached) {
+            cached.signal = response.data
+          }
         }
+        // Always clear loading state — if WebSocket sends update later, it will update cache reactively
         aiAnalyzingSymbols.value.delete(symbolId)
         return response.data
       } else {

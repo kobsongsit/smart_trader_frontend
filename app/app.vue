@@ -1,8 +1,16 @@
 <script setup lang="ts">
 const route = useRoute()
+const { connect } = useSocket()
 
 const isHome = computed(() => route.path === '/')
 const isAnalysis = computed(() => route.path === '/analysis-tools')
+
+// ─── WebSocket: connect once at app level ───
+// Socket เชื่อมต่อครั้งเดียวตอน app load
+// แต่ละหน้าจัดการ subscribeSymbol/unsubscribeSymbol เอง
+onMounted(() => {
+  connect()
+})
 </script>
 
 <template>

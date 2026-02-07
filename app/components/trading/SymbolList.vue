@@ -7,7 +7,7 @@ const {
 } = useAnalysis()
 
 const { symbols: symbolsList, fetchActiveSymbols } = useSymbols()
-const { connect, disconnect, subscribeSymbol, unsubscribeSymbol, isConnected } = useSocket()
+const { subscribeSymbol, unsubscribeSymbol, isConnected } = useSocket()
 
 // Track which symbols are still loading their summary
 const loadingSymbolIds = ref<Set<number>>(new Set())
@@ -30,8 +30,7 @@ async function loadProgressively() {
 
   if (symbolsList.value.length === 0) return
 
-  // Connect WebSocket + subscribe
-  connect()
+  // Subscribe to all symbols (WebSocket connected at app level)
   for (const s of symbolsList.value) {
     subscribeSymbol(s.id)
   }
@@ -54,12 +53,11 @@ onMounted(() => {
   loadProgressively()
 })
 
-// Cleanup on unmount
+// Cleanup subscriptions on unmount (socket stays connected at app level)
 onUnmounted(() => {
   for (const s of symbolsList.value) {
     unsubscribeSymbol(s.id)
   }
-  disconnect()
 })
 </script>
 
