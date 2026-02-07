@@ -264,6 +264,11 @@ function handleSelectHistorySignal(sig: SignalData) {
         <v-divider />
         <v-card-text v-if="analysis">
 
+          <!-- ══════ Candlestick Chart ══════ -->
+          <div class="mb-4">
+            <TradingCandlestickChart :symbol-id="props.symbol.id" />
+          </div>
+
           <!-- ══════ Indicator Summary ══════ -->
           <div v-if="indicators" class="mb-4">
             <div class="text-overline text-primary mb-2">

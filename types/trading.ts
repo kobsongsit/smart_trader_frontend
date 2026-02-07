@@ -766,3 +766,73 @@ export function getSymbolTypeIcon(type: string): string {
 export function isDataStale(seconds: number, threshold: number = 300): boolean {
   return seconds > threshold
 }
+
+// ============================================================================
+// Chart API Types (GET /api/data/:symbolId/chart)
+// ============================================================================
+
+export type ChartTimeframe = '15m' | '1H' | '4H' | '1D'
+
+export interface ChartCandle {
+  time: number   // UNIX timestamp (seconds)
+  open: number
+  high: number
+  low: number
+  close: number
+}
+
+export interface ChartVolume {
+  time: number
+  value: number
+  color: string  // rgba color string
+}
+
+export interface ChartTimeValue {
+  time: number
+  value: number
+}
+
+export interface ChartOverlays {
+  sma50: ChartTimeValue[]
+  sma200: ChartTimeValue[]
+  ema20: ChartTimeValue[]
+  bbUpper: ChartTimeValue[]
+  bbMiddle: ChartTimeValue[]
+  bbLower: ChartTimeValue[]
+}
+
+export interface ChartSignalMarker {
+  time: number
+  position: 'belowBar' | 'aboveBar'
+  color: string
+  shape: 'arrowUp' | 'arrowDown' | 'circle'
+  text: string
+  strategy: SignalStrategy
+  confidence: number
+  entryPrice: number
+  takeProfit: number
+  stopLoss: number
+}
+
+export interface ChartData {
+  symbol: string
+  timeframe: ChartTimeframe
+  candles: ChartCandle[]
+  volume: ChartVolume[]
+  overlays: ChartOverlays
+  signals: ChartSignalMarker[]
+}
+
+export interface ChartMeta {
+  totalCandles: number
+  timeframe: ChartTimeframe
+  startTime: string
+  endTime: string
+  candlesPerDay: number
+}
+
+export interface ChartApiResponse {
+  success: boolean
+  data: ChartData
+  meta: ChartMeta
+}
