@@ -8,7 +8,7 @@ useHead({
 </script>
 
 <template>
-  <v-container fluid class="dashboard-page pa-3 pa-sm-4">
+  <v-container fluid class="page-container pa-3 pa-sm-4">
 
     <!-- Header -->
     <div class="mb-4">
@@ -55,10 +55,3 @@ useHead({
 
   </v-container>
 </template>
-
-<style scoped>
-.dashboard-page {
-  max-width: 800px;
-  margin: 0 auto;
-}
-</style>

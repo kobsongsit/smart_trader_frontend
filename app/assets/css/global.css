@@ -3,3 +3,9 @@ body,
 .v-application {
   font-family: 'Noto Sans Thai', sans-serif !important;
 }
+
+/* Page layout — shared across pages */
+.page-container {
+  max-width: 800px;
+  margin: 0 auto;
+}

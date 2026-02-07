@@ -34,7 +34,7 @@ const indicatorPanel = ref<number[]>([])
 </script>
 
 <template>
-  <v-container fluid class="analysis-page pa-3 pa-sm-4">
+  <v-container fluid class="page-container pa-3 pa-sm-4">
 
     <!-- Header -->
     <div class="mb-3">
@@ -1025,11 +1025,6 @@ ATR = SMA(14) ของ True Range</code>
 </template>
 
 <style scoped>
-.analysis-page {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
 code {
   font-family: 'Courier New', monospace;
   font-size: 12px;
