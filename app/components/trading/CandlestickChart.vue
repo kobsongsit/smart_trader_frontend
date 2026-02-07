@@ -314,7 +314,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div>
-    <div class="text-overline font-weight-bold mb-2" style="color: rgb(100 116 139);">
+    <div class="text-overline font-weight-bold mb-2 text-label-muted">
       <v-icon icon="mdi-chart-waterfall" size="16" class="mr-1" />
       Candlestick Chart
     </div>

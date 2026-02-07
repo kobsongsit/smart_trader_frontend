@@ -261,7 +261,7 @@ async function handleAnalyze() {
 
         <!-- ══════ Indicator Summary ══════ -->
         <div v-if="indicators" class="mb-4">
-          <div class="text-overline font-weight-bold mb-2" style="color: rgb(100 116 139);">
+          <div class="text-overline font-weight-bold mb-2 text-label-muted">
             <v-icon icon="mdi-chart-box" size="16" class="mr-1" />
             Indicator Summary
           </div>
@@ -307,7 +307,7 @@ async function handleAnalyze() {
 
         <!-- ══════ Multi-Timeframe Trends ══════ -->
         <div v-if="trends" class="mb-4">
-          <div class="text-overline font-weight-bold mb-2" style="color: rgb(100 116 139);">
+          <div class="text-overline font-weight-bold mb-2 text-label-muted">
             <v-icon icon="mdi-clock-outline" size="16" class="mr-1" />
             Multi-Timeframe Trends
           </div>
@@ -354,7 +354,7 @@ async function handleAnalyze() {
 
         <!-- ══════ Price Position (Bollinger Bands) ══════ -->
         <div v-if="bbData" class="mb-4">
-          <div class="text-overline font-weight-bold mb-2" style="color: rgb(100 116 139);">
+          <div class="text-overline font-weight-bold mb-2 text-label-muted">
             <v-icon icon="mdi-target" size="16" class="mr-1" />
             Price Position (Bollinger Bands)
           </div>
@@ -366,7 +366,7 @@ async function handleAnalyze() {
 
         <!-- ══════ Technical Indicators ══════ -->
         <div v-if="indicators" class="mb-4">
-          <div class="text-overline font-weight-bold mb-2" style="color: rgb(100 116 139);">
+          <div class="text-overline font-weight-bold mb-2 text-label-muted">
             <v-icon icon="mdi-chart-line" size="16" class="mr-1" />
             Technical Indicators
           </div>
@@ -546,7 +546,7 @@ async function handleAnalyze() {
 
         <!-- ══════ AI ENGINE DECISION LOGIC ══════ -->
         <div class="mb-4">
-          <div class="text-overline font-weight-bold mb-2" style="color: rgb(100 116 139);">
+          <div class="text-overline font-weight-bold mb-2 text-label-muted">
             <v-icon icon="mdi-flash" size="16" class="mr-1" />
             AI Engine Decision Logic
           </div>
@@ -580,7 +580,7 @@ async function handleAnalyze() {
 
         <!-- ══════ AI SIGNAL ANALYSIS RESULT ══════ -->
         <div v-if="isAIWorking || signal" class="mb-4">
-          <div class="text-overline font-weight-bold mb-2" style="color: rgb(100 116 139);">
+          <div class="text-overline font-weight-bold mb-2 text-label-muted">
             <v-icon icon="mdi-flash" size="16" class="mr-1" />
             AI Signal Analysis Result
           </div>

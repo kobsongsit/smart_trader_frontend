@@ -3,7 +3,6 @@ import type { SymbolSummary, TrendDirection } from '../../../types/trading'
 import {
   formatPrice,
   formatPriceChange,
-  getPriceChangeColor,
   getTrendColor,
 } from '../../../types/trading'
 
@@ -43,6 +42,35 @@ const strengthScore = computed(() => {
 })
 const strengthColor = computed(() => getTrendColor(majorityTrend.value))
 
+// ─── Animated score (count-up + progress bar animate) ───
+const animatedScore = ref(0)
+
+function animateToValue(target: number, duration = 600) {
+  const start = animatedScore.value
+  const startTime = Date.now()
+
+  const tick = () => {
+    const elapsed = Date.now() - startTime
+    const progress = Math.min(elapsed / duration, 1)
+    const eased = 1 - Math.pow(1 - progress, 3) // ease-out cubic
+    animatedScore.value = Math.round(start + (target - start) * eased)
+    if (progress < 1) {
+      requestAnimationFrame(tick)
+    }
+  }
+  requestAnimationFrame(tick)
+}
+
+onMounted(() => {
+  setTimeout(() => {
+    animateToValue(strengthScore.value)
+  }, 200)
+})
+
+watch(strengthScore, (val) => {
+  animateToValue(val)
+})
+
 // ─── Navigate to detail page ───
 function goToDetail() {
   navigateTo(`/symbol/${props.summary.id}`)
@@ -62,15 +90,15 @@ function goToDetail() {
       <!-- Row 1: Symbol Info + Price -->
       <div class="d-flex align-center justify-space-between mb-3">
         <div class="d-flex align-center" style="min-width: 0;">
-          <v-avatar :color="trendAvatarColor" size="46" rounded="lg" class="mr-3 flex-shrink-0">
-            <span class="text-white font-weight-bold text-body-1">{{ avatarLetter }}</span>
+          <v-avatar :color="trendAvatarColor" variant="tonal" size="46" rounded="lg" class="mr-3 flex-shrink-0" :style="{ border: `1px solid rgb(var(--v-theme-${trendAvatarColor}))` }">
+            <span class="text-white font-weight-bold text-h6">{{ avatarLetter }}</span>
           </v-avatar>
           <div style="min-width: 0;">
             <div class="d-flex align-center ga-2">
-              <span class="text-body-1 font-weight-bold text-truncate">{{ props.summary.name }}</span>
-              <v-chip size="x-small" variant="outlined" rounded="lg">{{ props.summary.type }}</v-chip>
+              <span class="font-weight-bold text-truncate symbol-name">{{ props.summary.name }}</span>
+              <v-chip size="x-small" variant="tonal" color="info" rounded="lg" class="font-weight-bold">{{ props.summary.type }}</v-chip>
             </div>
-            <div class="text-caption text-medium-emphasis text-truncate">
+            <div class="text-caption text-label-muted text-truncate">
               {{ props.summary.price.updatedAgo }}
             </div>
           </div>
@@ -79,20 +107,20 @@ function goToDetail() {
         <!-- Price -->
         <div class="text-right flex-shrink-0 ml-2">
           <div class="text-h6 font-weight-bold font-mono">{{ formatPrice(props.summary.price.current) }}</div>
-          <span :class="['text-caption font-weight-medium font-mono', getPriceChangeColor(props.summary.price.changePercent) === 'success' ? 'text-success' : getPriceChangeColor(props.summary.price.changePercent) === 'error' ? 'text-error' : 'text-grey']">
+          <v-chip size="x-small" variant="tonal" color="primary" class="font-mono font-weight-bold text-caption">
             {{ formatPriceChange(props.summary.price.changePercent) }}
-          </span>
+          </v-chip>
         </div>
       </div>
 
       <!-- Row 2: Strength Bar -->
       <div class="mb-3">
         <div class="d-flex align-center justify-space-between mb-1">
-          <span class="text-caption font-weight-bold text-uppercase text-medium-emphasis">{{ strengthLabel }}</span>
-          <span class="text-caption font-weight-bold font-mono">{{ strengthScore }}%</span>
+          <span class="text-caption font-weight-medium text-uppercase text-primary">{{ strengthLabel }}</span>
+          <span class="text-caption font-weight-medium font-mono">{{ animatedScore }}%</span>
         </div>
         <v-progress-linear
-          :model-value="strengthScore"
+          :model-value="animatedScore"
           :color="strengthColor"
           rounded
           height="6"
@@ -100,11 +128,13 @@ function goToDetail() {
         />
       </div>
 
+      <v-divider class="mb-3" />
+
       <!-- Row 3: Status Chips + Arrow -->
       <div class="d-flex align-center justify-space-between">
         <div class="d-flex flex-wrap ga-1">
           <!-- Trend -->
-          <v-chip :color="getTrendColor(majorityTrend)" size="x-small" variant="tonal" rounded="lg">
+          <v-chip :color="getTrendColor(majorityTrend)" size="x-small" variant="tonal" rounded="lg" class="font-weight-bold">
             {{ trendSummaryText }}
           </v-chip>
 
@@ -113,7 +143,9 @@ function goToDetail() {
             v-if="props.summary.trend.consensusLabel"
             size="x-small"
             variant="tonal"
+            color="info"
             rounded="lg"
+            class="font-weight-bold"
           >
             {{ props.summary.trend.consensusLabel }}
           </v-chip>
@@ -126,3 +158,10 @@ function goToDetail() {
     </v-card-text>
   </v-card>
 </template>
+
+<style scoped>
+.symbol-name {
+  font-size: 20px;
+  line-height: 1.4;
+}
+</style>

@@ -25,7 +25,7 @@ body,
 
 /* ─── Card with depth ─── */
 .glass-card {
-  background: #1E1E1E !important;
+  background: rgba(30, 30, 30, 0.4) !important;
   border: 1px solid rgba(255, 255, 255, 0.06) !important;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4) !important;
   transition: box-shadow 0.25s ease, border-color 0.25s ease;
@@ -36,6 +36,11 @@ body,
   box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.5),
     0 0 32px rgba(0, 220, 130, 0.04) !important;
+}
+
+/* ─── Muted label color (section headers, subtitles, secondary text) ─── */
+.text-label-muted {
+  color: rgb(100 116 139) !important;
 }
 
 /* ─── Inner sheet (for detail sections) ─── */

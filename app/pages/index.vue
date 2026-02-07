@@ -41,11 +41,11 @@ async function handleRefresh() {
         :loading="isRefreshing"
         @click="handleRefresh"
       >
-        <v-icon icon="mdi-refresh" size="22" class="text-medium-emphasis" />
+        <v-icon icon="mdi-sync" size="26" class="text-label-muted" />
       </v-btn>
     </div>
-    <p class="text-body-2 text-medium-emphasis mb-4">
-      AI-Powered Trading Signal Bot v5.1
+    <p class="text-caption font-weight-medium text-label-muted mb-4">
+      AI-Powered Trading Signal Bot v0.1
     </p>
 
     <v-divider class="mb-4" />

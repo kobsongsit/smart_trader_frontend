@@ -107,7 +107,7 @@ onUnmounted(() => {
             {{ symbolsList.length }} Symbols {{ isConnected ? 'Live' : 'Offline' }}
           </span>
         </div>
-        <span v-if="summaryLastRefresh" class="text-caption text-medium-emphasis">
+        <span v-if="summaryLastRefresh" class="text-caption text-label-muted">
           Last Refresh: {{ new Date(summaryLastRefresh).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) }}
         </span>
       </div>
