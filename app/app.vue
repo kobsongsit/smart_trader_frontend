@@ -1,15 +1,8 @@
 <script setup lang="ts">
 const route = useRoute()
 
-const navItems = [
-  { title: 'Symbols', icon: 'mdi-chart-multiple', to: '/' },
-  { title: 'Analysis', icon: 'mdi-book-open-variant', to: '/analysis-tools' },
-]
-
-const activeNav = computed(() => {
-  const idx = navItems.findIndex(item => item.to === route.path)
-  return idx >= 0 ? idx : 0
-})
+const isHome = computed(() => route.path === '/')
+const isAnalysis = computed(() => route.path === '/analysis-tools')
 </script>
 
 <template>
@@ -20,18 +13,15 @@ const activeNav = computed(() => {
     </v-main>
 
     <!-- Bottom Navigation -->
-    <v-bottom-navigation
-      :model-value="activeNav"
-      grow
-      color="primary"
-    >
-      <v-btn
-        v-for="item in navItems"
-        :key="item.to"
-        :to="item.to"
-      >
-        <v-icon :icon="item.icon" />
-        <span>{{ item.title }}</span>
+    <v-bottom-navigation grow color="primary">
+      <v-btn to="/" :active="isHome">
+        <v-icon icon="mdi-view-grid-outline" />
+        <span class="text-uppercase text-caption">Markets</span>
+      </v-btn>
+
+      <v-btn to="/analysis-tools" :active="isAnalysis">
+        <v-icon icon="mdi-chart-line-variant" />
+        <span class="text-uppercase text-caption">Analysis</span>
       </v-btn>
     </v-bottom-navigation>
   </v-app>

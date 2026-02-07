@@ -22,7 +22,6 @@ import {
   getADXDirectionColor,
   getBiasColor,
   getBiasIcon,
-  getSymbolTypeIcon,
   getConsensusColor,
 } from '../../../types/trading'
 
@@ -84,7 +83,37 @@ const neutralCount = computed(() => indicators.value?.summary?.neutralCount ?? 0
 const trendSummaryText = computed(() => {
   if (!trends.value?.analysis) return ''
   const a = trends.value.analysis
+  if (a.majorityTrend === 'NEUTRAL') {
+    return `NEUTRAL ${a.neutralCount + a.sidewaysCount}/5`
+  }
   return `${a.majorityTrend} ${Math.max(a.upCount, a.downCount)}/5`
+})
+
+// Strength bar
+const strengthLabel = computed(() => {
+  if (majorityTrend.value === 'UP') return 'UPTREND STRENGTH'
+  if (majorityTrend.value === 'DOWN') return 'DOWNTREND STRENGTH'
+  return 'NEUTRAL STRENGTH'
+})
+const strengthIcon = computed(() => {
+  if (majorityTrend.value === 'UP') return 'mdi-trending-up'
+  if (majorityTrend.value === 'DOWN') return 'mdi-trending-down'
+  return 'mdi-information-outline'
+})
+const strengthScore = computed(() => {
+  if (!indicators.value?.summary) return 0
+  const { bullishCount: bull, bearishCount: bear, neutralCount: neut } = indicators.value.summary
+  const total = bull + bear + neut
+  if (total === 0) return 0
+  if (majorityTrend.value === 'UP') return Math.round((bull / total) * 100)
+  if (majorityTrend.value === 'DOWN') return Math.round((bear / total) * 100)
+  return Math.round((neut / total) * 100)
+})
+const strengthColor = computed(() => getTrendColor(majorityTrend.value))
+
+// Avatar letter
+const avatarLetter = computed(() => {
+  return props.symbol.name?.charAt(0)?.toUpperCase() || '?'
 })
 
 
@@ -133,21 +162,18 @@ function handleSelectHistorySignal(sig: SignalData) {
     <v-card-text class="pb-1">
 
       <!-- Row 1: Symbol Info + Price -->
-      <div class="d-flex align-center justify-space-between mb-2">
+      <div class="d-flex align-center justify-space-between mb-3">
         <div class="d-flex align-center" style="min-width: 0;">
-          <v-avatar :color="trendAvatarColor" size="42" class="mr-3 flex-shrink-0">
-            <v-icon :icon="getSymbolTypeIcon(props.symbol.type)" color="white" size="20" />
+          <v-avatar :color="trendAvatarColor" size="46" rounded="lg" class="mr-3 flex-shrink-0">
+            <span class="text-white font-weight-bold text-body-1">{{ avatarLetter }}</span>
           </v-avatar>
           <div style="min-width: 0;">
             <div class="d-flex align-center ga-2">
-              <span class="text-subtitle-1 font-weight-bold text-truncate">{{ props.symbol.name }}</span>
-              <v-chip size="x-small" variant="tonal" color="secondary">{{ props.symbol.type }}</v-chip>
+              <span class="text-body-1 font-weight-bold text-truncate">{{ props.symbol.name }}</span>
+              <v-chip size="x-small" variant="outlined" rounded="lg">{{ props.symbol.type }}</v-chip>
             </div>
             <div class="text-caption text-medium-emphasis text-truncate">
-              {{ props.symbol.displayName }}
-              <span v-if="price">
-                · {{ formatTimeAgo(price.timestamp) }}
-              </span>
+              <span v-if="price">{{ formatTimeAgo(price.timestamp) }}</span>
             </div>
           </div>
         </div>
@@ -155,64 +181,63 @@ function handleSelectHistorySignal(sig: SignalData) {
         <!-- Price -->
         <div v-if="price" class="text-right flex-shrink-0 ml-2">
           <div class="text-h6 font-weight-bold">{{ formatPrice(price.current) }}</div>
-          <v-chip :color="getPriceChangeColor(price.changePercent)" size="x-small" variant="flat">
+          <span :class="['text-caption font-weight-medium', getPriceChangeColor(price.changePercent) === 'success' ? 'text-success' : getPriceChangeColor(price.changePercent) === 'error' ? 'text-error' : 'text-grey']">
             {{ formatPriceChange(price.changePercent) }}
-          </v-chip>
+          </span>
         </div>
         <div v-else-if="isLoading" class="text-right flex-shrink-0 ml-2">
           <v-skeleton-loader type="text" width="80" />
         </div>
       </div>
 
-      <!-- Row 2: Quick Status Chips -->
-      <div v-if="analysis" class="d-flex flex-wrap ga-1 mb-2">
-        <!-- Indicator Bias -->
-        <v-chip :color="getBiasColor(overallBias)" size="x-small" variant="flat">
-          <v-icon :icon="getBiasIcon(overallBias)" size="12" start />
-          {{ bullishCount }}/{{ bullishCount + bearishCount + neutralCount }} {{ overallBiasLabel }}
-        </v-chip>
+      <!-- Row 2: Strength Bar -->
+      <div v-if="analysis && indicators" class="mb-3">
+        <div class="d-flex align-center justify-space-between mb-1">
+          <div class="d-flex align-center ga-1">
+            <v-icon :icon="strengthIcon" :color="strengthColor" size="18" />
+            <span class="text-body-2 font-weight-bold text-uppercase">{{ strengthLabel }}</span>
+          </div>
+          <span class="text-body-2 font-weight-bold">{{ strengthScore }}%</span>
+        </div>
+        <v-progress-linear
+          :model-value="strengthScore"
+          :color="strengthColor"
+          rounded
+          height="6"
+          bg-color="grey-darken-3"
+        />
+      </div>
 
-        <!-- Trend -->
-        <v-chip v-if="trends" :color="getTrendColor(majorityTrend)" size="x-small" variant="tonal">
-          <v-icon :icon="majorityTrend === 'UP' ? 'mdi-trending-up' : majorityTrend === 'DOWN' ? 'mdi-trending-down' : 'mdi-trending-neutral'" size="12" start />
-          {{ trendSummaryText }}
-        </v-chip>
+      <!-- Row 3: Status Chips + Details Button -->
+      <div v-if="analysis" class="d-flex align-center justify-space-between">
+        <div class="d-flex flex-wrap ga-1">
+          <!-- Trend -->
+          <v-chip v-if="trends" :color="getTrendColor(majorityTrend)" size="x-small" variant="tonal" rounded="lg">
+            {{ trendSummaryText }}
+          </v-chip>
 
-        <!-- Consensus -->
-        <v-chip
-          v-if="trends?.analysis?.consensus"
-          :color="getConsensusColor(trends.analysis.consensus)"
-          size="x-small"
-          variant="tonal"
+          <!-- Consensus -->
+          <v-chip
+            v-if="trends?.analysis?.consensus"
+            size="x-small"
+            variant="tonal"
+            rounded="lg"
+          >
+            {{ trends.analysis.consensus.toUpperCase() }}
+          </v-chip>
+        </div>
+
+        <!-- Details Button -->
+        <v-btn
+          variant="text"
+          size="small"
+          color="white"
+          class="text-caption text-uppercase font-weight-medium"
+          @click="toggleExpand"
         >
-          {{ trends.analysis.consensus }}
-        </v-chip>
-
-        <!-- Validation -->
-        <v-chip
-          v-if="validation"
-          :color="validation.overallStatus === 'pass' ? 'success' : validation.overallStatus === 'fail' ? 'error' : 'warning'"
-          size="x-small"
-          variant="tonal"
-        >
-          <v-icon
-            :icon="validation.overallStatus === 'pass' ? 'mdi-shield-check' : validation.overallStatus === 'fail' ? 'mdi-shield-off' : 'mdi-shield-alert'"
-            size="12"
-            start
-          />
-          {{ validation.overallStatus === 'pass' ? 'Valid' : validation.overallStatus === 'fail' ? 'Fail' : 'Warn' }}
-        </v-chip>
-
-        <!-- Pre-Filter -->
-        <v-chip
-          v-if="trends?.preFilter"
-          :color="trends.preFilter.shouldAnalyze ? 'success' : 'error'"
-          size="x-small"
-          variant="tonal"
-        >
-          <v-icon :icon="trends.preFilter.shouldAnalyze ? 'mdi-filter-check' : 'mdi-filter-remove'" size="12" start />
-          Filter
-        </v-chip>
+          Details
+          <v-icon :icon="expanded ? 'mdi-chevron-up' : 'mdi-chevron-down'" end size="16" />
+        </v-btn>
       </div>
 
       <!-- AI Analyzing Indicator -->
@@ -230,22 +255,6 @@ function handleSelectHistorySignal(sig: SignalData) {
         <v-skeleton-loader type="chip@3" />
       </div>
     </v-card-text>
-
-    <!-- ═══════════════════════════════════════════════════ -->
-    <!-- EXPAND/COLLAPSE TOGGLE                              -->
-    <!-- ═══════════════════════════════════════════════════ -->
-    <v-card-actions class="pt-0 px-4 pb-2">
-      <v-btn
-        variant="text"
-        size="small"
-        color="primary"
-        block
-        @click="toggleExpand"
-      >
-        <v-icon :icon="expanded ? 'mdi-chevron-up' : 'mdi-chevron-down'" start />
-        {{ expanded ? 'ซ่อนรายละเอียด' : 'รายละเอียด' }}
-      </v-btn>
-    </v-card-actions>
 
     <!-- ═══════════════════════════════════════════════════ -->
     <!-- DETAIL SECTION (expandable)                         -->

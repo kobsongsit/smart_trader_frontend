@@ -1,43 +1,53 @@
 <script setup lang="ts">
+const { symbols, fetchActiveSymbols } = useSymbols()
+const { fetchAnalysis, clearCache } = useAnalysis()
+
+const isRefreshing = ref(false)
+
 useHead({
   title: 'Smart Trader - AI Trading Signals',
   meta: [
     { name: 'description', content: 'AI-Powered Trading Signal Bot with Technical Analysis' }
   ]
 })
+
+async function handleRefresh() {
+  isRefreshing.value = true
+  try {
+    clearCache()
+    await fetchActiveSymbols()
+    for (const symbol of symbols.value) {
+      await fetchAnalysis(symbol.id, { forceRefresh: true })
+    }
+  } finally {
+    isRefreshing.value = false
+  }
+}
 </script>
 
 <template>
   <v-container fluid class="page-container pa-3 pa-sm-4">
 
-    <!-- Header -->
-    <div class="mb-4">
-      <h1 class="text-h6 text-sm-h5 font-weight-bold">
-        <v-icon icon="mdi-chart-multiple" color="primary" class="mr-1" />
-        Smart Trader
-      </h1>
-      <p class="text-caption text-medium-emphasis mt-1">
-        AI-Powered Trading Signal Bot
-      </p>
+    <!-- Header: avatar + title + refresh on ONE line -->
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 4px;">
+      <v-avatar color="primary" size="40" rounded="lg" style="flex-shrink: 0;">
+        <v-icon icon="mdi-flash" color="white" size="22" />
+      </v-avatar>
+      <span style="font-size: 22px; font-weight: 700; flex-grow: 1;">Smart Trader</span>
+      <v-icon
+        icon="mdi-refresh"
+        size="22"
+        :class="{ 'spin-animation': isRefreshing }"
+        class="text-medium-emphasis"
+        style="cursor: pointer; flex-shrink: 0;"
+        @click="handleRefresh"
+      />
     </div>
+    <p class="text-body-2 text-medium-emphasis mb-4">
+      AI-Powered Trading Signal Bot v5.1
+    </p>
 
-    <!-- Quick Info Bar -->
-    <v-sheet class="mb-4 pa-2" rounded="lg" color="grey-darken-4">
-      <v-chip-group>
-        <v-chip size="small" variant="tonal" color="primary" prepend-icon="mdi-robot">
-          GPT-5.1
-        </v-chip>
-        <v-chip size="small" variant="tonal" color="info" prepend-icon="mdi-chart-line">
-          9 Indicators
-        </v-chip>
-        <v-chip size="small" variant="tonal" color="secondary" prepend-icon="mdi-clock-outline">
-          5 Timeframes
-        </v-chip>
-        <v-chip size="small" variant="tonal" color="warning" prepend-icon="mdi-newspaper">
-          News Sentiment
-        </v-chip>
-      </v-chip-group>
-    </v-sheet>
+    <v-divider class="mb-4" />
 
     <!-- Symbol List -->
     <TradingSymbolList />
@@ -55,3 +65,13 @@ useHead({
 
   </v-container>
 </template>
+
+<style scoped>
+.spin-animation {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+</style>

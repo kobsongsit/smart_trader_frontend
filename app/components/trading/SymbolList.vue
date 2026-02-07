@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { formatTimeAgo } from '../../../types/trading'
+
 const { symbols, isLoading, error, fetchActiveSymbols } = useSymbols()
 const { fetchAnalysis } = useAnalysis()
 const { connect, disconnect, subscribeSymbol, unsubscribeSymbol, isConnected } = useSocket()
+
+const lastUpdateTime = ref<string | null>(null)
 
 // Fetch symbols on mount, connect WebSocket, then fetch analysis for each
 onMounted(async () => {
@@ -15,6 +19,8 @@ onMounted(async () => {
     subscribeSymbol(symbol.id)
     await fetchAnalysis(symbol.id)
   }
+
+  lastUpdateTime.value = new Date().toISOString()
 })
 
 // Cleanup on unmount
@@ -23,6 +29,11 @@ onUnmounted(() => {
     unsubscribeSymbol(symbol.id)
   }
   disconnect()
+})
+
+const lastUpdateLabel = computed(() => {
+  if (!lastUpdateTime.value) return ''
+  return formatTimeAgo(lastUpdateTime.value)
 })
 </script>
 
@@ -60,34 +71,21 @@ onUnmounted(() => {
 
     <!-- Symbol Cards -->
     <div v-else>
+      <!-- Header: N SYMBOLS LIVE ... Last Update -->
       <div class="d-flex align-center justify-space-between mb-3">
         <div class="d-flex align-center ga-2">
-          <span class="text-caption text-medium-emphasis">
-            {{ symbols.length }} symbol{{ symbols.length > 1 ? 's' : '' }}
-          </span>
-          <!-- WebSocket status indicator -->
-          <v-chip
+          <v-icon
+            :icon="isConnected ? 'mdi-circle' : 'mdi-circle-outline'"
             :color="isConnected ? 'success' : 'grey'"
-            size="x-small"
-            variant="tonal"
-          >
-            <v-icon
-              :icon="isConnected ? 'mdi-access-point' : 'mdi-access-point-off'"
-              size="12"
-              start
-            />
-            {{ isConnected ? 'Live' : 'Offline' }}
-          </v-chip>
+            size="10"
+          />
+          <span class="text-caption font-weight-bold text-uppercase">
+            {{ symbols.length }} Symbols {{ isConnected ? 'Live' : 'Offline' }}
+          </span>
         </div>
-        <v-btn
-          variant="text"
-          size="x-small"
-          color="primary"
-          @click="fetchActiveSymbols"
-          prepend-icon="mdi-refresh"
-        >
-          Refresh
-        </v-btn>
+        <span class="text-caption text-medium-emphasis">
+          Last Update: {{ lastUpdateLabel || 'Just now' }}
+        </span>
       </div>
 
       <TradingSymbolCard
