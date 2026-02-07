@@ -145,6 +145,19 @@ const obvData = computed(() => indicators.value?.obv ?? null)
 const atrData = computed(() => indicators.value?.atr ?? null)
 const adxData = computed(() => indicators.value?.adx ?? null)
 
+// ─── Reload ───
+const isRefreshing = ref(false)
+
+async function handleReload() {
+  isRefreshing.value = true
+  try {
+    await fetchSymbolSummary(symbolId.value)
+    await fetchAnalysis(symbolId.value)
+  } finally {
+    setTimeout(() => { isRefreshing.value = false }, 500)
+  }
+}
+
 // ─── Handlers ───
 function goBack() {
   navigateTo('/')
@@ -164,35 +177,44 @@ async function handleAnalyze() {
     <!-- HEADER: Back + Symbol + Type                       -->
     <!-- ═══════════════════════════════════════════════════ -->
     <div class="d-flex align-center justify-space-between mb-2">
-      <v-btn icon variant="text" size="small" @click="goBack">
-        <v-icon icon="mdi-arrow-left" />
+      <v-btn icon variant="tonal" color="grey-darken-3" size="small" rounded="circle" @click="goBack">
+        <v-icon icon="mdi-arrow-left" size="28" class="text-label-muted" />
       </v-btn>
       <div v-if="summary" class="text-center">
         <div class="d-flex align-center justify-center ga-2">
           <span class="text-h6 font-weight-black">{{ summary.name }}</span>
-          <v-chip size="x-small" variant="outlined" rounded="lg">{{ summary.type }}</v-chip>
+          <v-chip size="x-small" variant="tonal" color="info" rounded="lg" class="font-weight-bold">{{ summary.type }}</v-chip>
         </div>
-        <div class="text-caption text-medium-emphasis">{{ summary.price.updatedAgo }}</div>
+        <div class="text-caption text-label-muted">{{ summary.price.updatedAgo }}</div>
       </div>
       <div v-else style="width: 40px;" />
-      <!-- Placeholder for right side alignment -->
-      <div style="width: 40px;" />
+      <v-btn
+        icon
+        variant="text"
+        size="small"
+        :loading="isRefreshing"
+        @click="handleReload"
+      >
+        <v-icon icon="mdi-sync" size="26" class="text-label-muted" />
+      </v-btn>
     </div>
+
+    <v-divider class="mb-4" />
 
     <!-- ═══════════════════════════════════════════════════ -->
     <!-- Page loading state (before data is ready)          -->
     <!-- ═══════════════════════════════════════════════════ -->
     <div v-if="!pageReady" class="text-center py-12">
       <v-progress-circular indeterminate color="primary" size="40" />
-      <div class="text-caption mt-3 text-medium-emphasis">กำลังโหลดข้อมูล...</div>
+      <div class="text-caption mt-3 text-label-muted">กำลังโหลดข้อมูล...</div>
     </div>
 
     <!-- ═══════════════════════════════════════════════════ -->
     <!-- Not found state (only after fetch completed)       -->
     <!-- ═══════════════════════════════════════════════════ -->
     <div v-else-if="!summary" class="text-center py-12">
-      <v-icon icon="mdi-alert-circle-outline" size="48" class="mb-3 text-medium-emphasis" />
-      <div class="text-body-1 text-medium-emphasis mb-4">ไม่พบข้อมูล Symbol</div>
+      <v-icon icon="mdi-alert-circle-outline" size="48" class="mb-3 text-label-muted" />
+      <div class="text-body-1 text-label-muted mb-4">ไม่พบข้อมูล Symbol</div>
       <v-btn variant="tonal" color="primary" @click="goBack">
         <v-icon icon="mdi-arrow-left" start />
         กลับหน้าหลัก
@@ -211,44 +233,22 @@ async function handleAnalyze() {
             <div class="text-h4 font-weight-black font-mono">
               {{ formatPrice(summary.price.current) }}
             </div>
-            <span :class="['text-body-2 font-weight-medium font-mono', getPriceChangeColor(summary.price.changePercent) === 'success' ? 'text-success' : getPriceChangeColor(summary.price.changePercent) === 'error' ? 'text-error' : 'text-grey']">
+            <span :class="['text-body-2 font-weight-bold font-mono', getPriceChangeColor(summary.price.changePercent) === 'success' ? 'text-success' : getPriceChangeColor(summary.price.changePercent) === 'error' ? 'text-error' : 'text-grey']">
               {{ formatPriceChange(summary.price.changePercent) }}
             </span>
           </div>
           <div class="text-right">
-            <div class="text-caption text-uppercase text-medium-emphasis">{{ strengthLabel }}</div>
+            <div class="text-caption text-uppercase text-label-muted font-weight-bold">{{ strengthLabel }}</div>
             <div class="text-h4 font-weight-black font-mono" :class="`text-${strengthColor}`">{{ strengthScore }}%</div>
           </div>
         </div>
 
-        <v-progress-linear
-          :model-value="strengthScore"
-          :color="strengthColor"
-          rounded
-          height="6"
-          bg-color="#2A2A2A"
-          class="mb-3"
-        />
-
-        <div class="d-flex flex-wrap ga-1">
-          <v-chip :color="getTrendColor(majorityTrend)" size="small" variant="tonal" rounded="lg">
-            {{ trendSummaryText }}
-          </v-chip>
-          <v-chip
-            v-if="summary.trend.consensusLabel"
-            size="small"
-            variant="tonal"
-            rounded="lg"
-          >
-            {{ summary.trend.consensusLabel }}
-          </v-chip>
-        </div>
       </div>
 
       <!-- ══════ Loading State ══════ -->
       <div v-if="isLoading && !analysis" class="text-center py-8">
         <v-progress-circular indeterminate color="primary" size="40" />
-        <div class="text-caption mt-3 text-medium-emphasis">กำลังโหลดข้อมูลวิเคราะห์...</div>
+        <div class="text-caption mt-3 text-label-muted">กำลังโหลดข้อมูลวิเคราะห์...</div>
       </div>
 
       <!-- ══════ Analysis Content ══════ -->
@@ -265,33 +265,33 @@ async function handleAnalyze() {
             <v-icon icon="mdi-chart-box" size="16" class="mr-1" />
             Indicator Summary
           </div>
-          <v-sheet rounded="lg" class="glass-sheet pa-3">
+          <v-sheet rounded="lg" class="glass-card pa-3">
             <div class="d-flex align-center justify-space-between mb-2">
-              <v-chip :color="getBiasColor(overallBias)" variant="flat" size="small">
+              <v-chip :color="getBiasColor(overallBias)" variant="tonal" size="small">
                 <v-icon :icon="getBiasIcon(overallBias)" start size="14" />
                 {{ overallBiasLabel }}
               </v-chip>
-              <span class="text-caption font-weight-bold text-uppercase">{{ biasStrength }}</span>
+              <span class="text-caption font-weight-bold text-uppercase text-label-muted">{{ biasStrength }}</span>
             </div>
 
             <!-- Bullish / Bearish / Neutral counts -->
             <v-row dense>
               <v-col cols="4">
                 <div class="text-center">
-                  <div class="text-caption text-success">Bullish</div>
-                  <div class="text-h5 font-weight-black text-success font-mono">{{ bullishCount }}</div>
+                  <div class="text-caption font-weight-medium text-label-muted">Bullish</div>
+                  <div class="text-h5 font-weight-bold text-success font-mono">{{ bullishCount }}</div>
                 </div>
               </v-col>
               <v-col cols="4">
                 <div class="text-center">
-                  <div class="text-caption text-error">Bearish</div>
-                  <div class="text-h5 font-weight-black text-error font-mono">{{ bearishCount }}</div>
+                  <div class="text-caption font-weight-medium text-label-muted">Bearish</div>
+                  <div class="text-h5 font-weight-bold text-error font-mono">{{ bearishCount }}</div>
                 </div>
               </v-col>
               <v-col cols="4">
                 <div class="text-center">
-                  <div class="text-caption text-grey">Neutral</div>
-                  <div class="text-h5 font-weight-black font-mono">{{ neutralCount }}</div>
+                  <div class="text-caption font-weight-medium text-label-muted">Neutral</div>
+                  <div class="text-h5 font-weight-bold font-mono">{{ neutralCount }}</div>
                 </div>
               </v-col>
             </v-row>
@@ -317,9 +317,9 @@ async function handleAnalyze() {
               v-for="(tf, key) in trends.timeframes"
               :key="key"
               rounded="lg"
-              class="glass-sheet pa-3 text-center flex-fill"
+              class="glass-card pa-3 text-center flex-fill"
             >
-              <div class="text-caption font-weight-bold text-uppercase text-medium-emphasis mb-2">{{ key }}</div>
+              <div class="text-caption font-weight-bold text-uppercase text-label-muted mb-2">{{ key }}</div>
               <v-chip
                 :color="getTrendColor(tf.direction || 'NEUTRAL')"
                 variant="flat"
@@ -337,15 +337,17 @@ async function handleAnalyze() {
             <v-chip
               :color="getTrendColor(trends.analysis.majorityTrend)"
               size="small"
-              variant="flat"
+              variant="tonal"
+              class="font-weight-bold"
             >
-              <v-icon icon="mdi-check-circle" size="14" start />
+              <v-icon icon="mdi-check-circle-outline" size="14" start />
               {{ trends.analysis.majorityTrendLabel }}
             </v-chip>
             <v-chip
               :color="getConsensusColor(trends.analysis.consensus)"
               size="small"
               variant="tonal"
+              class="font-weight-bold"
             >
               {{ trends.analysis.consensus }}
             </v-chip>
@@ -372,8 +374,8 @@ async function handleAnalyze() {
           </div>
 
           <!-- Moving Averages -->
-          <v-sheet rounded="lg" class="glass-sheet pa-3 mb-2">
-            <div class="text-caption font-weight-bold mb-2">
+          <v-sheet rounded="lg" class="glass-card pa-3 mb-2">
+            <div class="text-caption font-weight-bold mb-2 text-info">
               <v-icon icon="mdi-chart-timeline-variant" size="14" color="info" class="mr-1" />
               Moving Averages
             </div>
@@ -388,8 +390,9 @@ async function handleAnalyze() {
                 <TradingIndicatorValue label="EMA 20" :value="maData?.ema20 ?? null" :decimals="4" />
               </v-col>
             </v-row>
-            <div v-if="maData" class="d-flex flex-wrap ga-1 mt-2">
-              <v-chip :color="getCrossColor(maData.sma50VsSma200)" size="x-small" variant="flat">
+            <v-divider class="my-2" />
+            <div v-if="maData" class="d-flex flex-wrap ga-1">
+              <v-chip :color="getCrossColor(maData.sma50VsSma200)" size="x-small" variant="tonal" class="font-weight-bold">
                 <v-icon :icon="getCrossIcon(maData.sma50VsSma200)" size="12" start />
                 {{ getCrossLabel(maData.sma50VsSma200) }}
               </v-chip>
@@ -397,6 +400,7 @@ async function handleAnalyze() {
                 :color="maData.priceVsSma50 === 'above' ? 'success' : 'error'"
                 size="x-small"
                 variant="tonal"
+                class="font-weight-bold"
               >
                 Price {{ maData.priceVsSma50 }} SMA50
               </v-chip>
@@ -404,6 +408,7 @@ async function handleAnalyze() {
                 :color="maData.priceVsEma20 === 'above' ? 'success' : 'error'"
                 size="x-small"
                 variant="tonal"
+                class="font-weight-bold"
               >
                 Price {{ maData.priceVsEma20 }} EMA20
               </v-chip>
@@ -411,9 +416,9 @@ async function handleAnalyze() {
           </v-sheet>
 
           <!-- MACD -->
-          <v-sheet rounded="lg" class="glass-sheet pa-3 mb-2">
-            <div class="text-caption font-weight-bold mb-2">
-              <v-icon icon="mdi-chart-bar" size="14" color="orange" class="mr-1" />
+          <v-sheet rounded="lg" class="glass-card pa-3 mb-2">
+            <div class="text-caption font-weight-bold mb-2 text-info">
+              <v-icon icon="mdi-chart-bar" size="14" color="info" class="mr-1" />
               MACD
             </div>
             <v-row dense>
@@ -434,11 +439,12 @@ async function handleAnalyze() {
                 />
               </v-col>
             </v-row>
-            <div v-if="macdData" class="d-flex ga-1 mt-2">
-              <v-chip :color="getMACDTrendColor(macdData.trend)" size="x-small" variant="flat">
+            <v-divider class="my-2" />
+            <div v-if="macdData" class="d-flex ga-1">
+              <v-chip :color="getMACDTrendColor(macdData.trend)" size="x-small" variant="tonal" class="font-weight-bold">
                 {{ macdData.trend }}
               </v-chip>
-              <v-chip size="x-small" variant="tonal">
+              <v-chip size="x-small" variant="tonal" class="font-weight-bold">
                 <v-icon :icon="getMomentumIcon(macdData.momentum)" size="12" start />
                 {{ macdData.momentum }}
               </v-chip>
@@ -446,9 +452,9 @@ async function handleAnalyze() {
           </v-sheet>
 
           <!-- Oscillators: RSI + Stochastic -->
-          <v-sheet rounded="lg" class="glass-sheet pa-3 mb-2">
-            <div class="text-caption font-weight-bold mb-2">
-              <v-icon icon="mdi-sine-wave" size="14" color="green" class="mr-1" />
+          <v-sheet rounded="lg" class="glass-card pa-3 mb-2">
+            <div class="text-caption font-weight-bold mb-2 text-info">
+              <v-icon icon="mdi-sine-wave" size="14" color="info" class="mr-1" />
               Oscillators (RSI / Stoch)
             </div>
             <v-row dense>
@@ -469,15 +475,17 @@ async function handleAnalyze() {
                 <TradingIndicatorValue label="Stoch %D" :value="stochData?.d ?? null" :decimals="1" />
               </v-col>
             </v-row>
-            <div class="d-flex flex-wrap ga-1 mt-2">
-              <v-chip v-if="rsiData" :color="getZoneColor(rsiData.zone)" size="x-small" variant="tonal">
+            <v-divider class="my-2" />
+            <div class="d-flex flex-wrap ga-1">
+              <v-chip v-if="rsiData" :color="getZoneColor(rsiData.zone)" size="x-small" variant="tonal" class="font-weight-bold">
                 {{ getZoneLabel(rsiData.zone) }}
               </v-chip>
               <v-chip
                 v-if="stochData && stochData.crossover !== 'none'"
                 :color="stochData.crossover === 'bullish_cross' ? 'success' : 'error'"
                 size="x-small"
-                variant="flat"
+                variant="tonal"
+                class="font-weight-bold"
               >
                 {{ stochData.crossover === 'bullish_cross' ? 'Bullish Cross' : 'Bearish Cross' }}
               </v-chip>
@@ -485,33 +493,37 @@ async function handleAnalyze() {
           </v-sheet>
 
           <!-- Volume & Volatility: OBV + ATR -->
-          <v-sheet rounded="lg" class="glass-sheet pa-3 mb-2">
-            <div class="text-caption font-weight-bold mb-2">
-              <v-icon icon="mdi-chart-areaspline" size="14" color="blue" class="mr-1" />
+          <v-sheet rounded="lg" class="glass-card pa-3 mb-2">
+            <div class="text-caption font-weight-bold mb-2 text-info">
+              <v-icon icon="mdi-chart-areaspline" size="14" color="info" class="mr-1" />
               Volume & Volatility
             </div>
             <v-row dense>
               <v-col cols="6">
-                <TradingIndicatorValue label="OBV" :value="obvData?.value ?? null" :decimals="0" />
-                <div v-if="obvData" class="d-flex flex-wrap ga-1 mt-1">
-                  <v-chip :color="getOBVConfirmationColor(obvData.confirmation)" size="x-small" variant="tonal">
+                <div class="text-caption text-label-muted">OBV</div>
+                <div class="d-flex align-center ga-2">
+                  <span class="text-body-2 font-weight-bold font-mono">{{ obvData?.value != null ? obvData.value.toLocaleString() : 'N/A' }}</span>
+                  <v-chip v-if="obvData" :color="getOBVConfirmationColor(obvData.confirmation)" size="x-small" variant="tonal" class="font-weight-bold">
                     {{ obvData.confirmation }}
                   </v-chip>
                 </div>
               </v-col>
               <v-col cols="6">
-                <TradingIndicatorValue label="ATR" :value="atrData?.value ?? null" :decimals="4" />
-                <v-chip v-if="atrData" :color="getATRLevelColor(atrData.level)" size="x-small" variant="tonal" class="mt-1">
-                  {{ atrData.level }}
-                </v-chip>
+                <div class="text-caption text-label-muted">ATR</div>
+                <div class="d-flex align-center ga-2">
+                  <span class="text-body-2 font-weight-bold font-mono">{{ atrData?.value != null ? atrData.value.toFixed(4) : 'N/A' }}</span>
+                  <v-chip v-if="atrData" :color="getATRLevelColor(atrData.level)" size="x-small" variant="tonal" class="font-weight-bold">
+                    {{ atrData.level }}
+                  </v-chip>
+                </div>
               </v-col>
             </v-row>
           </v-sheet>
 
           <!-- Trend Strength: ADX -->
-          <v-sheet rounded="lg" class="glass-sheet pa-3">
-            <div class="text-caption font-weight-bold mb-2">
-              <v-icon icon="mdi-trending-up" size="14" color="amber" class="mr-1" />
+          <v-sheet rounded="lg" class="glass-card pa-3">
+            <div class="text-caption font-weight-bold mb-2 text-info">
+              <v-icon icon="mdi-trending-up" size="14" color="info" class="mr-1" />
               Trend Strength (ADX)
             </div>
             <v-row dense>
@@ -532,12 +544,13 @@ async function handleAnalyze() {
                 <TradingIndicatorValue label="-DI" :value="adxData?.minusDI ?? null" :decimals="1" color="error" />
               </v-col>
             </v-row>
-            <div v-if="adxData" class="d-flex flex-wrap ga-1 mt-2">
-              <v-chip :color="getADXStrengthColor(adxData.trendStrength)" size="x-small" variant="tonal">
+            <v-divider class="my-2" />
+            <div v-if="adxData" class="d-flex flex-wrap ga-1">
+              <v-chip :color="getADXStrengthColor(adxData.trendStrength)" size="x-small" variant="tonal" class="font-weight-bold">
                 <v-icon :icon="getADXStrengthIcon(adxData.trendStrength)" size="12" start />
                 {{ adxData.trendStrength }}
               </v-chip>
-              <v-chip :color="getADXDirectionColor(adxData.trendDirection)" size="x-small" variant="tonal">
+              <v-chip :color="getADXDirectionColor(adxData.trendDirection)" size="x-small" variant="tonal" class="font-weight-bold">
                 {{ adxData.trendDirection }}
               </v-chip>
             </div>
@@ -559,6 +572,8 @@ async function handleAnalyze() {
                 :analysis="trends.analysis"
               />
             </div>
+
+            <v-divider v-if="trends && validation" class="mb-4" />
 
             <!-- Validation Rules -->
             <div v-if="validation" class="mb-4">
@@ -589,17 +604,6 @@ async function handleAnalyze() {
           <!-- Actual result -->
           <TradingSignalResult v-else :signal="signal!" />
         </div>
-
-        <!-- ══════ Meta Info Footer ══════ -->
-        <v-sheet v-if="meta" rounded="lg" class="glass-sheet pa-3 text-center mb-4">
-          <div class="text-caption text-medium-emphasis">
-            <span>Updated: {{ formatTimeAgo(meta.timestamp) }}</span>
-            <span class="mx-1">&middot;</span>
-            <span>v{{ meta.version }}</span>
-            <span class="mx-1">&middot;</span>
-            <span>WebSocket Active</span>
-          </div>
-        </v-sheet>
 
       </template>
     </div>

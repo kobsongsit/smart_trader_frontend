@@ -668,10 +668,10 @@ export function getValidationStatusColor(status: ValidationStatus): string {
 
 export function getValidationStatusIcon(status: ValidationStatus): string {
   switch (status) {
-    case 'pass': return 'mdi-check-circle'
-    case 'fail': return 'mdi-close-circle'
-    case 'warning': return 'mdi-alert'
-    default: return 'mdi-help-circle'
+    case 'pass': return 'mdi-check-circle-outline'
+    case 'fail': return 'mdi-close-circle-outline'
+    case 'warning': return 'mdi-alert-outline'
+    default: return 'mdi-help-circle-outline'
   }
 }
 

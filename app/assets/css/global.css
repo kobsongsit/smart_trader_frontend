@@ -21,6 +21,7 @@ body,
 .page-container {
   max-width: 800px;
   margin: 0 auto;
+  padding-top: 1rem !important;
 }
 
 /* ─── Card with depth ─── */

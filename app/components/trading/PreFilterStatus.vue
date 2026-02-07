@@ -10,7 +10,7 @@ const props = defineProps<Props>()
 
 const filterStatus = computed(() => {
   if (props.preFilter.shouldAnalyze) {
-    return { label: 'READY', color: 'success', icon: 'mdi-check-circle' }
+    return { label: 'READY', color: 'success', icon: 'mdi-check-circle-outline' }
   }
   return { label: 'FILTERED', color: 'error', icon: 'mdi-filter-remove' }
 })
@@ -27,7 +27,7 @@ const rules = computed(() => {
     name: 'SIDEWAYS DETECTION',
     description: `${sidewaysCount}/5 timeframes have ADX < 20`,
     passed: isSidewaysPassed,
-    icon: isSidewaysPassed ? 'mdi-check-circle' : 'mdi-close-circle',
+    icon: isSidewaysPassed ? 'mdi-check-circle-outline' : 'mdi-close-circle-outline',
     color: isSidewaysPassed ? 'success' : 'error'
   })
 
@@ -41,7 +41,7 @@ const rules = computed(() => {
       ? `${majorityDirection}: ${majorityCount}/5 timeframes agree`
       : `No majority (UP: ${props.analysis.upCount}, DOWN: ${props.analysis.downCount})`,
     passed: hasMajority,
-    icon: hasMajority ? 'mdi-check-circle' : 'mdi-close-circle',
+    icon: hasMajority ? 'mdi-check-circle-outline' : 'mdi-close-circle-outline',
     color: hasMajority ? 'success' : 'error'
   })
 
@@ -52,7 +52,7 @@ const rules = computed(() => {
     name: 'HIGHER TF WEIGHT',
     description: higherTFWarning || (higherTFPassed ? '4H & 1D align with majority' : '4H & 1D acceptable'),
     passed: !higherTFWarning,
-    icon: higherTFWarning ? 'mdi-alert' : 'mdi-check-circle',
+    icon: higherTFWarning ? 'mdi-alert-outline' : 'mdi-check-circle-outline',
     color: higherTFWarning ? 'warning' : 'success'
   })
 
@@ -63,32 +63,28 @@ const rules = computed(() => {
 <template>
   <div>
     <!-- Header -->
-    <div class="d-flex align-center justify-space-between mb-2">
-      <div class="text-caption font-weight-bold text-uppercase tracking-wide">
-        <v-icon icon="mdi-filter-check" size="16" color="primary" class="mr-1" />
+    <div class="d-flex align-center justify-space-between mb-3">
+      <div class="text-caption font-weight-bold text-uppercase text-label-muted">
+        <v-icon icon="mdi-shield-check" size="16" color="info" class="mr-1" />
         Pre-Filter Checks
       </div>
-      <v-chip :color="filterStatus.color" size="small" variant="flat">
-        <v-icon :icon="filterStatus.icon" size="14" start />
+      <v-chip :color="filterStatus.color" size="x-small" variant="tonal" class="font-weight-bold">
         {{ filterStatus.label }}
       </v-chip>
     </div>
 
     <!-- Rules List -->
-    <v-sheet rounded="lg" class="glass-sheet pa-2">
-      <div
-        v-for="(rule, idx) in rules"
-        :key="idx"
-        class="d-flex align-start ga-2 px-2 py-2"
-        :style="idx < rules.length - 1 ? 'border-bottom: 1px solid rgba(255,255,255,0.06)' : ''"
-      >
-        <v-icon :icon="rule.icon" :color="rule.color" size="18" class="mt-1 flex-shrink-0" />
-        <div style="min-width: 0;">
-          <div class="text-body-2 font-weight-bold">{{ rule.name }}</div>
-          <div class="text-caption text-medium-emphasis">{{ rule.description }}</div>
-        </div>
+    <div
+      v-for="(rule, idx) in rules"
+      :key="idx"
+      class="d-flex align-start ga-2 mb-3"
+    >
+      <v-icon :icon="rule.icon" :color="rule.color" size="16" class="flex-shrink-0" />
+      <div style="min-width: 0;">
+        <div class="font-weight-bold rule-title">{{ rule.name }}</div>
+        <div class="text-label-muted rule-desc">{{ rule.description }}</div>
       </div>
-    </v-sheet>
+    </div>
 
     <!-- Reason (if filtered out) -->
     <v-alert
@@ -100,19 +96,16 @@ const rules = computed(() => {
     >
       <div class="text-caption">{{ preFilter.reason }}</div>
     </v-alert>
-
-    <!-- Warnings -->
-    <div v-if="preFilter.warnings && preFilter.warnings.length > 0" class="mt-2">
-      <v-alert
-        v-for="(warning, idx) in preFilter.warnings"
-        :key="idx"
-        type="warning"
-        variant="tonal"
-        density="compact"
-        class="mb-1"
-      >
-        <div class="text-caption">{{ warning }}</div>
-      </v-alert>
-    </div>
   </div>
 </template>
+
+<style scoped>
+.rule-title {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.rule-desc {
+  font-size: 10px;
+  line-height: 1.4;
+}
+</style>

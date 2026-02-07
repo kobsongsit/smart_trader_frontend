@@ -58,7 +58,7 @@ const zoneLabel = computed(() => {
         :color="getBBPositionColor(bb.pricePosition)"
         size="small"
         variant="tonal"
-        class="font-mono"
+        class="font-mono font-weight-bold"
       >
         <v-icon icon="mdi-information-outline" start size="14" />
         {{ zoneLabel }}
@@ -67,8 +67,8 @@ const zoneLabel = computed(() => {
         v-if="bb.squeeze"
         color="warning"
         size="small"
-        variant="flat"
-        class="ml-2"
+        variant="tonal"
+        class="ml-2 font-weight-bold"
       >
         <v-icon icon="mdi-flash" start size="14" />
         Squeeze!

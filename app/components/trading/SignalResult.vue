@@ -39,7 +39,7 @@ const strategyIcon = computed(() => {
           <v-icon :icon="strategyIcon" start size="24" />
           {{ signal.strategy }}
         </v-btn>
-        <div class="text-caption text-medium-emphasis mt-2">{{ signal.strategyLabel }}</div>
+        <div class="text-caption text-label-muted font-weight-bold mt-2">{{ signal.strategyLabel }}</div>
       </div>
 
       <div class="text-center">
@@ -50,7 +50,7 @@ const strategyIcon = computed(() => {
           :width="6"
         >
           <div>
-            <div class="font-weight-black font-mono" style="font-size: 13px; line-height: 1.2;">{{ signal.confidence }}%</div>
+            <div class="font-weight-bold font-mono" style="font-size: 13px; line-height: 1.2;">{{ signal.confidence }}%</div>
             <div class="text-medium-emphasis" style="font-size: 7px; line-height: 1;">CONFIDENCE</div>
           </div>
         </v-progress-circular>
@@ -58,17 +58,17 @@ const strategyIcon = computed(() => {
     </div>
 
     <!-- Price Levels -->
-    <v-row dense class="mb-3">
+    <v-row dense class="mb-3 mt-4">
       <v-col cols="4" class="d-flex">
-        <v-sheet rounded="lg" class="glass-sheet pa-3 flex-fill">
-          <div class="text-caption text-medium-emphasis font-weight-bold">ENTRY</div>
+        <v-sheet rounded="lg" variant="tonal" class="pa-3 flex-fill entry-box entry-box--default">
+          <div class="text-caption text-label-muted font-weight-bold">ENTRY</div>
           <div class="text-subtitle-1 font-weight-bold font-mono">
             {{ formatPrice(signal.prices.entry) }}
           </div>
         </v-sheet>
       </v-col>
       <v-col cols="4" class="d-flex">
-        <v-sheet rounded="lg" class="glass-sheet pa-3 flex-fill">
+        <v-sheet rounded="lg" variant="tonal" class="pa-3 flex-fill entry-box entry-box--success">
           <div class="text-caption text-success font-weight-bold">TAKE PROFIT</div>
           <div class="text-subtitle-1 font-weight-bold text-success font-mono">
             {{ formatPrice(signal.prices.takeProfit) }}
@@ -77,7 +77,7 @@ const strategyIcon = computed(() => {
         </v-sheet>
       </v-col>
       <v-col cols="4" class="d-flex">
-        <v-sheet rounded="lg" class="glass-sheet pa-3 flex-fill">
+        <v-sheet rounded="lg" variant="tonal" class="pa-3 flex-fill entry-box entry-box--error">
           <div class="text-caption text-error font-weight-bold">STOP LOSS</div>
           <div class="text-subtitle-1 font-weight-bold text-error font-mono">
             {{ formatPrice(signal.prices.stopLoss) }}
@@ -89,14 +89,14 @@ const strategyIcon = computed(() => {
 
     <!-- Risk/Reward + Potential -->
     <div class="d-flex flex-wrap ga-2 mb-4">
-      <v-chip size="small" variant="tonal" color="info" class="font-mono">
+      <v-chip size="small" variant="tonal" color="info" class="font-mono font-weight-bold">
         <v-icon icon="mdi-scale-balance" start size="14" />
         R:R {{ signal.prices.riskRewardRatio }}
       </v-chip>
-      <v-chip size="small" variant="tonal" color="success" class="font-mono">
+      <v-chip size="small" variant="tonal" color="success" class="font-mono font-weight-bold">
         +{{ signal.prices.potentialProfit }}%
       </v-chip>
-      <v-chip size="small" variant="tonal" color="error" class="font-mono">
+      <v-chip size="small" variant="tonal" color="error" class="font-mono font-weight-bold">
         -{{ signal.prices.potentialLoss }}%
       </v-chip>
     </div>
@@ -142,3 +142,18 @@ const strategyIcon = computed(() => {
     </div>
   </v-sheet>
 </template>
+
+<style scoped>
+.entry-box {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+.entry-box--default {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.entry-box--success {
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+.entry-box--error {
+  border: 1px solid rgba(255, 82, 82, 0.3);
+}
+</style>

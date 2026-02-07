@@ -33,11 +33,9 @@ const barValue = computed(() => {
 </script>
 
 <template>
-  <v-sheet class="py-1" color="transparent">
-    <div class="d-flex justify-space-between align-center">
-      <span class="text-caption text-medium-emphasis">{{ props.label }}</span>
-      <span class="text-body-2 font-weight-medium font-mono">{{ displayValue }}</span>
-    </div>
+  <div>
+    <div class="text-caption text-label-muted">{{ props.label }}</div>
+    <div class="text-body-2 font-weight-bold font-mono">{{ displayValue }}</div>
     <v-progress-linear
       v-if="props.showBar && props.value !== null"
       :model-value="barValue"
@@ -46,5 +44,5 @@ const barValue = computed(() => {
       rounded
       class="mt-1"
     />
-  </v-sheet>
+  </div>
 </template>
