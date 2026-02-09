@@ -709,11 +709,18 @@ export function formatNumber(value: number | null, decimals: number = 2): string
 
 export function formatPrice(value: number | null | undefined): string {
   if (value === null || value === undefined) return 'N/A'
+
+  // Detect meaningful decimal places from the actual value
+  // toPrecision(10) strips floating-point artifacts while keeping real decimals
+  const str = parseFloat(value.toPrecision(10)).toString()
+  const decimalPart = str.includes('.') ? str.split('.')[1]?.length || 0 : 0
+  const decimals = Math.max(2, decimalPart)
+
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: value < 1 ? 6 : 2
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   }).format(value)
 }
 
