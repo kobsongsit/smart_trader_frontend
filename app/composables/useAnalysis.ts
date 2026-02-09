@@ -81,7 +81,7 @@ export function useAnalysis() {
       })
     } catch {
       // WebSocket not available (e.g., SSR) — that's okay
-      console.warn('[useAnalysis] WebSocket listeners not registered (SSR or useSocket unavailable)')
+      // WebSocket not available (SSR or useSocket unavailable)
     }
   }
 
@@ -121,7 +121,7 @@ export function useAnalysis() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || 'Failed to fetch summary'
       summaryError.value = errorMsg
-      console.error('[useAnalysis] Error fetching summary:', err)
+      // error silently — summaryError is set for UI
       return []
     } finally {
       summaryLoading.value = false
@@ -158,7 +158,7 @@ export function useAnalysis() {
       }
       return null
     } catch (err: any) {
-      console.error(`[useAnalysis] Error fetching summary for symbol ${symbolId}:`, err)
+      // error silently
       return null
     }
   }
@@ -243,7 +243,7 @@ export function useAnalysis() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || 'Failed to fetch analysis'
       errors.value.set(symbolId, errorMsg)
-      console.error(`Error fetching analysis for symbol ${symbolId}:`, err)
+      // error silently — errors map is set for UI
       return null
     } finally {
       loadingSymbols.value.delete(symbolId)
@@ -289,7 +289,7 @@ export function useAnalysis() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || 'Failed to analyze signal'
       analyzeError.value = errorMsg
-      console.error('Error analyzing signal:', err)
+      // error silently — analyzeError is set for UI
       aiAnalyzingSymbols.value.delete(symbolId)
       return null
     } finally {
@@ -315,7 +315,7 @@ export function useAnalysis() {
         throw new Error(response.error || 'Failed to fetch signal history')
       }
     } catch (err: any) {
-      console.error('Error fetching signal history:', err)
+      // error silently
       return []
     }
   }
@@ -353,7 +353,7 @@ export function useAnalysis() {
       const needsRefresh = !cachedTimestamp || new Date(serverLatest) > new Date(cachedTimestamp)
 
       if (needsRefresh) {
-        console.log(`[useAnalysis] Data stale for symbol ${symbolId}, refreshing...`)
+        // Data stale — auto refresh
         // Re-fetch ทั้ง analysis และ summary พร้อมกัน
         await Promise.all([
           fetchAnalysis(symbolId, { forceRefresh: true }),
@@ -365,7 +365,7 @@ export function useAnalysis() {
       return false
     } catch (err: any) {
       // Fail silently — ใช้ cached data ต่อไป ไม่ block UI
-      console.warn(`[useAnalysis] Freshness check failed for symbol ${symbolId}:`, err.message)
+      // Freshness check failed — use cached data
       return false
     }
   }
@@ -408,13 +408,13 @@ export function useAnalysis() {
       }
 
       if (refreshPromises.length > 0) {
-        console.log(`[useAnalysis] Refreshing ${refreshedIds.length} stale symbols:`, refreshedIds)
+        // Batch refresh stale symbols
         await Promise.allSettled(refreshPromises)
       }
 
       return refreshedIds
     } catch (err: any) {
-      console.warn('[useAnalysis] Batch freshness check failed:', err.message)
+      // Batch freshness check failed — use cached data
       return []
     }
   }

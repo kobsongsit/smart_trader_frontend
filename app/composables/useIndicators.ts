@@ -52,7 +52,7 @@ export function useIndicators() {
     } catch (err: any) {
       const errorMsg = err.message || 'Failed to fetch indicators'
       errors.value.set(symbolId, errorMsg)
-      console.error(`Error fetching indicators for symbol ${symbolId}:`, err)
+      // error silently
       return null
     } finally {
       loadingSymbols.value.delete(symbolId)

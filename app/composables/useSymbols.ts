@@ -33,7 +33,7 @@ export function useSymbols() {
       }
     } catch (err: any) {
       error.value = err.message || 'Failed to fetch symbols'
-      console.error('Error fetching symbols:', err)
+      // error silently
     } finally {
       isLoading.value = false
     }

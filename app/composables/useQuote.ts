@@ -76,7 +76,7 @@ export function useQuote() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || 'Failed to fetch quote'
       errors.value.set(symbolId, errorMsg)
-      console.error(`Error fetching quote for symbol ${symbolId}:`, err)
+      // error silently
       return null
     } finally {
       loadingSymbols.value.delete(symbolId)

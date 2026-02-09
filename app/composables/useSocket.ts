@@ -89,7 +89,6 @@ export function useSocket() {
     socket.on('connect', () => {
       isConnected.value = true
       connectionError.value = null
-      console.log('[WS] Connected:', socket?.id)
 
       // Re-subscribe to previously subscribed symbols
       for (const symbolId of subscribedSymbols.value) {
@@ -99,29 +98,24 @@ export function useSocket() {
 
     socket.on('disconnect', (reason) => {
       isConnected.value = false
-      console.log('[WS] Disconnected:', reason)
     })
 
     socket.on('connect_error', (err) => {
       isConnected.value = false
       connectionError.value = err.message
-      console.error('[WS] Connection error:', err.message)
     })
 
     // ── Business events ──
 
     socket.on('signal:loading', (data: SignalLoadingPayload) => {
-      console.log('[WS] signal:loading', data.symbolId)
       signalLoadingListeners.forEach(cb => cb(data))
     })
 
     socket.on('analysis:full', (data: AnalysisFullPayload) => {
-      console.log('[WS] analysis:full', data.success)
       analysisFullListeners.forEach(cb => cb(data))
     })
 
     socket.on('signal:new', (data: SignalNewPayload) => {
-      console.log('[WS] signal:new', data.symbolId)
       signalNewListeners.forEach(cb => cb(data))
     })
   }
@@ -136,7 +130,6 @@ export function useSocket() {
       socket = null
       isConnected.value = false
       subscribedSymbols.value.clear()
-      console.log('[WS] Manually disconnected')
     }
   }
 
@@ -147,7 +140,6 @@ export function useSocket() {
     subscribedSymbols.value.add(symbolId)
     if (socket?.connected) {
       socket.emit('subscribe:symbol', { symbolId })
-      console.log('[WS] Subscribed to symbol:', symbolId)
     }
   }
 
@@ -158,7 +150,6 @@ export function useSocket() {
     subscribedSymbols.value.delete(symbolId)
     if (socket?.connected) {
       socket.emit('unsubscribe:symbol', { symbolId })
-      console.log('[WS] Unsubscribed from symbol:', symbolId)
     }
   }
 

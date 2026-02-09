@@ -110,7 +110,7 @@ export function useChart() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || 'Failed to fetch chart data'
       chartErrors.value.set(key, errorMsg)
-      console.error(`[useChart] Error fetching chart for symbol ${symbolId} (${timeframe}):`, err)
+      // error silently
       return null
     } finally {
       loadingCharts.value.delete(key)

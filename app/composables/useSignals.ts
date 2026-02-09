@@ -49,7 +49,7 @@ export function useSignals() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || 'Failed to analyze signal'
       error.value = errorMsg
-      console.error('Error analyzing signal:', err)
+      // error silently
       return null
     } finally {
       isAnalyzing.value = false
@@ -77,7 +77,7 @@ export function useSignals() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || 'Failed to fetch signal history'
       error.value = errorMsg
-      console.error('Error fetching signal history:', err)
+      // error silently
       return []
     } finally {
       isLoadingHistory.value = false
@@ -106,7 +106,7 @@ export function useSignals() {
       if (err.response?.status !== 404) {
         const errorMsg = err.response?.data?.error || err.message || 'Failed to fetch latest signal'
         error.value = errorMsg
-        console.error('Error fetching latest signal:', err)
+        // error silently
       }
       return null
     }

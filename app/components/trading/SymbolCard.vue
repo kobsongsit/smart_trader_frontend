@@ -4,6 +4,7 @@ import {
   formatPrice,
   formatPriceChange,
   getTrendColor,
+  getPriceChangeColor,
 } from '../../../types/trading'
 
 interface Props {
@@ -71,6 +72,15 @@ watch(strengthScore, (val) => {
   animateToValue(val)
 })
 
+// ─── Consensus chip color ───
+const consensusChipColor = computed(() => {
+  const c = (props.summary.trend.consensus || props.summary.trend.consensusLabel || '').toLowerCase()
+  if (c === 'strong') return 'info'
+  if (c === 'moderate') return 'warning'
+  if (c === 'none') return 'grey'
+  return 'grey'
+})
+
 // ─── Navigate to detail page ───
 function goToDetail() {
   navigateTo(`/symbol/${props.summary.id}`)
@@ -107,7 +117,7 @@ function goToDetail() {
         <!-- Price -->
         <div class="text-right flex-shrink-0 ml-2">
           <div class="text-h6 font-weight-bold font-mono">{{ formatPrice(props.summary.price.current) }}</div>
-          <v-chip size="x-small" variant="tonal" color="primary" class="font-mono font-weight-bold text-caption">
+          <v-chip size="x-small" variant="tonal" :color="getPriceChangeColor(props.summary.price.changePercent)" class="font-mono font-weight-bold text-caption">
             {{ formatPriceChange(props.summary.price.changePercent) }}
           </v-chip>
         </div>
@@ -116,8 +126,8 @@ function goToDetail() {
       <!-- Row 2: Strength Bar -->
       <div class="mb-3">
         <div class="d-flex align-center justify-space-between mb-1">
-          <span class="text-caption font-weight-medium text-uppercase text-primary">{{ strengthLabel }}</span>
-          <span class="text-caption font-weight-medium font-mono">{{ animatedScore }}%</span>
+          <span :class="['text-caption font-weight-medium text-uppercase', `text-${strengthColor}`]">{{ strengthLabel }}</span>
+          <span :class="['text-caption font-weight-medium font-mono', `text-${strengthColor}`]">{{ animatedScore }}%</span>
         </div>
         <v-progress-linear
           :model-value="animatedScore"
@@ -143,7 +153,7 @@ function goToDetail() {
             v-if="props.summary.trend.consensusLabel"
             size="x-small"
             variant="tonal"
-            color="info"
+            :color="consensusChipColor"
             rounded="lg"
             class="font-weight-bold"
           >

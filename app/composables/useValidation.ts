@@ -57,7 +57,7 @@ export function useValidation() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || 'Failed to fetch validation'
       errors.value.set(symbolId, errorMsg)
-      console.error(`Error fetching validation for symbol ${symbolId}:`, err)
+      // error silently
       return null
     } finally {
       loadingSymbols.value.delete(symbolId)
