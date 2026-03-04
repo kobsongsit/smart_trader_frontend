@@ -161,8 +161,13 @@ function goToDetail() {
           </v-chip>
         </div>
 
-        <!-- Navigate Arrow -->
-        <v-icon icon="mdi-chevron-right" size="20" class="text-medium-emphasis" />
+        <!-- Edit + Navigate -->
+        <div class="d-flex align-center">
+          <v-btn icon variant="text" size="x-small" @click.stop="navigateTo(`/symbol/${props.summary.id}/edit`)">
+            <v-icon icon="mdi-pencil" size="16" class="text-medium-emphasis" />
+          </v-btn>
+          <v-icon icon="mdi-chevron-right" size="20" class="text-medium-emphasis" />
+        </div>
       </div>
 
     </v-card-text>

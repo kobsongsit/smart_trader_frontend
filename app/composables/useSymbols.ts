@@ -1,19 +1,25 @@
 import axios from 'axios'
-import type { Symbol, ApiResponse } from '../../types/trading'
+import type { SymbolInfo, ApiResponse } from '../../types/trading'
 
 /**
  * Composable สำหรับจัดการ Symbols
+ *
+ * ⚠️ Shared singleton — ทุก component ที่เรียก useSymbols() จะใช้ state/cache เดียวกัน
+ * (module-level state เหมือน useWatchlist / useAnalysis)
  */
+
+// ============================================================
+// Shared state (module-level singleton)
+// ============================================================
+const symbols = ref<SymbolInfo[]>([])
+const isLoading = ref(false)
+const error = ref<string | null>(null)
+
 export function useSymbols() {
   const config = useRuntimeConfig()
   const baseUrl = config.public.apiBaseUrl
 
-  // State
-  const symbols = ref<Symbol[]>([])
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
-
-  // Fetch active symbols
+  // Fetch symbols with optional filters
   async function fetchSymbols(options?: { type?: string; isActive?: boolean }) {
     isLoading.value = true
     error.value = null
@@ -24,7 +30,7 @@ export function useSymbols() {
       if (options?.isActive !== undefined) params.append('isActive', String(options.isActive))
 
       const url = `${baseUrl}/api/symbols${params.toString() ? '?' + params.toString() : ''}`
-      const { data: response } = await axios.get<ApiResponse<Symbol[]>>(url)
+      const { data: response } = await axios.get<ApiResponse<SymbolInfo[]>>(url)
 
       if (response.success) {
         symbols.value = response.data
@@ -33,7 +39,6 @@ export function useSymbols() {
       }
     } catch (err: any) {
       error.value = err.message || 'Failed to fetch symbols'
-      // error silently
     } finally {
       isLoading.value = false
     }
@@ -45,7 +50,7 @@ export function useSymbols() {
   }
 
   // Get symbol by ID
-  function getSymbolById(id: number): Symbol | undefined {
+  function getSymbolById(id: number): SymbolInfo | undefined {
     return symbols.value.find(s => s.id === id)
   }
 
@@ -56,7 +61,7 @@ export function useSymbols() {
   const forexSymbols = computed(() => symbols.value.filter(s => s.type === 'FOREX'))
 
   return {
-    // State
+    // State (readonly — ป้องกัน consumer แก้ตรง)
     symbols: readonly(symbols),
     isLoading: readonly(isLoading),
     error: readonly(error),

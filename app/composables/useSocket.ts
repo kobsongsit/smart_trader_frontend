@@ -1,6 +1,6 @@
 import { ref, readonly } from 'vue'
 import { io, type Socket } from 'socket.io-client'
-import type { AnalysisData, SignalData } from '../../types/trading'
+import type { AnalysisData, SignalData, PriceUpdatePayload } from '../../types/trading'
 
 /**
  * Composable สำหรับ WebSocket connection ผ่าน socket.io-client
@@ -44,6 +44,7 @@ export interface SignalNewPayload {
 type SignalLoadingCallback = (data: SignalLoadingPayload) => void
 type AnalysisFullCallback = (data: AnalysisFullPayload) => void
 type SignalNewCallback = (data: SignalNewPayload) => void
+type PriceUpdateCallback = (data: PriceUpdatePayload) => void
 
 // ============================================================
 // Shared state (module-level singleton)
@@ -58,6 +59,7 @@ const subscribedSymbols = ref<Set<number>>(new Set())
 const signalLoadingListeners: Set<SignalLoadingCallback> = new Set()
 const analysisFullListeners: Set<AnalysisFullCallback> = new Set()
 const signalNewListeners: Set<SignalNewCallback> = new Set()
+const priceUpdateListeners: Set<PriceUpdateCallback> = new Set()
 
 export function useSocket() {
   const config = useRuntimeConfig()
@@ -118,6 +120,10 @@ export function useSocket() {
     socket.on('signal:new', (data: SignalNewPayload) => {
       signalNewListeners.forEach(cb => cb(data))
     })
+
+    socket.on('price:update', (data: PriceUpdatePayload) => {
+      priceUpdateListeners.forEach(cb => cb(data))
+    })
   }
 
   /**
@@ -171,6 +177,11 @@ export function useSocket() {
     return () => signalNewListeners.delete(callback)
   }
 
+  function onPriceUpdate(callback: PriceUpdateCallback): () => void {
+    priceUpdateListeners.add(callback)
+    return () => priceUpdateListeners.delete(callback)
+  }
+
   return {
     // State
     isConnected: readonly(isConnected),
@@ -187,5 +198,6 @@ export function useSocket() {
     onSignalLoading,
     onAnalysisFull,
     onSignalNew,
+    onPriceUpdate,
   }
 }

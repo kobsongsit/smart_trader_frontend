@@ -47,11 +47,10 @@ export function useAnalysis() {
   const config = useRuntimeConfig()
   const baseUrl = config.public.apiBaseUrl
 
-  // ─── Register WebSocket listeners (once) ───
-  if (!wsListenersRegistered) {
+  // ─── Register WebSocket listeners (once, client-only) ───
+  if (import.meta.client && !wsListenersRegistered) {
     wsListenersRegistered = true
 
-    // Use try-catch because useSocket might not be available in SSR
     try {
       const { onSignalLoading, onAnalysisFull, onSignalNew } = useSocket()
 
@@ -80,8 +79,8 @@ export function useAnalysis() {
         }
       })
     } catch {
-      // WebSocket not available (e.g., SSR) — that's okay
-      // WebSocket not available (SSR or useSocket unavailable)
+      // Registration failed — allow retry on next call
+      wsListenersRegistered = false
     }
   }
 

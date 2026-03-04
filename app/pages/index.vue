@@ -64,6 +64,20 @@ async function handleRefresh() {
       </div>
     </v-sheet>
 
+    <!-- FAB: Create Symbol (bottom-right) -->
+    <v-btn
+      icon
+      color="primary"
+      size="large"
+      elevation="8"
+      position="fixed"
+      location="bottom end"
+      class="mb-4 mr-4"
+      @click="navigateTo('/symbol/create')"
+    >
+      <v-icon icon="mdi-plus" size="28" />
+      <v-tooltip activator="parent" location="start">เพิ่ม Symbol</v-tooltip>
+    </v-btn>
+
   </v-container>
 </template>
-

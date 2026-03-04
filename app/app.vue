@@ -17,7 +17,9 @@ onMounted(() => {
   <v-app>
     <NuxtRouteAnnouncer />
     <v-main class="pb-14">
-      <NuxtPage />
+      <!-- key=route.fullPath → force destroy + recreate page on every route change -->
+      <!-- ป้องกัน Vue reuse component เก่าตอน navigate back -->
+      <NuxtPage :key="route.fullPath" />
     </v-main>
 
     <!-- Bottom Navigation -->

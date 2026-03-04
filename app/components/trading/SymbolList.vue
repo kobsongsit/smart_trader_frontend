@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import type { PriceUpdatePayload } from '../../../types/trading'
+import { formatPrice } from '../../../types/trading'
+
 const {
   summaryError,
   summaryLastRefresh,
@@ -7,14 +10,25 @@ const {
 } = useAnalysis()
 
 const { symbols: symbolsList, fetchActiveSymbols } = useSymbols()
-const { subscribeSymbol, unsubscribeSymbol, isConnected } = useSocket()
+const { subscribeSymbol, unsubscribeSymbol, isConnected, onPriceUpdate } = useSocket()
 
 // Track which symbols are still loading their summary
 const loadingSymbolIds = ref<Set<number>>(new Set())
 const symbolsLoaded = ref(false)
 
+// ── Real-time prices from Finnhub WS ──
+const livePrices = ref<Map<string, number>>(new Map())
+let cleanupPriceUpdate: (() => void) | null = null
+
 function isSymbolLoading(symbolId: number): boolean {
   return loadingSymbolIds.value.has(symbolId)
+}
+
+/**
+ * Get live price for a symbol by name (e.g. "EUR-USD")
+ */
+function getLivePrice(symbolName: string): number | undefined {
+  return livePrices.value.get(symbolName)
 }
 
 /**
@@ -48,9 +62,13 @@ async function loadProgressively() {
   await Promise.allSettled(promises)
 }
 
-// Fetch on mount
+// Fetch on mount + subscribe to price updates
 onMounted(() => {
   loadProgressively()
+
+  cleanupPriceUpdate = onPriceUpdate((data: PriceUpdatePayload) => {
+    livePrices.value.set(data.symbol, data.price)
+  })
 })
 
 // Cleanup subscriptions on unmount (socket stays connected at app level)
@@ -58,6 +76,7 @@ onUnmounted(() => {
   for (const s of symbolsList.value) {
     unsubscribeSymbol(s.id)
   }
+  if (cleanupPriceUpdate) cleanupPriceUpdate()
 })
 </script>
 
@@ -120,7 +139,7 @@ onUnmounted(() => {
           :summary="getCachedSummary(sym.id)!"
         />
 
-        <!-- Still loading → skeleton card -->
+        <!-- Still loading → skeleton card with optional live price badge -->
         <v-card v-else elevation="0" rounded="lg" class="mb-3 glass-card">
           <v-card-text>
             <div class="d-flex align-center justify-space-between mb-3">
@@ -130,10 +149,23 @@ onUnmounted(() => {
                 </v-avatar>
                 <div>
                   <div class="d-flex align-center ga-2">
-                    <span class="text-body-1 font-weight-bold">{{ sym.name || sym.displayName }}</span>
+                    <span class="text-body-1 font-weight-bold">{{ sym.name }}</span>
                     <v-chip size="x-small" variant="outlined" rounded="lg">{{ sym.type }}</v-chip>
                   </div>
-                  <div class="text-caption text-medium-emphasis">กำลังโหลด...</div>
+                  <div class="d-flex align-center ga-2">
+                    <span class="text-caption text-medium-emphasis">กำลังโหลด...</span>
+                    <!-- Real-time price badge (while waiting for summary) -->
+                    <v-chip
+                      v-if="getLivePrice(sym.symbol)"
+                      size="x-small"
+                      variant="tonal"
+                      color="primary"
+                      class="font-mono font-weight-bold"
+                    >
+                      <v-icon start icon="mdi-access-point" size="10" />
+                      {{ formatPrice(getLivePrice(sym.symbol)!) }}
+                    </v-chip>
+                  </div>
                 </div>
               </div>
               <v-progress-circular

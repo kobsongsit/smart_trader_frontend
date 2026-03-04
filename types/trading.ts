@@ -404,7 +404,33 @@ export interface MetaData {
 }
 
 // ============================================================================
-// Section 11: WebSocket Events
+// Section 11: Watchlist
+// ============================================================================
+
+export interface WatchlistItem {
+  id: number
+  symbolId: number
+  symbol: SymbolInfo
+  priority: number
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+// ============================================================================
+// Section 12: Price Update (Finnhub WebSocket)
+// ============================================================================
+
+export interface PriceUpdatePayload {
+  symbol: string
+  price: number
+  volume: number
+  timestamp: string
+  source: 'finnhub-ws'
+}
+
+// ============================================================================
+// Section 13: WebSocket Events
 // ============================================================================
 
 export type WSServerEvent =
@@ -768,6 +794,17 @@ export function getSymbolTypeIcon(type: string): string {
   }
 }
 
+export function getSymbolTypeColor(type: string): string {
+  switch (type) {
+    case 'STOCK': return 'info'
+    case 'CRYPTO': return 'warning'
+    case 'FOREX': return 'success'
+    case 'COMMODITY': return 'amber'
+    case 'INDEX': return 'purple'
+    default: return 'grey'
+  }
+}
+
 // --- Data age helpers ---
 
 export function isDataStale(seconds: number, threshold: number = 300): boolean {
@@ -823,7 +860,7 @@ export interface SummaryResponse {
 // Chart API Types (GET /api/data/:symbolId/chart)
 // ============================================================================
 
-export type ChartTimeframe = '15m' | '1H' | '4H' | '1D'
+export type ChartTimeframe = '1m' | '5m' | '15m' | '1H' | '4H' | '1D' | '1W' | '1M'
 
 export interface ChartCandle {
   time: number   // UNIX timestamp (seconds)

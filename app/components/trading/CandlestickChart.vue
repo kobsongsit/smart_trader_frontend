@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { createChart, CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts'
+import { createChart, createSeriesMarkers, CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts'
 import type {
   IChartApi,
   ISeriesApi,
+  ISeriesMarkersPluginApi,
   SeriesType,
   DeepPartial,
   ChartOptions,
@@ -42,14 +43,34 @@ let ema20Series: ISeriesApi<SeriesType> | null = null
 let bbUpperSeries: ISeriesApi<SeriesType> | null = null
 let bbMiddleSeries: ISeriesApi<SeriesType> | null = null
 let bbLowerSeries: ISeriesApi<SeriesType> | null = null
+let seriesMarkers: ISeriesMarkersPluginApi<Time> | null = null
 let resizeObserver: ResizeObserver | null = null
 
 const timeframes: { value: ChartTimeframe; label: string }[] = [
+  { value: '1m', label: '1m' },
+  { value: '5m', label: '5m' },
   { value: '15m', label: '15m' },
   { value: '1H', label: '1H' },
   { value: '4H', label: '4H' },
   { value: '1D', label: '1D' },
+  { value: '1W', label: '1W' },
+  { value: '1M', label: '1M' },
 ]
+
+/** Default candle limit per timeframe — ให้ได้ช่วงเวลาที่เหมาะสมกับแต่ละ interval */
+const TIMEFRAME_LIMITS: Record<ChartTimeframe, number> = {
+  '1m': 500,   // ~8 ชม.
+  '5m': 500,   // ~1.7 วัน
+  '15m': 200,  // ~2 วัน
+  '1H': 200,   // ~8 วัน
+  '4H': 200,   // ~33 วัน
+  '1D': 200,   // ~200 วัน
+  '1W': 200,   // ~4 ปี
+  '1M': 200,   // ~16 ปี
+}
+
+/** Timeframes < 15m ไม่มี indicator overlay (backend คำนวณที่ 15m granularity) */
+const hasOverlays = computed(() => !['1m', '5m'].includes(selectedTimeframe.value))
 
 // ─── Chart Configuration ───
 const chartOptions: DeepPartial<ChartOptions> = {
@@ -98,6 +119,9 @@ function createChartInstance() {
 
   // Candlestick series
   candleSeries = chart.addSeries(CandlestickSeries, candleOptions)
+
+  // Signal markers (v5: ใช้ createSeriesMarkers แทน series.setMarkers)
+  seriesMarkers = createSeriesMarkers(candleSeries)
 
   // Volume series (histogram below candles)
   volumeSeries = chart.addSeries(HistogramSeries, {
@@ -210,7 +234,16 @@ function updateChartData(data: ChartData) {
 }
 
 function updateOverlays(data: ChartData) {
-  if (!data.overlays) return
+  if (!data.overlays || !hasOverlays.value) {
+    // Clear all overlay series when no data or timeframe < 15m
+    sma50Series?.setData([])
+    sma200Series?.setData([])
+    ema20Series?.setData([])
+    bbUpperSeries?.setData([])
+    bbMiddleSeries?.setData([])
+    bbLowerSeries?.setData([])
+    return
+  }
 
   // MA lines
   if (showMA.value) {
@@ -236,7 +269,7 @@ function updateOverlays(data: ChartData) {
 }
 
 function updateSignalMarkers(data: ChartData) {
-  if (!candleSeries || !data.signals) return
+  if (!seriesMarkers || !data.signals) return
 
   if (showSignals.value && data.signals.length > 0) {
     const markers: SeriesMarker<Time>[] = data.signals.map((sig) => ({
@@ -246,9 +279,9 @@ function updateSignalMarkers(data: ChartData) {
       shape: sig.shape,
       text: sig.text,
     }))
-    candleSeries.setMarkers(markers)
+    seriesMarkers.setMarkers(markers)
   } else {
-    candleSeries.setMarkers([])
+    seriesMarkers.setMarkers([])
   }
 }
 
@@ -256,8 +289,11 @@ function updateSignalMarkers(data: ChartData) {
 async function loadChart(forceRefresh = false) {
   chartError.value = null
 
+  const tf = selectedTimeframe.value
   const data = await fetchChartData(props.symbolId, {
-    timeframe: selectedTimeframe.value,
+    timeframe: tf,
+    limit: TIMEFRAME_LIMITS[tf],
+    includeOverlays: hasOverlays.value,
     forceRefresh,
   })
 
@@ -301,6 +337,7 @@ onBeforeUnmount(() => {
     chart.remove()
     chart = null
   }
+  seriesMarkers = null
   candleSeries = null
   volumeSeries = null
   sma50Series = null
@@ -343,8 +380,8 @@ onBeforeUnmount(() => {
           </v-btn>
         </v-btn-toggle>
 
-        <!-- Overlay toggles -->
-        <div class="d-flex ga-1">
+        <!-- Overlay toggles (hidden for 1m/5m — no indicator data) -->
+        <div v-if="hasOverlays" class="d-flex ga-1">
           <v-chip
             size="x-small"
             :variant="showMA ? 'flat' : 'outlined'"
@@ -392,8 +429,8 @@ onBeforeUnmount(() => {
         :class="{ 'chart-loading': isLoading && currentData }"
       />
 
-      <!-- Legend -->
-      <div v-if="currentData" class="d-flex flex-wrap ga-2 mt-2">
+      <!-- Legend (hidden for 1m/5m) -->
+      <div v-if="currentData && hasOverlays" class="d-flex flex-wrap ga-2 mt-2">
         <div v-if="showMA" class="d-flex align-center ga-1">
           <span class="legend-dot" style="background: #2196F3;" />
           <span class="text-caption text-medium-emphasis">SMA50</span>
