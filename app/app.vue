@@ -3,6 +3,7 @@ const route = useRoute()
 const { connect } = useSocket()
 
 const isHome = computed(() => route.path === '/')
+const isCalendar = computed(() => route.path === '/market-holidays')
 const isAnalysis = computed(() => route.path === '/analysis-tools')
 
 // ─── WebSocket: connect once at app level ───
@@ -27,6 +28,11 @@ onMounted(() => {
       <v-btn to="/" :active="isHome">
         <v-icon icon="mdi-view-grid-outline" />
         <span class="text-uppercase text-caption">Markets</span>
+      </v-btn>
+
+      <v-btn to="/market-holidays" :active="isCalendar">
+        <v-icon icon="mdi-calendar-blank" />
+        <span class="text-uppercase text-caption">Calendar</span>
       </v-btn>
 
       <v-btn to="/analysis-tools" :active="isAnalysis">

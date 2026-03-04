@@ -927,6 +927,31 @@ export interface ChartApiResponse {
 }
 
 // ============================================================================
+// Market Holiday Types (GET/POST/DELETE /api/market-holidays)
+// ============================================================================
+
+export interface MarketHoliday {
+  id: number
+  date: string            // "2026-07-04" (ISO date)
+  name: string            // "Independence Day"
+  market: string | null   // "STOCK" | "CRYPTO" | "FOREX" | "INDEX" | null (all markets)
+  exchange: string | null // "NYSE" | null (all exchanges)
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface HolidayCleanupResult {
+  deletedCandles: number
+  affectedSymbols: number
+}
+
+export interface CreateHolidayResponse {
+  holiday: MarketHoliday
+  cleanup: HolidayCleanupResult
+}
+
+// ============================================================================
 // Timestamp Check API Types (GET /api/analysis/timestamps)
 // ============================================================================
 
