@@ -53,18 +53,45 @@ const {
 } = useIndicators()
 
 const TIMEFRAMES: IndicatorInterval[] = ['15m', '1h', '4h', '1d']
-const selectedTF = ref<IndicatorInterval>('1h')
+const indicatorsLoading = ref(false)
 
-// Reactive indicator data สำหรับ TF ที่เลือก
-const currentIndicator = computed(() => getCachedIndicator(symbolId.value, selectedTF.value))
-const currentRaw = computed(() => currentIndicator.value?.indicators ?? null)
-const tfLoading = computed(() => isIndicatorLoading(symbolId.value, selectedTF.value))
-const tfSignalCount = computed(() => getSignalCount(symbolId.value, selectedTF.value))
+// Reactive indicator data ทุก TF พร้อมกัน
+function getRaw(tf: IndicatorInterval): RawIndicators | null {
+  return getCachedIndicator(symbolId.value, tf)?.indicators ?? null
+}
 
-// เมื่อเปลี่ยน TF → fetch ใหม่ (cache จะ return ทันทีถ้ามีอยู่แล้ว)
-watch(selectedTF, (tf) => {
-  fetchIndicators(symbolId.value, tf)
-})
+// Signal count ทุก TF
+function getTfSignalCount(tf: IndicatorInterval) {
+  return getSignalCount(symbolId.value, tf)
+}
+
+// Fetch ทุก TF พร้อมกัน
+async function fetchAllTimeframes(forceRefresh = false) {
+  indicatorsLoading.value = true
+  try {
+    await Promise.all(
+      TIMEFRAMES.map((tf) => fetchIndicators(symbolId.value, tf, { forceRefresh })),
+    )
+  } finally {
+    indicatorsLoading.value = false
+  }
+}
+
+// Check ว่ามี data ครบทุก TF หรือยัง
+const hasAnyIndicator = computed(() =>
+  TIMEFRAMES.some((tf) => getCachedIndicator(symbolId.value, tf) != null),
+)
+
+// ─── Helper: ดึงค่า indicator ตาม TF สำหรับ template ───
+function rsiVal(tf: IndicatorInterval): number | null { return getRaw(tf)?.rsi ?? null }
+function macdHist(tf: IndicatorInterval): number | null { return getRaw(tf)?.macd?.histogram ?? null }
+function adxVal(tf: IndicatorInterval): number | null { return getRaw(tf)?.adx?.adx ?? null }
+function adxPlusDI(tf: IndicatorInterval): number | null { return getRaw(tf)?.adx?.plusDI ?? null }
+function adxMinusDI(tf: IndicatorInterval): number | null { return getRaw(tf)?.adx?.minusDI ?? null }
+function stochK(tf: IndicatorInterval): number | null { return getRaw(tf)?.stochastic?.k ?? null }
+function atrVal(tf: IndicatorInterval): number | null { return getRaw(tf)?.atr ?? null }
+function sma50(tf: IndicatorInterval): number | null { return getRaw(tf)?.movingAverages?.sma50 ?? null }
+function sma200(tf: IndicatorInterval): number | null { return getRaw(tf)?.movingAverages?.sma200 ?? null }
 
 // ─── Summary (from cache or freshly fetched) ───
 const summary = computed(() => getCachedSummary(symbolId.value))
@@ -85,8 +112,8 @@ onMounted(async () => {
   // TODO: ปิดไว้ชั่วคราว — /api/analysis/:id ช้ามาก
   // await fetchAnalysis(symbolId.value)
 
-  // 3. Fetch indicators สำหรับ default TF (เร็ว — แค่ดึง DB)
-  await fetchIndicators(symbolId.value, selectedTF.value)
+  // 3. Fetch indicators ทุก TF พร้อมกัน (เร็ว — แค่ดึง DB)
+  await fetchAllTimeframes()
 
   // Mark page as ready
   pageReady.value = true
@@ -186,8 +213,8 @@ async function handleReload() {
     // TODO: ปิดไว้ชั่วคราว — /api/analysis/:id ช้ามาก
     // await fetchAnalysis(symbolId.value)
 
-    // Refresh indicators (เร็ว — ใช้ API แยก)
-    await fetchIndicators(symbolId.value, selectedTF.value, { forceRefresh: true })
+    // Refresh indicators ทุก TF (เร็ว — ใช้ API แยก)
+    await fetchAllTimeframes(true)
   } finally {
     setTimeout(() => { isRefreshing.value = false }, 500)
   }
@@ -258,251 +285,223 @@ async function handleAnalyze() {
       </div>
 
       <!-- ═══════════════════════════════════════════════════ -->
-      <!-- Technical Indicators — Multi-Timeframe              -->
+      <!-- Technical Indicators — All Timeframes Comparison    -->
       <!-- ═══════════════════════════════════════════════════ -->
       <div class="mb-4">
         <!-- Section header -->
-        <div class="text-overline font-weight-bold mb-2 text-label-muted">
-          <v-icon icon="mdi-chart-box" size="16" class="mr-1" />
-          Technical Indicators
+        <div class="d-flex align-center justify-space-between mb-3">
+          <div class="text-overline font-weight-bold text-label-muted">
+            <v-icon icon="mdi-chart-box" size="16" class="mr-1" />
+            Technical Indicators
+          </div>
+          <v-chip v-if="indicatorsLoading" size="x-small" color="primary" variant="tonal">
+            <v-progress-circular indeterminate size="10" width="1" class="mr-1" />
+            Loading...
+          </v-chip>
         </div>
 
-        <!-- TF Tabs -->
-        <v-btn-toggle
-          v-model="selectedTF"
-          mandatory
-          density="compact"
-          color="primary"
-          variant="outlined"
-          divided
-          class="mb-3"
-          style="width: 100%;"
-        >
-          <v-btn v-for="tf in TIMEFRAMES" :key="tf" :value="tf" size="small" class="flex-grow-1">
-            {{ tf }}
-          </v-btn>
-        </v-btn-toggle>
-
-        <!-- Loading state -->
-        <div v-if="tfLoading && !currentRaw" class="text-center py-6">
+        <!-- Loading state (first load — no data yet) -->
+        <div v-if="indicatorsLoading && !hasAnyIndicator" class="text-center py-6">
           <v-progress-circular indeterminate color="primary" size="28" width="2" />
-          <div class="text-caption text-label-muted mt-2">กำลังโหลด {{ selectedTF }}...</div>
+          <div class="text-caption text-label-muted mt-2">กำลังโหลด indicators ทุก timeframe...</div>
         </div>
 
         <!-- Error state -->
-        <v-alert v-else-if="indicatorError && !currentRaw" type="error" variant="tonal" density="compact" class="mb-3">
+        <v-alert v-else-if="indicatorError && !hasAnyIndicator" type="error" variant="tonal" density="compact" class="mb-3">
           {{ indicatorError }}
         </v-alert>
 
-        <!-- Indicator data -->
-        <template v-else-if="currentRaw">
-          <!-- Signal Summary Bar -->
+        <!-- All-TF Indicator Comparison -->
+        <template v-else-if="hasAnyIndicator">
+
+          <!-- ── Signal Summary per TF ── -->
           <v-card class="glass-card mb-3" rounded="lg">
             <v-card-text class="pa-3">
-              <div class="d-flex align-center justify-space-between mb-2">
-                <span class="text-caption font-weight-bold text-uppercase text-label-muted">Signal Summary ({{ selectedTF }})</span>
+              <div class="text-caption font-weight-bold text-uppercase text-label-muted mb-2">Signal Summary</div>
+              <div class="d-flex ga-2 flex-wrap">
                 <v-chip
-                  size="x-small"
-                  :color="tfSignalCount.bullish > tfSignalCount.bearish ? 'success' : tfSignalCount.bearish > tfSignalCount.bullish ? 'error' : 'grey'"
+                  v-for="tf in TIMEFRAMES"
+                  :key="`signal-${tf}`"
+                  size="small"
+                  :color="getTfSignalCount(tf).bullish > getTfSignalCount(tf).bearish ? 'success' : getTfSignalCount(tf).bearish > getTfSignalCount(tf).bullish ? 'error' : 'grey'"
                   variant="tonal"
+                  class="font-weight-bold"
                 >
-                  {{ tfSignalCount.bullish > tfSignalCount.bearish ? 'BULLISH' : tfSignalCount.bearish > tfSignalCount.bullish ? 'BEARISH' : 'NEUTRAL' }}
+                  {{ tf }}
+                  <v-icon
+                    :icon="getTfSignalCount(tf).bullish > getTfSignalCount(tf).bearish ? 'mdi-arrow-up-bold' : getTfSignalCount(tf).bearish > getTfSignalCount(tf).bullish ? 'mdi-arrow-down-bold' : 'mdi-minus'"
+                    size="14"
+                    class="ml-1"
+                  />
+                  {{ getTfSignalCount(tf).bullish }}/{{ getTfSignalCount(tf).bearish }}/{{ getTfSignalCount(tf).neutral }}
                 </v-chip>
-              </div>
-              <div class="d-flex ga-2">
-                <v-chip size="small" color="success" variant="tonal" prepend-icon="mdi-arrow-up-bold">
-                  {{ tfSignalCount.bullish }}
-                </v-chip>
-                <v-chip size="small" color="error" variant="tonal" prepend-icon="mdi-arrow-down-bold">
-                  {{ tfSignalCount.bearish }}
-                </v-chip>
-                <v-chip size="small" color="grey" variant="tonal" prepend-icon="mdi-minus">
-                  {{ tfSignalCount.neutral }}
-                </v-chip>
-                <v-spacer />
-                <span class="text-caption text-label-muted align-self-center">
-                  {{ formatTimeAgo(currentRaw.timestamp) }}
-                </span>
               </div>
             </v-card-text>
           </v-card>
 
-          <!-- Indicator Cards Grid -->
-          <div class="d-flex flex-column ga-2">
-
-            <!-- RSI -->
-            <v-card class="glass-card" rounded="lg">
-              <v-card-text class="d-flex align-center justify-space-between pa-3">
-                <div>
-                  <div class="text-caption font-weight-bold text-label-muted">RSI</div>
-                  <div class="text-body-1 font-weight-bold font-mono">
-                    {{ currentRaw.rsi !== null ? currentRaw.rsi.toFixed(2) : 'N/A' }}
+          <!-- ── RSI Comparison ── -->
+          <v-card class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="text-caption font-weight-bold text-label-muted mb-2">RSI</div>
+              <div class="d-flex ga-2 flex-wrap">
+                <div v-for="tf in TIMEFRAMES" :key="`rsi-${tf}`" class="tf-cell">
+                  <div class="text-caption text-label-muted text-center">{{ tf }}</div>
+                  <div class="text-body-2 font-weight-bold font-mono text-center">
+                    {{ rsiVal(tf) !== null ? rsiVal(tf)!.toFixed(1) : '-' }}
                   </div>
-                </div>
-                <v-chip
-                  v-if="currentRaw.rsi !== null"
-                  size="small"
-                  :color="currentRaw.rsi < 30 ? 'success' : currentRaw.rsi > 70 ? 'error' : 'grey'"
-                  variant="tonal"
-                >
-                  {{ currentRaw.rsi < 30 ? 'Oversold' : currentRaw.rsi > 70 ? 'Overbought' : 'Neutral' }}
-                </v-chip>
-              </v-card-text>
-              <v-progress-linear
-                v-if="currentRaw.rsi !== null"
-                :model-value="currentRaw.rsi"
-                :color="currentRaw.rsi < 30 ? 'success' : currentRaw.rsi > 70 ? 'error' : 'primary'"
-                height="3"
-              />
-            </v-card>
-
-            <!-- MACD -->
-            <v-card class="glass-card" rounded="lg">
-              <v-card-text class="d-flex align-center justify-space-between pa-3">
-                <div>
-                  <div class="text-caption font-weight-bold text-label-muted">MACD</div>
-                  <div class="d-flex align-center ga-2">
-                    <span class="text-body-2 font-mono">
-                      H: <span :class="currentRaw.macd.histogram !== null && currentRaw.macd.histogram > 0 ? 'text-success' : 'text-error'" class="font-weight-bold">
-                        {{ currentRaw.macd.histogram !== null ? currentRaw.macd.histogram.toFixed(5) : 'N/A' }}
-                      </span>
-                    </span>
-                  </div>
-                </div>
-                <v-chip
-                  v-if="currentRaw.macd.histogram !== null"
-                  size="small"
-                  :color="currentRaw.macd.histogram > 0 ? 'success' : 'error'"
-                  variant="tonal"
-                >
-                  {{ currentRaw.macd.histogram > 0 ? 'Bullish' : 'Bearish' }}
-                </v-chip>
-              </v-card-text>
-            </v-card>
-
-            <!-- ADX -->
-            <v-card class="glass-card" rounded="lg">
-              <v-card-text class="d-flex align-center justify-space-between pa-3">
-                <div>
-                  <div class="text-caption font-weight-bold text-label-muted">ADX</div>
-                  <div class="text-body-1 font-weight-bold font-mono">
-                    {{ currentRaw.adx?.adx !== null && currentRaw.adx?.adx !== undefined ? currentRaw.adx.adx.toFixed(2) : 'N/A' }}
-                  </div>
-                  <div class="text-caption font-mono text-label-muted">
-                    +DI: {{ currentRaw.adx?.plusDI?.toFixed(1) ?? '-' }}
-                    · -DI: {{ currentRaw.adx?.minusDI?.toFixed(1) ?? '-' }}
-                  </div>
-                </div>
-                <div class="text-right">
                   <v-chip
-                    v-if="currentRaw.adx?.adx != null"
-                    size="small"
-                    :color="currentRaw.adx.adx < 20 ? 'grey' : currentRaw.adx.adx < 40 ? 'warning' : 'success'"
+                    v-if="rsiVal(tf) !== null"
+                    size="x-small"
+                    :color="rsiVal(tf)! < 30 ? 'success' : rsiVal(tf)! > 70 ? 'error' : 'grey'"
                     variant="tonal"
+                    class="d-flex justify-center"
                   >
-                    {{ currentRaw.adx.adx < 20 ? 'No Trend' : currentRaw.adx.adx < 25 ? 'Developing' : currentRaw.adx.adx < 40 ? 'Established' : 'Strong' }}
+                    {{ rsiVal(tf)! < 30 ? 'OS' : rsiVal(tf)! > 70 ? 'OB' : 'N' }}
                   </v-chip>
-                  <div v-if="currentRaw.adx?.plusDI != null && currentRaw.adx?.minusDI != null" class="mt-1">
-                    <v-chip
-                      size="x-small"
-                      :color="currentRaw.adx.plusDI > currentRaw.adx.minusDI ? 'success' : 'error'"
-                      variant="tonal"
-                    >
-                      {{ currentRaw.adx.plusDI > currentRaw.adx.minusDI ? 'Bullish' : 'Bearish' }}
-                    </v-chip>
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- ── MACD Histogram Comparison ── -->
+          <v-card class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="text-caption font-weight-bold text-label-muted mb-2">MACD Histogram</div>
+              <div class="d-flex ga-2 flex-wrap">
+                <div v-for="tf in TIMEFRAMES" :key="`macd-${tf}`" class="tf-cell">
+                  <div class="text-caption text-label-muted text-center">{{ tf }}</div>
+                  <div
+                    class="text-body-2 font-weight-bold font-mono text-center"
+                    :class="macdHist(tf) !== null && macdHist(tf)! > 0 ? 'text-success' : macdHist(tf) !== null && macdHist(tf)! < 0 ? 'text-error' : ''"
+                  >
+                    {{ macdHist(tf) !== null ? macdHist(tf)!.toFixed(4) : '-' }}
+                  </div>
+                  <v-chip
+                    v-if="macdHist(tf) !== null"
+                    size="x-small"
+                    :color="macdHist(tf)! > 0 ? 'success' : 'error'"
+                    variant="tonal"
+                    class="d-flex justify-center"
+                  >
+                    {{ macdHist(tf)! > 0 ? 'Bull' : 'Bear' }}
+                  </v-chip>
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- ── ADX Comparison ── -->
+          <v-card class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="text-caption font-weight-bold text-label-muted mb-2">ADX (Trend Strength)</div>
+              <div class="d-flex ga-2 flex-wrap">
+                <div v-for="tf in TIMEFRAMES" :key="`adx-${tf}`" class="tf-cell">
+                  <div class="text-caption text-label-muted text-center">{{ tf }}</div>
+                  <div class="text-body-2 font-weight-bold font-mono text-center">
+                    {{ adxVal(tf) !== null ? adxVal(tf)!.toFixed(1) : '-' }}
+                  </div>
+                  <v-chip
+                    v-if="adxVal(tf) !== null"
+                    size="x-small"
+                    :color="adxVal(tf)! < 20 ? 'grey' : adxVal(tf)! < 40 ? 'warning' : 'success'"
+                    variant="tonal"
+                    class="d-flex justify-center"
+                  >
+                    {{ adxVal(tf)! < 20 ? 'Weak' : adxVal(tf)! < 40 ? 'Med' : 'Strong' }}
+                  </v-chip>
+                  <!-- DI direction -->
+                  <v-chip
+                    v-if="adxPlusDI(tf) !== null && adxMinusDI(tf) !== null"
+                    size="x-small"
+                    :color="adxPlusDI(tf)! > adxMinusDI(tf)! ? 'success' : 'error'"
+                    variant="tonal"
+                    class="d-flex justify-center mt-1"
+                  >
+                    {{ adxPlusDI(tf)! > adxMinusDI(tf)! ? '▲' : '▼' }}
+                  </v-chip>
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- ── Stochastic Comparison ── -->
+          <v-card class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="text-caption font-weight-bold text-label-muted mb-2">Stochastic %K</div>
+              <div class="d-flex ga-2 flex-wrap">
+                <div v-for="tf in TIMEFRAMES" :key="`stoch-${tf}`" class="tf-cell">
+                  <div class="text-caption text-label-muted text-center">{{ tf }}</div>
+                  <div class="text-body-2 font-weight-bold font-mono text-center">
+                    {{ stochK(tf) !== null ? stochK(tf)!.toFixed(1) : '-' }}
+                  </div>
+                  <v-chip
+                    v-if="stochK(tf) !== null"
+                    size="x-small"
+                    :color="stochK(tf)! < 20 ? 'success' : stochK(tf)! > 80 ? 'error' : 'grey'"
+                    variant="tonal"
+                    class="d-flex justify-center"
+                  >
+                    {{ stochK(tf)! < 20 ? 'OS' : stochK(tf)! > 80 ? 'OB' : 'N' }}
+                  </v-chip>
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- ── ATR Comparison ── -->
+          <v-card class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="text-caption font-weight-bold text-label-muted mb-2">ATR (Volatility)</div>
+              <div class="d-flex ga-2 flex-wrap">
+                <div v-for="tf in TIMEFRAMES" :key="`atr-${tf}`" class="tf-cell">
+                  <div class="text-caption text-label-muted text-center">{{ tf }}</div>
+                  <div class="text-body-2 font-weight-bold font-mono text-center">
+                    {{ atrVal(tf) !== null ? atrVal(tf)!.toFixed(4) : '-' }}
                   </div>
                 </div>
-              </v-card-text>
-            </v-card>
+              </div>
+            </v-card-text>
+          </v-card>
 
-            <!-- Stochastic -->
-            <v-card class="glass-card" rounded="lg">
-              <v-card-text class="d-flex align-center justify-space-between pa-3">
-                <div>
-                  <div class="text-caption font-weight-bold text-label-muted">Stochastic</div>
-                  <div class="text-body-2 font-mono">
-                    %K: <span class="font-weight-bold">{{ currentRaw.stochastic?.k?.toFixed(2) ?? 'N/A' }}</span>
-                    · %D: <span class="font-weight-bold">{{ currentRaw.stochastic?.d?.toFixed(2) ?? 'N/A' }}</span>
-                  </div>
+          <!-- ── Moving Averages (SMA Cross) ── -->
+          <v-card class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="text-caption font-weight-bold text-label-muted mb-2">SMA Cross (50 vs 200)</div>
+              <div class="d-flex ga-2 flex-wrap">
+                <div v-for="tf in TIMEFRAMES" :key="`sma-${tf}`" class="tf-cell">
+                  <div class="text-caption text-label-muted text-center">{{ tf }}</div>
+                  <v-chip
+                    v-if="sma50(tf) !== null && sma200(tf) !== null"
+                    size="x-small"
+                    :color="sma50(tf)! > sma200(tf)! ? 'success' : 'error'"
+                    variant="tonal"
+                    class="d-flex justify-center"
+                  >
+                    {{ sma50(tf)! > sma200(tf)! ? 'Golden' : 'Death' }}
+                  </v-chip>
+                  <div v-else class="text-body-2 font-mono text-center text-label-muted">-</div>
                 </div>
-                <v-chip
-                  v-if="currentRaw.stochastic?.k != null"
-                  size="small"
-                  :color="currentRaw.stochastic.k < 20 ? 'success' : currentRaw.stochastic.k > 80 ? 'error' : 'grey'"
-                  variant="tonal"
-                >
-                  {{ currentRaw.stochastic.k < 20 ? 'Oversold' : currentRaw.stochastic.k > 80 ? 'Overbought' : 'Neutral' }}
-                </v-chip>
-              </v-card-text>
-            </v-card>
+              </div>
+            </v-card-text>
+          </v-card>
 
-            <!-- Moving Averages -->
-            <v-card class="glass-card" rounded="lg">
-              <v-card-text class="pa-3">
-                <div class="text-caption font-weight-bold text-label-muted mb-2">Moving Averages</div>
-                <div class="d-flex flex-column ga-1">
-                  <div class="d-flex justify-space-between text-body-2 font-mono">
-                    <span class="text-label-muted">EMA 20</span>
-                    <span class="font-weight-bold">{{ currentRaw.movingAverages.ema20?.toFixed(4) ?? 'N/A' }}</span>
-                  </div>
-                  <div class="d-flex justify-space-between text-body-2 font-mono">
-                    <span class="text-label-muted">SMA 50</span>
-                    <span class="font-weight-bold">{{ currentRaw.movingAverages.sma50?.toFixed(4) ?? 'N/A' }}</span>
-                  </div>
-                  <div class="d-flex justify-space-between text-body-2 font-mono">
-                    <span class="text-label-muted">SMA 200</span>
-                    <span class="font-weight-bold">{{ currentRaw.movingAverages.sma200?.toFixed(4) ?? 'N/A' }}</span>
-                  </div>
-                  <div v-if="currentRaw.movingAverages.sma50 != null && currentRaw.movingAverages.sma200 != null" class="mt-1">
-                    <v-chip
-                      size="x-small"
-                      :color="currentRaw.movingAverages.sma50 > currentRaw.movingAverages.sma200 ? 'success' : 'error'"
-                      variant="tonal"
-                    >
-                      {{ currentRaw.movingAverages.sma50 > currentRaw.movingAverages.sma200 ? 'Golden Cross' : 'Death Cross' }}
-                    </v-chip>
-                  </div>
+          <!-- ── Bollinger Bands (per TF) ── -->
+          <v-card class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="text-caption font-weight-bold text-label-muted mb-2">Bollinger Bands</div>
+              <div class="d-flex ga-2 flex-wrap">
+                <div v-for="tf in TIMEFRAMES" :key="`bb-${tf}`" class="tf-cell">
+                  <div class="text-caption text-label-muted text-center mb-1">{{ tf }}</div>
+                  <template v-if="getRaw(tf)?.bollingerBands">
+                    <div class="text-caption font-mono text-center text-error">{{ getRaw(tf)!.bollingerBands!.upper?.toFixed(3) }}</div>
+                    <div class="text-caption font-mono text-center">{{ getRaw(tf)!.bollingerBands!.middle?.toFixed(3) }}</div>
+                    <div class="text-caption font-mono text-center text-success">{{ getRaw(tf)!.bollingerBands!.lower?.toFixed(3) }}</div>
+                  </template>
+                  <div v-else class="text-caption font-mono text-center text-label-muted">-</div>
                 </div>
-              </v-card-text>
-            </v-card>
-
-            <!-- Bollinger Bands -->
-            <v-card class="glass-card" rounded="lg">
-              <v-card-text class="pa-3">
-                <div class="text-caption font-weight-bold text-label-muted mb-2">Bollinger Bands</div>
-                <div class="d-flex flex-column ga-1">
-                  <div class="d-flex justify-space-between text-body-2 font-mono">
-                    <span class="text-label-muted">Upper</span>
-                    <span class="font-weight-bold text-error">{{ currentRaw.bollingerBands?.upper?.toFixed(4) ?? 'N/A' }}</span>
-                  </div>
-                  <div class="d-flex justify-space-between text-body-2 font-mono">
-                    <span class="text-label-muted">Middle</span>
-                    <span class="font-weight-bold">{{ currentRaw.bollingerBands?.middle?.toFixed(4) ?? 'N/A' }}</span>
-                  </div>
-                  <div class="d-flex justify-space-between text-body-2 font-mono">
-                    <span class="text-label-muted">Lower</span>
-                    <span class="font-weight-bold text-success">{{ currentRaw.bollingerBands?.lower?.toFixed(4) ?? 'N/A' }}</span>
-                  </div>
-                </div>
-              </v-card-text>
-            </v-card>
-
-            <!-- ATR -->
-            <v-card class="glass-card" rounded="lg">
-              <v-card-text class="d-flex align-center justify-space-between pa-3">
-                <div>
-                  <div class="text-caption font-weight-bold text-label-muted">ATR</div>
-                  <div class="text-body-1 font-weight-bold font-mono">
-                    {{ currentRaw.atr !== null ? currentRaw.atr.toFixed(5) : 'N/A' }}
-                  </div>
-                </div>
-                <v-chip size="small" color="info" variant="tonal">
-                  Volatility
-                </v-chip>
-              </v-card-text>
-            </v-card>
-
-          </div>
+              </div>
+            </v-card-text>
+          </v-card>
 
           <!-- TODO: Derived Signals — รอ backend เพิ่มใน analysis API
           <DerivedSignals>
@@ -578,3 +577,15 @@ async function handleAnalyze() {
     </div>
   </v-container>
 </template>
+
+<style scoped>
+/* ── Multi-TF grid cell: 4 equal columns ── */
+.tf-cell {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+</style>
