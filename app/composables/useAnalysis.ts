@@ -353,11 +353,11 @@ export function useAnalysis() {
 
       if (needsRefresh) {
         // Data stale — auto refresh
-        // Re-fetch ทั้ง analysis และ summary พร้อมกัน
-        await Promise.all([
-          fetchAnalysis(symbolId, { forceRefresh: true }),
-          fetchSymbolSummary(symbolId),
-        ])
+        // TODO: ปิดไว้ชั่วคราว — analysis + summary ช้ามาก
+        // await Promise.all([
+        //   fetchAnalysis(symbolId, { forceRefresh: true }),
+        //   fetchSymbolSummary(symbolId),
+        // ])
         return true
       }
 
@@ -399,10 +399,11 @@ export function useAnalysis() {
 
         if (needsRefresh) {
           refreshedIds.push(serverTs.symbolId)
-          refreshPromises.push(
-            fetchAnalysis(serverTs.symbolId, { forceRefresh: true }),
-            fetchSymbolSummary(serverTs.symbolId),
-          )
+          // TODO: ปิดไว้ชั่วคราว — analysis + summary ช้ามาก
+          // refreshPromises.push(
+          //   fetchAnalysis(serverTs.symbolId, { forceRefresh: true }),
+          //   fetchSymbolSummary(serverTs.symbolId),
+          // )
         }
       }
 

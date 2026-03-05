@@ -927,6 +927,60 @@ export interface ChartApiResponse {
 }
 
 // ============================================================================
+// Raw Indicator API Types (GET /api/indicators/:symbolId?interval=)
+// ============================================================================
+
+/** Valid timeframes for multi-TF indicator API */
+export type IndicatorInterval = '15m' | '1h' | '4h' | '1d'
+
+/** Raw indicator values — shape ต่างจาก analysis API (ค่า raw ไม่มี derived fields) */
+export interface RawIndicators {
+  timestamp: string
+  movingAverages: {
+    sma50: number | null
+    sma200: number | null
+    ema20: number | null
+  }
+  macd: {
+    line: number | null
+    signal: number | null
+    histogram: number | null
+  }
+  bollingerBands: {
+    upper: number | null
+    middle: number | null
+    lower: number | null
+  }
+  rsi: number | null
+  stochastic: {
+    k: number | null
+    d: number | null
+  } | null
+  obv: number | null
+  atr: number | null
+  adx: {
+    adx: number | null
+    plusDI: number | null
+    minusDI: number | null
+  } | null
+}
+
+/** Response from GET /api/indicators/:symbolId?interval= */
+export interface RawIndicatorResponse {
+  symbol: string
+  symbolName: string
+  interval: IndicatorInterval
+  indicators: RawIndicators
+}
+
+/** Client-side computed summary per-TF */
+export interface IndicatorSignalCount {
+  bullish: number
+  bearish: number
+  neutral: number
+}
+
+// ============================================================================
 // Market Holiday Types (GET/POST/DELETE /api/market-holidays)
 // ============================================================================
 
