@@ -69,8 +69,8 @@ const TIMEFRAME_LIMITS: Record<ChartTimeframe, number> = {
   '1M': 200,   // ~16 ปี
 }
 
-/** Timeframes < 15m ไม่มี indicator overlay (backend คำนวณที่ 15m granularity) */
-const hasOverlays = computed(() => !['1m', '5m'].includes(selectedTimeframe.value))
+/** Overlay พร้อมใช้ทุก timeframe (backend ส่ง overlay กลับมาครบทุก TF) */
+const hasOverlays = computed(() => true)
 
 // ─── Chart Configuration ───
 const chartOptions: DeepPartial<ChartOptions> = {
@@ -235,7 +235,7 @@ function updateChartData(data: ChartData) {
 
 function updateOverlays(data: ChartData) {
   if (!data.overlays || !hasOverlays.value) {
-    // Clear all overlay series when no data or timeframe < 15m
+    // Clear all overlay series when no overlay data available
     sma50Series?.setData([])
     sma200Series?.setData([])
     ema20Series?.setData([])
@@ -380,7 +380,7 @@ onBeforeUnmount(() => {
           </v-btn>
         </v-btn-toggle>
 
-        <!-- Overlay toggles (hidden for 1m/5m — no indicator data) -->
+        <!-- Overlay toggles (MA / BB / Signals) -->
         <div v-if="hasOverlays" class="d-flex ga-1">
           <v-chip
             size="x-small"
@@ -429,7 +429,7 @@ onBeforeUnmount(() => {
         :class="{ 'chart-loading': isLoading && currentData }"
       />
 
-      <!-- Legend (hidden for 1m/5m) -->
+      <!-- Legend -->
       <div v-if="currentData && hasOverlays" class="d-flex flex-wrap ga-2 mt-2">
         <div v-if="showMA" class="d-flex align-center ga-1">
           <span class="legend-dot" style="background: #2196F3;" />
