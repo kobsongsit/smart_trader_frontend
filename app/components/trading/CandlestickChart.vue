@@ -10,6 +10,7 @@ import type {
   CandlestickSeriesOptions,
   SeriesMarker,
   Time,
+  LogicalRange,
 } from 'lightweight-charts'
 import type { ChartTimeframe, ChartData } from '../../../types/trading'
 
@@ -19,7 +20,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const { fetchChartData, isLoadingChart } = useChart()
+const { fetchChartData, fetchOlderChartData, isLoadingChart, isFetchingOlder, getHasMore, clearTimelineForTf } = useChart()
 
 // ─── State ───
 const chartContainer = ref<HTMLElement | null>(null)
@@ -27,6 +28,10 @@ const selectedTimeframe = ref<ChartTimeframe>('1H')
 const isLoading = computed(() => isLoadingChart(props.symbolId, selectedTimeframe.value))
 const chartError = ref<string | null>(null)
 const currentData = ref<ChartData | null>(null)
+
+// Infinite scroll state
+const isLoadingOlder = ref(false)
+const hasMoreData = ref(true)
 
 // Overlay toggles
 const showMA = ref(true)
@@ -45,6 +50,9 @@ let bbMiddleSeries: ISeriesApi<SeriesType> | null = null
 let bbLowerSeries: ISeriesApi<SeriesType> | null = null
 let seriesMarkers: ISeriesMarkersPluginApi<Time> | null = null
 let resizeObserver: ResizeObserver | null = null
+
+/** Debounce timer สำหรับ scroll detection — ป้องกัน spam API */
+let scrollDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 const timeframes: { value: ChartTimeframe; label: string }[] = [
   { value: '1m', label: '1m' },
@@ -68,6 +76,12 @@ const TIMEFRAME_LIMITS: Record<ChartTimeframe, number> = {
   '1W': 200,   // ~4 ปี
   '1M': 200,   // ~16 ปี
 }
+
+/** Threshold: เมื่อ visible range เริ่มที่ index < นี้ → trigger fetch older data */
+const SCROLL_THRESHOLD = 10
+
+/** Debounce delay (ms) สำหรับ scroll detection */
+const SCROLL_DEBOUNCE_MS = 300
 
 /** Overlay พร้อมใช้ทุก timeframe (backend ส่ง overlay กลับมาครบทุก TF) */
 const hasOverlays = computed(() => true)
@@ -186,21 +200,77 @@ function createChartInstance() {
     crosshairMarkerVisible: false,
   })
 
+  // ─── Infinite Scroll: detect when user scrolls near the left edge ───
+  chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleRangeChange)
+
   // ResizeObserver for responsive width
   resizeObserver = new ResizeObserver((entries) => {
     if (chart && entries.length > 0) {
-      const { width } = entries[0].contentRect
+      const { width } = entries[0]!.contentRect
       chart.applyOptions({ width })
     }
   })
   resizeObserver.observe(chartContainer.value)
 }
 
+// ─── Scroll Detection (debounced) ───
+function onVisibleRangeChange(logicalRange: LogicalRange | null) {
+  if (!logicalRange) return
+
+  // ถ้า visible range เริ่มที่ index < THRESHOLD → trigger fetch older data
+  if (logicalRange.from < SCROLL_THRESHOLD && !isLoadingOlder.value && hasMoreData.value) {
+    // Debounce เพื่อป้องกัน rapid scroll spam API
+    if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer)
+    scrollDebounceTimer = setTimeout(() => {
+      loadOlderCandles()
+    }, SCROLL_DEBOUNCE_MS)
+  }
+}
+
+// ─── Load Older Candles (Infinite Scroll) ───
+async function loadOlderCandles() {
+  if (!chart || isLoadingOlder.value || !hasMoreData.value) return
+
+  isLoadingOlder.value = true
+
+  try {
+    // 1. เก็บ current visible logical range ก่อน (เพื่อ restore position หลัง prepend)
+    const oldRange = chart.timeScale().getVisibleLogicalRange()
+
+    // 2. Fetch older data
+    const { data: mergedData, addedCount } = await fetchOlderChartData(
+      props.symbolId,
+      selectedTimeframe.value,
+      { limit: TIMEFRAME_LIMITS[selectedTimeframe.value] }
+    )
+
+    if (mergedData && addedCount > 0) {
+      // 3. Update chart with merged data
+      currentData.value = mergedData
+      updateChartData(mergedData, false) // ไม่ fitContent — จะ restore position เอง
+
+      // 4. Restore scroll position ไม่ให้กราฟกระโดด
+      //    candle ใหม่ถูก prepend → index ทุกตัวเดิมเลื่อนขวา addedCount ตำแหน่ง
+      if (oldRange) {
+        chart.timeScale().setVisibleLogicalRange({
+          from: oldRange.from + addedCount,
+          to: oldRange.to + addedCount,
+        })
+      }
+    }
+
+    // 5. Update hasMore state
+    hasMoreData.value = getHasMore(props.symbolId, selectedTimeframe.value)
+  } finally {
+    isLoadingOlder.value = false
+  }
+}
+
 // ─── Determine price precision based on price range ───
 function getPriceFormat(candles: ChartData['candles']) {
   if (!candles || candles.length === 0) return { precision: 2, minMove: 0.01 }
 
-  const samplePrice = candles[candles.length - 1].close
+  const samplePrice = candles[candles.length - 1]!.close
   if (samplePrice < 0.01) return { precision: 8, minMove: 0.00000001 }
   if (samplePrice < 1) return { precision: 5, minMove: 0.00001 }
   if (samplePrice < 100) return { precision: 4, minMove: 0.0001 }
@@ -208,7 +278,7 @@ function getPriceFormat(candles: ChartData['candles']) {
 }
 
 // ─── Update Chart Data ───
-function updateChartData(data: ChartData) {
+function updateChartData(data: ChartData, shouldFitContent = true) {
   if (!chart || !candleSeries || !volumeSeries) return
 
   // Apply price precision based on price range
@@ -229,8 +299,10 @@ function updateChartData(data: ChartData) {
   // Update signal markers
   updateSignalMarkers(data)
 
-  // Fit content
-  chart.timeScale().fitContent()
+  // Fit content (only on initial load, not on infinite scroll prepend)
+  if (shouldFitContent) {
+    chart.timeScale().fitContent()
+  }
 }
 
 function updateOverlays(data: ChartData) {
@@ -289,6 +361,9 @@ function updateSignalMarkers(data: ChartData) {
 async function loadChart(forceRefresh = false) {
   chartError.value = null
 
+  // Reset infinite scroll state for new load
+  hasMoreData.value = true
+
   const tf = selectedTimeframe.value
   const data = await fetchChartData(props.symbolId, {
     timeframe: tf,
@@ -300,6 +375,8 @@ async function loadChart(forceRefresh = false) {
   if (data) {
     currentData.value = data
     updateChartData(data)
+    // Sync hasMore from cache
+    hasMoreData.value = getHasMore(props.symbolId, tf)
   } else {
     // Check for error
     const { getChartError } = useChart()
@@ -309,7 +386,15 @@ async function loadChart(forceRefresh = false) {
 }
 
 // ─── Watch timeframe changes ───
-watch(selectedTimeframe, () => {
+watch(selectedTimeframe, (_newTf, oldTf) => {
+  // Reset timeline cache สำหรับ TF เก่า (ป้องกัน memory leak)
+  if (oldTf) {
+    clearTimelineForTf(props.symbolId, oldTf)
+  }
+  // Reset infinite scroll state
+  hasMoreData.value = true
+  isLoadingOlder.value = false
+  // Load new TF
   loadChart()
 })
 
@@ -328,6 +413,12 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  // Clear debounce timer
+  if (scrollDebounceTimer) {
+    clearTimeout(scrollDebounceTimer)
+    scrollDebounceTimer = null
+  }
+
   if (resizeObserver && chartContainer.value) {
     resizeObserver.unobserve(chartContainer.value)
     resizeObserver.disconnect()
@@ -412,7 +503,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- Loading -->
+      <!-- Loading (initial) -->
       <div v-if="isLoading && !currentData" class="d-flex align-center justify-center" style="height: 350px;">
         <v-progress-circular indeterminate color="primary" size="32" />
       </div>
@@ -422,12 +513,29 @@ onBeforeUnmount(() => {
         {{ chartError }}
       </v-alert>
 
-      <!-- Chart Container -->
-      <div
-        ref="chartContainer"
-        class="chart-container"
-        :class="{ 'chart-loading': isLoading && currentData }"
-      />
+      <!-- Chart Container (with loading older indicator) -->
+      <div class="chart-wrapper">
+        <!-- Loading older data spinner (ขอบซ้ายของ chart) -->
+        <Transition name="fade">
+          <div v-if="isLoadingOlder" class="chart-loading-older">
+            <v-progress-circular indeterminate color="primary" size="20" width="2" />
+          </div>
+        </Transition>
+
+        <div
+          ref="chartContainer"
+          class="chart-container"
+          :class="{ 'chart-loading': isLoading && currentData }"
+        />
+
+        <!-- "No more data" indicator -->
+        <Transition name="fade">
+          <div v-if="!hasMoreData && currentData" class="chart-no-more">
+            <v-icon icon="mdi-history" size="12" class="mr-1" />
+            <span class="text-caption">No older data</span>
+          </div>
+        </Transition>
+      </div>
 
       <!-- Legend -->
       <div v-if="currentData && hasOverlays" class="d-flex flex-wrap ga-2 mt-2">
@@ -453,6 +561,10 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.chart-wrapper {
+  position: relative;
+}
+
 .chart-container {
   width: 100%;
   min-height: 350px;
@@ -463,11 +575,50 @@ onBeforeUnmount(() => {
   transition: opacity 0.2s ease;
 }
 
+/* Loading older data spinner — ซ้ายบนของ chart */
+.chart-loading-older {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  background: rgba(30, 30, 30, 0.8);
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(4px);
+}
+
+/* "No more data" indicator — ซ้ายล่าง */
+.chart-no-more {
+  position: absolute;
+  bottom: 28px;
+  left: 8px;
+  z-index: 10;
+  background: rgba(30, 30, 30, 0.7);
+  border-radius: 6px;
+  padding: 2px 8px;
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.4);
+}
+
 .legend-dot {
   display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+/* Fade transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

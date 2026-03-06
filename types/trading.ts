@@ -708,6 +708,69 @@ export function getPreFilterStatus(preFilter: PreFilterResult): { label: string;
   return { label: 'Filtered Out', color: 'error', icon: 'mdi-filter-remove' }
 }
 
+// --- TrendCache helpers ---
+
+export function getTrendCacheColor(direction: TrendCacheDirection): string {
+  switch (direction) {
+    case 'BULLISH': return 'success'
+    case 'BEARISH': return 'error'
+    case 'SIDEWAYS': return 'grey'
+    default: return 'grey'
+  }
+}
+
+export function getTrendCacheIcon(direction: TrendCacheDirection): string {
+  switch (direction) {
+    case 'BULLISH': return 'mdi-trending-up'
+    case 'BEARISH': return 'mdi-trending-down'
+    case 'SIDEWAYS': return 'mdi-trending-neutral'
+    default: return 'mdi-help'
+  }
+}
+
+export function getTrendStrengthColor(strength: TrendCacheStrength): string {
+  switch (strength) {
+    case 'STRONG': return 'success'
+    case 'MODERATE': return 'warning'
+    case 'WEAK': return 'grey'
+    default: return 'grey'
+  }
+}
+
+// --- Derived Signals helpers ---
+
+export function getDivergenceColor(type: DivergenceType): string {
+  if (type === 'BULLISH') return 'success'
+  if (type === 'BEARISH') return 'error'
+  return 'grey'
+}
+
+export function getCrossoverLabel(type: CrossoverType): string {
+  if (type === 'GOLDEN') return 'Golden Cross'
+  if (type === 'DEATH') return 'Death Cross'
+  return '-'
+}
+
+export function getBBPositionLabelText(position: BBPositionLabel): string {
+  switch (position) {
+    case 'ABOVE_UPPER': return 'Above Upper'
+    case 'UPPER_HALF': return 'Upper Half'
+    case 'LOWER_HALF': return 'Lower Half'
+    case 'BELOW_LOWER': return 'Below Lower'
+    default: return '-'
+  }
+}
+
+export function getBBPositionLabelColor(position: BBPositionLabel): string {
+  switch (position) {
+    case 'ABOVE_UPPER': return 'error'
+    case 'UPPER_HALF': return 'warning'
+    case 'LOWER_HALF': return 'info'
+    case 'BELOW_LOWER': return 'success'
+    default: return 'grey'
+  }
+}
+
 // --- Consensus helpers ---
 
 export function getConsensusColor(consensus: Consensus): string {
@@ -918,12 +981,89 @@ export interface ChartMeta {
   startTime: string
   endTime: string
   candlesPerDay: number
+  hasMore: boolean  // ยังมี data เก่ากว่าให้ fetch อีกไหม (infinite scroll)
 }
 
 export interface ChartApiResponse {
   success: boolean
   data: ChartData
   meta: ChartMeta
+}
+
+// ============================================================================
+// Price API Types (GET /api/data/:symbolId/price)
+// ============================================================================
+
+/** Lightweight latest price — fast endpoint (~3ms) */
+export interface LatestPriceData {
+  symbolId: number
+  symbol: string
+  price: number
+  previousClose: number
+  change: number
+  changePercent: number
+  timestamp: string
+}
+
+// ============================================================================
+// Trends API Types (GET /api/trends/:symbolId) — TrendCache shape
+// ============================================================================
+
+export type TrendCacheDirection = 'BULLISH' | 'BEARISH' | 'SIDEWAYS'
+export type TrendCacheStrength = 'STRONG' | 'MODERATE' | 'WEAK'
+
+export interface TrendTimeframeData {
+  direction: TrendCacheDirection
+  strength: TrendCacheStrength
+  adx: number | null
+  plusDI: number | null
+  minusDI: number | null
+}
+
+export interface TrendAnalysisSummary {
+  majorityTrend: TrendCacheDirection
+  strength: number
+  consensus: string
+}
+
+export interface TrendsResponse {
+  timeframes: Record<IndicatorInterval, TrendTimeframeData>
+  analysis: TrendAnalysisSummary
+}
+
+// ============================================================================
+// Enhanced Indicator Types (GET /api/indicators/:symbolId?enhanced=true)
+// ============================================================================
+
+export type DivergenceType = 'BULLISH' | 'BEARISH' | null
+export type CrossoverType = 'GOLDEN' | 'DEATH' | null
+export type BBPositionLabel = 'ABOVE_UPPER' | 'UPPER_HALF' | 'LOWER_HALF' | 'BELOW_LOWER'
+
+export interface DerivedSignals {
+  bollingerSqueeze: boolean
+  rsiDivergence: DivergenceType
+  macdDivergence: DivergenceType
+  smaCrossover: CrossoverType
+  candlestickPattern: string | null
+  patternDirection: 'BULLISH' | 'BEARISH' | null
+}
+
+export interface BBPosition {
+  percentB: number
+  position: BBPositionLabel
+}
+
+export interface IndicatorSummaryCount {
+  bullish: number
+  bearish: number
+  neutral: number
+  overall: 'BULLISH' | 'BEARISH' | 'NEUTRAL'
+}
+
+export interface EnhancedIndicatorResponse extends RawIndicatorResponse {
+  derivedSignals: DerivedSignals
+  bollingerPosition: BBPosition
+  summary: IndicatorSummaryCount
 }
 
 // ============================================================================
