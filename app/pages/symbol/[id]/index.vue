@@ -134,11 +134,20 @@ function stochD(tf: IndicatorInterval): number | null { return getRaw(tf)?.stoch
 function macdLine(tf: IndicatorInterval): number | null { return getRaw(tf)?.macd?.line ?? null }
 function macdSignal(tf: IndicatorInterval): number | null { return getRaw(tf)?.macd?.signal ?? null }
 
-// ─── Ichimoku per-TF helpers ───
-function ichimokuRaw(tf: IndicatorInterval) { return getRaw(tf)?.ichimoku ?? null }
-function getTfIchimokuSignals(tf: IndicatorInterval): IchimokuSignals | null {
-  return getIchimokuSignals(symbolId.value, tf)
-}
+// ─── Ichimoku per-TF computed map (avoid repeated calls + non-null assertions in template) ───
+const ichimokuMap = computed(() => {
+  const map: Record<IndicatorInterval, {
+    signals: IchimokuSignals | null
+    raw: { conversion: number | null; base: number | null; spanA: number | null; spanB: number | null } | null
+  }> = {} as any
+  for (const tf of TIMEFRAMES) {
+    map[tf] = {
+      signals: getIchimokuSignals(symbolId.value, tf),
+      raw: getRaw(tf)?.ichimoku ?? null,
+    }
+  }
+  return map
+})
 
 // ─── Enhanced display helpers (Status-first approach) ───
 function priceVsMA(tf: IndicatorInterval, maVal: number | null): { above: boolean; diff: string } | null {
@@ -576,7 +585,11 @@ async function handleAnalyze() {
                   <template #activator="{ props }">
                     <v-icon v-bind="props" icon="mdi-information-outline" size="14" class="text-label-muted" style="cursor: help;" />
                   </template>
-                  Price เหนือ MA = Bullish, ใต้ = Bearish / Golden Cross = SMA50 ตัด SMA200 ขึ้น / Death Cross = SMA50 ตัด SMA200 ลง
+                  <div>
+                    <div>Price เหนือ MA = Bullish, ใต้ = Bearish</div>
+                    <div>Golden Cross = SMA50 ตัด SMA200 ขึ้น</div>
+                    <div>Death Cross = SMA50 ตัด SMA200 ลง</div>
+                  </div>
                 </v-tooltip>
               </div>
               <div class="d-flex ga-2 flex-wrap">
@@ -643,7 +656,11 @@ async function handleAnalyze() {
                   <template #activator="{ props }">
                     <v-icon v-bind="props" icon="mdi-information-outline" size="14" class="text-label-muted" style="cursor: help;" />
                   </template>
-                  ADX > 25 = Trend แข็ง, > 50 = แข็งมาก / +DI > -DI = Uptrend / -DI > +DI = Downtrend
+                  <div>
+                    <div>ADX > 25 = Trend แข็ง, > 50 = แข็งมาก</div>
+                    <div>+DI > -DI = Uptrend</div>
+                    <div>-DI > +DI = Downtrend</div>
+                  </div>
                 </v-tooltip>
               </div>
               <div class="d-flex ga-2 flex-wrap">
@@ -684,7 +701,11 @@ async function handleAnalyze() {
                   <template #activator="{ props }">
                     <v-icon v-bind="props" icon="mdi-information-outline" size="14" class="text-label-muted" style="cursor: help;" />
                   </template>
-                  MACD Line > Signal = Bullish / Histogram บวก = Momentum ขาขึ้น / Line ตัด Signal ขึ้น = Buy Signal
+                  <div>
+                    <div>MACD Line > Signal = Bullish</div>
+                    <div>Histogram บวก = Momentum ขาขึ้น</div>
+                    <div>Line ตัด Signal ขึ้น = Buy Signal</div>
+                  </div>
                 </v-tooltip>
               </div>
               <div class="d-flex ga-2 flex-wrap">
@@ -732,47 +753,51 @@ async function handleAnalyze() {
                   <template #activator="{ props }">
                     <v-icon v-bind="props" icon="mdi-information-outline" size="14" class="text-label-muted" style="cursor: help;" />
                   </template>
-                  TK Cross: Tenkan ตัด Kijun ขึ้น = Bullish / ราคาเหนือ Cloud = Bullish Zone / Cloud เขียว (Span A > B) = Bullish
+                  <div>
+                    <div>TK Cross: Tenkan ตัด Kijun ขึ้น = Bullish</div>
+                    <div>ราคาเหนือ Cloud = Bullish Zone</div>
+                    <div>Cloud เขียว (Span A > B) = Bullish</div>
+                  </div>
                 </v-tooltip>
               </div>
               <div class="d-flex ga-2 flex-wrap">
                 <div v-for="tf in TIMEFRAMES" :key="`ichimoku-${tf}`" class="tf-cell">
                   <div class="text-caption text-label-muted text-center">{{ tf }}</div>
-                  <template v-if="getTfIchimokuSignals(tf)">
+                  <template v-if="ichimokuMap[tf].signals">
                     <!-- TK Cross -->
                     <v-chip
                       size="x-small"
-                      :color="getIchimokuTKColor(getTfIchimokuSignals(tf)!.tkCross)"
+                      :color="getIchimokuTKColor(ichimokuMap[tf].signals!.tkCross)"
                       variant="tonal"
                       class="d-flex justify-center"
                     >
-                      TK {{ getTfIchimokuSignals(tf)!.tkCross === 'BULLISH' ? '▲' : '▼' }}
+                      TK {{ ichimokuMap[tf].signals!.tkCross === 'BULLISH' ? '▲' : '▼' }}
                     </v-chip>
                     <!-- Price vs Cloud -->
                     <v-chip
-                      v-if="getTfIchimokuSignals(tf)!.priceVsCloud"
+                      v-if="ichimokuMap[tf].signals!.priceVsCloud"
                       size="x-small"
-                      :color="getIchimokuCloudPosColor(getTfIchimokuSignals(tf)!.priceVsCloud)"
+                      :color="getIchimokuCloudPosColor(ichimokuMap[tf].signals!.priceVsCloud)"
                       variant="tonal"
                       class="d-flex justify-center mt-1"
                     >
-                      {{ getTfIchimokuSignals(tf)!.priceVsCloud }}
+                      {{ ichimokuMap[tf].signals!.priceVsCloud }}
                     </v-chip>
                     <!-- Cloud Color -->
                     <v-chip
-                      v-if="getTfIchimokuSignals(tf)!.cloudColor"
+                      v-if="ichimokuMap[tf].signals!.cloudColor"
                       size="x-small"
-                      :color="getIchimokuCloudColorHelper(getTfIchimokuSignals(tf)!.cloudColor)"
+                      :color="getIchimokuCloudColorHelper(ichimokuMap[tf].signals!.cloudColor)"
                       variant="outlined"
                       class="d-flex justify-center mt-1"
                     >
-                      Cloud {{ getTfIchimokuSignals(tf)!.cloudColor === 'BULLISH' ? '🟢' : '🔴' }}
+                      Cloud {{ ichimokuMap[tf].signals!.cloudColor === 'BULLISH' ? '▲' : '▼' }}
                     </v-chip>
                     <!-- Tenkan / Kijun raw values -->
-                    <div v-if="ichimokuRaw(tf)" class="text-caption font-mono text-center text-label-muted mt-1">
-                      T: {{ ichimokuRaw(tf)!.conversion?.toFixed(2) ?? '-' }}
+                    <div v-if="ichimokuMap[tf].raw" class="text-caption font-mono text-center text-label-muted mt-1">
+                      T: {{ ichimokuMap[tf].raw?.conversion?.toFixed(2) ?? '-' }}
                       <br>
-                      K: {{ ichimokuRaw(tf)!.base?.toFixed(2) ?? '-' }}
+                      K: {{ ichimokuMap[tf].raw?.base?.toFixed(2) ?? '-' }}
                     </div>
                   </template>
                   <div v-else class="text-body-2 font-mono text-center text-label-muted">-</div>
@@ -798,7 +823,11 @@ async function handleAnalyze() {
                   <template #activator="{ props }">
                     <v-icon v-bind="props" icon="mdi-information-outline" size="14" class="text-label-muted" style="cursor: help;" />
                   </template>
-                  RSI > 70 = Overbought (ซื้อมากเกิน) / RSI &lt; 30 = Oversold (ขายมากเกิน) / Near zone = ใกล้จะถึงจุดกลับตัว
+                  <div>
+                    <div>RSI > 70 = Overbought (ซื้อมากเกิน)</div>
+                    <div>RSI &lt; 30 = Oversold (ขายมากเกิน)</div>
+                    <div>Near zone = ใกล้จะถึงจุดกลับตัว</div>
+                  </div>
                 </v-tooltip>
               </div>
               <div class="d-flex ga-2 flex-wrap">
@@ -830,7 +859,11 @@ async function handleAnalyze() {
                   <template #activator="{ props }">
                     <v-icon v-bind="props" icon="mdi-information-outline" size="14" class="text-label-muted" style="cursor: help;" />
                   </template>
-                  %K > 80 = Overbought / %K &lt; 20 = Oversold / %K ตัด %D ขึ้น = Buy Signal
+                  <div>
+                    <div>%K > 80 = Overbought</div>
+                    <div>%K &lt; 20 = Oversold</div>
+                    <div>%K ตัด %D ขึ้น = Buy Signal</div>
+                  </div>
                 </v-tooltip>
               </div>
               <div class="d-flex ga-2 flex-wrap">
@@ -871,7 +904,11 @@ async function handleAnalyze() {
                   <template #activator="{ props }">
                     <v-icon v-bind="props" icon="mdi-information-outline" size="14" class="text-label-muted" style="cursor: help;" />
                   </template>
-                  Price ใกล้ Upper = อาจ Overbought / ใกล้ Lower = อาจ Oversold / Squeeze = ผันผวนต่ำ อาจเกิด Breakout
+                  <div>
+                    <div>Price ใกล้ Upper = อาจ Overbought</div>
+                    <div>ใกล้ Lower = อาจ Oversold</div>
+                    <div>Squeeze = ผันผวนต่ำ อาจเกิด Breakout</div>
+                  </div>
                 </v-tooltip>
               </div>
               <div class="d-flex ga-2 flex-wrap">
@@ -917,7 +954,10 @@ async function handleAnalyze() {
                   <template #activator="{ props }">
                     <v-icon v-bind="props" icon="mdi-information-outline" size="14" class="text-label-muted" style="cursor: help;" />
                   </template>
-                  ค่าสูง = ความผันผวนสูง / ใช้คำนวณ Stop Loss และ Take Profit แบบ Dynamic
+                  <div>
+                    <div>ค่าสูง = ความผันผวนสูง</div>
+                    <div>ใช้คำนวณ Stop Loss และ Take Profit แบบ Dynamic</div>
+                  </div>
                 </v-tooltip>
               </div>
               <div class="d-flex ga-2 flex-wrap">
@@ -949,7 +989,10 @@ async function handleAnalyze() {
                     <template #activator="{ props }">
                       <v-icon v-bind="props" icon="mdi-information-outline" size="14" class="text-label-muted" style="cursor: help;" />
                     </template>
-                    OBV เพิ่ม + ราคาขึ้น = ยืนยัน Uptrend / OBV ลด + ราคาขึ้น = Divergence อาจกลับตัว
+                    <div>
+                      <div>OBV เพิ่ม + ราคาขึ้น = ยืนยัน Uptrend</div>
+                      <div>OBV ลด + ราคาขึ้น = Divergence อาจกลับตัว</div>
+                    </div>
                   </v-tooltip>
                 </div>
                 <div class="d-flex ga-2 flex-wrap">
