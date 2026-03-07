@@ -9,6 +9,7 @@ import type {
   DerivedSignals,
   BBPosition,
   IndicatorSummaryCount,
+  IchimokuSignals,
 } from '../../types/trading'
 
 /**
@@ -204,6 +205,13 @@ export function useIndicators() {
     return cached.summary
   }
 
+  /** Get Ichimoku derived signals from enhanced response (TK Cross, Price vs Cloud, Cloud Color) */
+  function getIchimokuSignals(symbolId: number, interval: IndicatorInterval): IchimokuSignals | null {
+    const cached = indicatorCache.value.get(cacheKey(symbolId, interval))
+    if (!cached || !isEnhanced(cached)) return null
+    return cached.ichimokuSignals ?? null
+  }
+
   /** Clear cache for a specific symbol (all TFs) or everything */
   function clearCache(symbolId?: number) {
     if (symbolId) {
@@ -226,6 +234,7 @@ export function useIndicators() {
     getDerivedSignals,
     getBBPosition,
     getServerSummary,
+    getIchimokuSignals,
     clearCache,
   }
 }

@@ -771,6 +771,25 @@ export function getBBPositionLabelColor(position: BBPositionLabel): string {
   }
 }
 
+// --- Ichimoku helpers ---
+
+export function getIchimokuTKColor(tkCross: IchimokuTKCross): string {
+  return tkCross === 'BULLISH' ? 'success' : 'error'
+}
+
+export function getIchimokuCloudPosColor(pos: IchimokuPriceVsCloud | null): string {
+  switch (pos) {
+    case 'ABOVE': return 'success'
+    case 'BELOW': return 'error'
+    case 'INSIDE': return 'warning'
+    default: return 'grey'
+  }
+}
+
+export function getIchimokuCloudColorHelper(color: IchimokuCloudColor | null): string {
+  return color === 'BULLISH' ? 'success' : color === 'BEARISH' ? 'error' : 'grey'
+}
+
 // --- Consensus helpers ---
 
 export function getConsensusColor(consensus: Consensus): string {
@@ -1060,9 +1079,20 @@ export interface IndicatorSummaryCount {
   overall: 'BULLISH' | 'BEARISH' | 'NEUTRAL'
 }
 
+export type IchimokuTKCross = 'BULLISH' | 'BEARISH'
+export type IchimokuPriceVsCloud = 'ABOVE' | 'BELOW' | 'INSIDE'
+export type IchimokuCloudColor = 'BULLISH' | 'BEARISH'
+
+export interface IchimokuSignals {
+  tkCross: IchimokuTKCross
+  priceVsCloud: IchimokuPriceVsCloud | null
+  cloudColor: IchimokuCloudColor | null
+}
+
 export interface EnhancedIndicatorResponse extends RawIndicatorResponse {
   derivedSignals: DerivedSignals
   bollingerPosition: BBPosition
+  ichimokuSignals: IchimokuSignals | null
   summary: IndicatorSummaryCount
 }
 
@@ -1102,6 +1132,12 @@ export interface RawIndicators {
     adx: number | null
     plusDI: number | null
     minusDI: number | null
+  } | null
+  ichimoku: {
+    conversion: number | null
+    base: number | null
+    spanA: number | null
+    spanB: number | null
   } | null
 }
 
