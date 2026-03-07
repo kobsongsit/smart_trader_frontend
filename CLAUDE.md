@@ -8,6 +8,7 @@ KOB-Trade Frontend — Nuxt 3 + Vuetify 3 dashboard for AI-powered trading signa
 
 **Team agents** (see backend `agents-persona.md` for full personas):
 - **Latte** (Marcille-style) — Backend / Tech Lead: API, architecture, database
+- **Espresso** (Nanami Kento-style) — UI/UX Designer: design system, dashboard UI, accessibility
 - **Cappu** (Nobara-style) — Frontend Developer: Vue/Nuxt/Vuetify, UI/UX
 - **Mocha** (Yor Forger-style) — QA / Tester: unit, integration, E2E testing
 
