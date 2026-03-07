@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Signal, ApiResponse } from '../../types/trading'
+import type { SignalData, ApiResponse } from '../../types/trading'
 
 /**
  * Request body สำหรับ analyze signal
@@ -11,23 +11,29 @@ interface AnalyzeSignalRequest {
 
 /**
  * Composable สำหรับจัดการ AI Signals
+ *
+ * Shared singleton — module-level state
  */
+
+// ============================================================
+// Shared state (module-level singleton)
+// ============================================================
+
+const currentSignal = ref<SignalData | null>(null)
+const signalHistory = ref<SignalData[]>([])
+const isAnalyzing = ref(false)
+const isLoadingHistory = ref(false)
+const error = ref<string | null>(null)
+
 export function useSignals() {
   const config = useRuntimeConfig()
   const baseUrl = config.public.apiBaseUrl
-
-  // State
-  const currentSignal = ref<Signal | null>(null)
-  const signalHistory = ref<Signal[]>([])
-  const isAnalyzing = ref(false)
-  const isLoadingHistory = ref(false)
-  const error = ref<string | null>(null)
 
   /**
    * วิเคราะห์ Signal ด้วย AI
    * POST /api/signals/analyze
    */
-  async function analyzeSignal(symbolId: number, includeNews = false): Promise<Signal | null> {
+  async function analyzeSignal(symbolId: number, includeNews = false): Promise<SignalData | null> {
     isAnalyzing.value = true
     error.value = null
 
@@ -38,7 +44,7 @@ export function useSignals() {
         includeNews
       }
 
-      const { data: response } = await axios.post<ApiResponse<Signal>>(url, body)
+      const { data: response } = await axios.post<ApiResponse<SignalData>>(url, body)
 
       if (response.success) {
         currentSignal.value = response.data
@@ -49,7 +55,6 @@ export function useSignals() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || 'Failed to analyze signal'
       error.value = errorMsg
-      // error silently
       return null
     } finally {
       isAnalyzing.value = false
@@ -60,13 +65,13 @@ export function useSignals() {
    * ดึงประวัติ Signal ของ symbol
    * GET /api/signals/:symbolId?limit=N
    */
-  async function fetchSignalHistory(symbolId: number, limit = 10): Promise<Signal[]> {
+  async function fetchSignalHistory(symbolId: number, limit = 10): Promise<SignalData[]> {
     isLoadingHistory.value = true
     error.value = null
 
     try {
       const url = `${baseUrl}/api/signals/${symbolId}?limit=${limit}`
-      const { data: response } = await axios.get<ApiResponse<Signal[]>>(url)
+      const { data: response } = await axios.get<ApiResponse<SignalData[]>>(url)
 
       if (response.success) {
         signalHistory.value = response.data
@@ -77,7 +82,6 @@ export function useSignals() {
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || 'Failed to fetch signal history'
       error.value = errorMsg
-      // error silently
       return []
     } finally {
       isLoadingHistory.value = false
@@ -88,12 +92,12 @@ export function useSignals() {
    * ดึง Signal ล่าสุดของ symbol
    * GET /api/signals/latest/:symbolId
    */
-  async function fetchLatestSignal(symbolId: number): Promise<Signal | null> {
+  async function fetchLatestSignal(symbolId: number): Promise<SignalData | null> {
     error.value = null
 
     try {
       const url = `${baseUrl}/api/signals/latest/${symbolId}`
-      const { data: response } = await axios.get<ApiResponse<Signal>>(url)
+      const { data: response } = await axios.get<ApiResponse<SignalData>>(url)
 
       if (response.success) {
         currentSignal.value = response.data
@@ -106,15 +110,12 @@ export function useSignals() {
       if (err.response?.status !== 404) {
         const errorMsg = err.response?.data?.error || err.message || 'Failed to fetch latest signal'
         error.value = errorMsg
-        // error silently
       }
       return null
     }
   }
 
-  /**
-   * Clear state
-   */
+  /** Clear state */
   function clearSignal() {
     currentSignal.value = null
     signalHistory.value = []
@@ -133,6 +134,6 @@ export function useSignals() {
     analyzeSignal,
     fetchSignalHistory,
     fetchLatestSignal,
-    clearSignal
+    clearSignal,
   }
 }

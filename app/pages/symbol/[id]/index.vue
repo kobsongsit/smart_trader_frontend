@@ -1,41 +1,69 @@
 <script setup lang="ts">
-import type { TrendDirection, IndicatorInterval, RawIndicators } from '../../../../types/trading'
+import type {
+  TrendCacheDirection,
+  IndicatorInterval,
+  RawIndicators,
+  LatestPriceData,
+  TrendsResponse,
+  ValidationData,
+  SignalData,
+  DerivedSignals,
+  BBPosition,
+  IndicatorSummaryCount,
+  OverallBias,
+} from '../../../../types/trading'
 import {
   formatPrice,
   formatPriceChange,
   formatTimeAgo,
   formatNumber,
+  formatTimeRemaining,
   getPriceChangeColor,
-  getTrendColor,
-  getZoneColor,
-  getZoneLabel,
-  getCrossColor,
-  getCrossLabel,
-  getCrossIcon,
-  getMACDTrendColor,
-  getMomentumIcon,
-  getOBVConfirmationColor,
-  getATRLevelColor,
-  getADXStrengthColor,
-  getADXStrengthIcon,
-  getADXDirectionColor,
+  getTrendCacheColor,
+  getTrendCacheIcon,
+  getTrendStrengthColor,
   getBiasColor,
   getBiasIcon,
   getConsensusColor,
+  getValidationStatusColor,
+  getValidationStatusIcon,
+  getStrategyColor,
+  getStrategyIcon,
+  getConfidenceColor,
+  getPerformanceStatusColor,
+  getDivergenceColor,
+  getCrossoverLabel,
+  getBBPositionLabelText,
+  getBBPositionLabelColor,
 } from '../../../../types/trading'
 
 // ─── Route params ───
 const route = useRoute()
 const symbolId = computed(() => Number(route.params.id))
 
-// ─── Composables ───
+// ─── Composables (all singletons) ───
+const { fetchPrice, getCachedPrice, isLoadingPrice } = usePrice()
+
+const { fetchTrends, getCachedTrends } = useTrends()
+
+const {
+  fetchIndicators,
+  getCached: getCachedIndicator,
+  getSignalCount,
+  getDerivedSignals,
+  getBBPosition,
+  getServerSummary,
+  error: indicatorError,
+} = useIndicators()
+
+const { fetchValidation, getCachedValidation } = useValidation()
+
+const { fetchLatestSignal, currentSignal, isAnalyzing: isSignalAnalyzing } = useSignals()
+
 const {
   getCachedSummary,
-  getCachedAnalysis,
-  fetchAnalysis,
   fetchSymbolSummary,
   checkFreshness,
-  isLoadingSymbol,
   isAIAnalyzing,
   analyzeSignal,
   analyzeError,
@@ -43,46 +71,49 @@ const {
 
 const { subscribeSymbol, unsubscribeSymbol } = useSocket()
 
-// ─── Multi-TF Indicators (NEW — ใช้ /api/indicators/:id?interval=) ───
-const {
-  fetchIndicators,
-  getCached: getCachedIndicator,
-  isLoading: isIndicatorLoading,
-  getSignalCount,
-  error: indicatorError,
-} = useIndicators()
-
+// ─── Constants ───
 const TIMEFRAMES: IndicatorInterval[] = ['15m', '1h', '4h', '1d']
-const indicatorsLoading = ref(false)
 
-// Reactive indicator data ทุก TF พร้อมกัน
+// ─── Loading state ───
+const pageReady = ref(false)
+const indicatorsLoading = ref(false)
+const isRefreshing = ref(false)
+
+// ─── Reactive data from composables ───
+const priceData = computed((): LatestPriceData | undefined => getCachedPrice(symbolId.value))
+const trendsData = computed((): TrendsResponse | undefined => getCachedTrends(symbolId.value))
+const validationData = computed((): ValidationData | undefined => getCachedValidation(symbolId.value))
+const signalData = computed((): SignalData | null => currentSignal.value as SignalData | null)
+const summary = computed(() => getCachedSummary(symbolId.value))
+const isAIWorking = computed(() => isAIAnalyzing(symbolId.value))
+
+// ─── Multi-TF Indicators ───
 function getRaw(tf: IndicatorInterval): RawIndicators | null {
   return getCachedIndicator(symbolId.value, tf)?.indicators ?? null
 }
 
-// Signal count ทุก TF
 function getTfSignalCount(tf: IndicatorInterval) {
   return getSignalCount(symbolId.value, tf)
 }
 
-// Fetch ทุก TF พร้อมกัน
-async function fetchAllTimeframes(forceRefresh = false) {
-  indicatorsLoading.value = true
-  try {
-    await Promise.all(
-      TIMEFRAMES.map((tf) => fetchIndicators(symbolId.value, tf, { forceRefresh })),
-    )
-  } finally {
-    indicatorsLoading.value = false
-  }
-}
-
-// Check ว่ามี data ครบทุก TF หรือยัง
 const hasAnyIndicator = computed(() =>
   TIMEFRAMES.some((tf) => getCachedIndicator(symbolId.value, tf) != null),
 )
 
-// ─── Helper: ดึงค่า indicator ตาม TF สำหรับ template ───
+// ─── Enhanced indicator helpers ───
+function getTfDerivedSignals(tf: IndicatorInterval): DerivedSignals | null {
+  return getDerivedSignals(symbolId.value, tf)
+}
+
+function getTfBBPosition(tf: IndicatorInterval): BBPosition | null {
+  return getBBPosition(symbolId.value, tf)
+}
+
+function getTfServerSummary(tf: IndicatorInterval): IndicatorSummaryCount | null {
+  return getServerSummary(symbolId.value, tf)
+}
+
+// ─── Per-TF indicator value helpers ───
 function rsiVal(tf: IndicatorInterval): number | null { return getRaw(tf)?.rsi ?? null }
 function macdHist(tf: IndicatorInterval): number | null { return getRaw(tf)?.macd?.histogram ?? null }
 function adxVal(tf: IndicatorInterval): number | null { return getRaw(tf)?.adx?.adx ?? null }
@@ -92,38 +123,59 @@ function stochK(tf: IndicatorInterval): number | null { return getRaw(tf)?.stoch
 function atrVal(tf: IndicatorInterval): number | null { return getRaw(tf)?.atr ?? null }
 function sma50(tf: IndicatorInterval): number | null { return getRaw(tf)?.movingAverages?.sma50 ?? null }
 function sma200(tf: IndicatorInterval): number | null { return getRaw(tf)?.movingAverages?.sma200 ?? null }
+function ema20(tf: IndicatorInterval): number | null { return getRaw(tf)?.movingAverages?.ema20 ?? null }
+function obvVal(tf: IndicatorInterval): number | null { return getRaw(tf)?.obv ?? null }
+function stochD(tf: IndicatorInterval): number | null { return getRaw(tf)?.stochastic?.d ?? null }
+function macdLine(tf: IndicatorInterval): number | null { return getRaw(tf)?.macd?.line ?? null }
+function macdSignal(tf: IndicatorInterval): number | null { return getRaw(tf)?.macd?.signal ?? null }
 
-// ─── Summary (from cache or freshly fetched) ───
-const summary = computed(() => getCachedSummary(symbolId.value))
-const pageReady = ref(false)
+// ─── Trends derived values ───
+const majorityTrend = computed((): TrendCacheDirection => trendsData.value?.analysis?.majorityTrend ?? 'SIDEWAYS')
+
+const strengthLabel = computed(() => {
+  if (majorityTrend.value === 'BULLISH') return 'UPTREND STRENGTH'
+  if (majorityTrend.value === 'BEARISH') return 'DOWNTREND STRENGTH'
+  return 'NEUTRAL STRENGTH'
+})
+const strengthScore = computed(() => trendsData.value?.analysis?.strength ?? 0)
+const strengthColor = computed(() => getTrendCacheColor(majorityTrend.value))
+
+// ─── Fetch all TFs (enhanced=true) ───
+async function fetchAllTimeframes(forceRefresh = false) {
+  indicatorsLoading.value = true
+  try {
+    await Promise.all(
+      TIMEFRAMES.map((tf) => fetchIndicators(symbolId.value, tf, { forceRefresh, enhanced: true })),
+    )
+  } finally {
+    indicatorsLoading.value = false
+  }
+}
 
 // ─── Fetch data on mount + subscribe WebSocket ───
 onMounted(async () => {
-  // 1. Subscribe to this symbol's WebSocket channel (socket connected at app level)
+  // 1. Subscribe to this symbol's WebSocket channel
   subscribeSymbol(symbolId.value)
 
-  // 2. Fetch summary if not cached (e.g., direct navigation / page refresh)
-  // TODO: ปิดไว้ชั่วคราว — /api/analysis/summary ช้ามาก
-  // if (!getCachedSummary(symbolId.value)) {
-  //   await fetchSymbolSummary(symbolId.value)
-  // }
+  // 2. Parallel fetch all 5 APIs
+  await Promise.all([
+    fetchPrice(symbolId.value),
+    fetchTrends(symbolId.value),
+    fetchAllTimeframes(),
+    fetchValidation(symbolId.value),
+    fetchLatestSignal(symbolId.value),
+  ])
 
-  // 3. Load full analysis data (from cache or API)
-  // TODO: ปิดไว้ชั่วคราว — /api/analysis/:id ช้ามาก
-  // await fetchAnalysis(symbolId.value)
-
-  // 3. Fetch indicators ทุก TF พร้อมกัน (เร็ว — แค่ดึง DB)
-  await fetchAllTimeframes()
+  // 3. Also fetch summary for header (if not cached)
+  if (!getCachedSummary(symbolId.value)) {
+    fetchSymbolSummary(symbolId.value)
+  }
 
   // Mark page as ready
   pageReady.value = true
 
-  // 4. Check freshness — ถ้า cache มีอยู่แล้ว ตรวจว่ายัง fresh อยู่ไหม
-  //    ถ้า backend มี data ใหม่กว่า → auto re-fetch + update cache (UI reactive)
-  // TODO: ปิดไว้ชั่วคราว — fetchAnalysis ข้างบนถูก comment แล้ว cache จะไม่มี
-  // if (getCachedAnalysis(symbolId.value)) {
-  //   await checkFreshness(symbolId.value)
-  // }
+  // 4. Check freshness in background
+  checkFreshness(symbolId.value)
 })
 
 // ─── Cleanup WebSocket on unmount ───
@@ -131,7 +183,7 @@ onUnmounted(() => {
   unsubscribeSymbol(symbolId.value)
 })
 
-// ─── Visibility change listener — เช็ค freshness เมื่อ user กลับมาที่ tab นี้ ───
+// ─── Visibility change listener — check freshness when user returns ───
 onMounted(() => {
   const handleVisibility = () => {
     if (document.visibilityState === 'visible') {
@@ -146,75 +198,25 @@ onMounted(() => {
 })
 
 useHead({
-  title: computed(() => summary.value ? `${summary.value.name} - Smart Trader` : 'Symbol Detail'),
+  title: computed(() => {
+    if (summary.value) return `${summary.value.name} - Smart Trader`
+    if (priceData.value) return `${priceData.value.symbol} - Smart Trader`
+    return 'Symbol Detail'
+  }),
 })
-
-// ─── Full analysis data ───
-const analysis = computed(() => getCachedAnalysis(symbolId.value))
-const isLoading = computed(() => isLoadingSymbol(symbolId.value))
-const isAIWorking = computed(() => isAIAnalyzing(symbolId.value))
-
-const indicators = computed(() => analysis.value?.indicators ?? null)
-const trends = computed(() => analysis.value?.trends ?? null)
-const validation = computed(() => analysis.value?.validation ?? null)
-const signal = computed(() => analysis.value?.signal ?? null)
-const meta = computed(() => analysis.value?.meta ?? null)
-
-// ─── Summary derived values ───
-const majorityTrend = computed((): TrendDirection => summary.value?.trend.direction ?? 'NEUTRAL')
-
-const strengthLabel = computed(() => {
-  if (majorityTrend.value === 'UP') return 'UPTREND STRENGTH'
-  if (majorityTrend.value === 'DOWN') return 'DOWNTREND STRENGTH'
-  return 'NEUTRAL STRENGTH'
-})
-const strengthScore = computed(() => {
-  const t = summary.value?.trend
-  if (!t || t.totalTimeframes === 0) return 0
-  if (t.direction === 'UP') return Math.round((t.upCount / t.totalTimeframes) * 100)
-  if (t.direction === 'DOWN') return Math.round((t.downCount / t.totalTimeframes) * 100)
-  return Math.round((t.neutralCount / t.totalTimeframes) * 100)
-})
-const strengthColor = computed(() => getTrendColor(majorityTrend.value))
-
-const trendSummaryText = computed(() => {
-  const t = summary.value?.trend
-  if (!t) return '-'
-  if (t.direction === 'NEUTRAL') return `NEUTRAL ${t.neutralCount}/${t.totalTimeframes}`
-  return `${t.direction} ${Math.max(t.upCount, t.downCount)}/${t.totalTimeframes}`
-})
-
-// Indicator summary
-const overallBias = computed(() => indicators.value?.summary?.overallBias ?? 'neutral')
-const overallBiasLabel = computed(() => indicators.value?.summary?.overallBiasLabel ?? '-')
-const biasStrength = computed(() => indicators.value?.summary?.strength ?? 'weak')
-const bullishCount = computed(() => indicators.value?.summary?.bullishCount ?? 0)
-const bearishCount = computed(() => indicators.value?.summary?.bearishCount ?? 0)
-const neutralCount = computed(() => indicators.value?.summary?.neutralCount ?? 0)
-
-// Technical indicators
-const maData = computed(() => indicators.value?.movingAverages ?? null)
-const macdData = computed(() => indicators.value?.macd ?? null)
-const bbData = computed(() => indicators.value?.bollingerBands ?? null)
-const rsiData = computed(() => indicators.value?.rsi ?? null)
-const stochData = computed(() => indicators.value?.stochastic ?? null)
-const obvData = computed(() => indicators.value?.obv ?? null)
-const atrData = computed(() => indicators.value?.atr ?? null)
-const adxData = computed(() => indicators.value?.adx ?? null)
 
 // ─── Reload ───
-const isRefreshing = ref(false)
-
 async function handleReload() {
   isRefreshing.value = true
   try {
-    // TODO: ปิดไว้ชั่วคราว — /api/analysis/summary ช้ามาก
-    // await fetchSymbolSummary(symbolId.value)
-    // TODO: ปิดไว้ชั่วคราว — /api/analysis/:id ช้ามาก
-    // await fetchAnalysis(symbolId.value)
-
-    // Refresh indicators ทุก TF (เร็ว — ใช้ API แยก)
-    await fetchAllTimeframes(true)
+    await Promise.all([
+      fetchPrice(symbolId.value, true),
+      fetchTrends(symbolId.value, true),
+      fetchAllTimeframes(true),
+      fetchValidation(symbolId.value, '15m', true),
+      fetchLatestSignal(symbolId.value),
+      fetchSymbolSummary(symbolId.value),
+    ])
   } finally {
     setTimeout(() => { isRefreshing.value = false }, 500)
   }
@@ -227,8 +229,6 @@ function goBack() {
 
 async function handleAnalyze() {
   await analyzeSignal(symbolId.value, false)
-  // Signal will be updated reactively via analysisCache
-  // (both REST response and WebSocket signal:new update cached.signal)
 }
 </script>
 
@@ -242,12 +242,12 @@ async function handleAnalyze() {
       <v-btn icon variant="tonal" color="grey-darken-3" size="small" rounded="circle" @click="goBack">
         <v-icon icon="mdi-arrow-left" size="28" class="text-label-muted" />
       </v-btn>
-      <div v-if="summary" class="text-center">
+      <div v-if="summary || priceData" class="text-center">
         <div class="d-flex align-center justify-center ga-2">
-          <span class="text-h6 font-weight-black">{{ summary.name }}</span>
-          <v-chip size="x-small" variant="tonal" color="info" rounded="lg" class="font-weight-bold">{{ summary.type }}</v-chip>
+          <span class="text-h6 font-weight-black">{{ summary?.name ?? priceData?.symbol ?? '-' }}</span>
+          <v-chip v-if="summary?.type" size="x-small" variant="tonal" color="info" rounded="lg" class="font-weight-bold">{{ summary.type }}</v-chip>
         </div>
-        <div class="text-caption text-label-muted">{{ summary.price.updatedAgo }}</div>
+        <div v-if="priceData" class="text-caption text-label-muted">{{ formatTimeAgo(priceData.timestamp) }}</div>
       </div>
       <div v-else style="width: 40px;" />
       <div class="d-flex align-center">
@@ -277,18 +277,218 @@ async function handleAnalyze() {
     </div>
 
     <!-- ═══════════════════════════════════════════════════ -->
-    <!-- Candlestick Chart (ไม่ต้องพึ่ง summary/analysis)  -->
+    <!-- MAIN CONTENT                                       -->
     <!-- ═══════════════════════════════════════════════════ -->
     <template v-else>
+
+      <!-- ═══════════════════════════════════════════════════ -->
+      <!-- Section 1: Price + Strength                        -->
+      <!-- ═══════════════════════════════════════════════════ -->
+      <div v-if="priceData" class="mb-4">
+        <div class="d-flex align-center justify-space-between mb-2">
+          <div>
+            <div class="text-h4 font-weight-black font-mono">
+              {{ formatPrice(priceData.price) }}
+            </div>
+            <span :class="['text-body-2 font-weight-bold font-mono', getPriceChangeColor(priceData.changePercent) === 'success' ? 'text-success' : getPriceChangeColor(priceData.changePercent) === 'error' ? 'text-error' : 'text-grey']">
+              {{ formatPriceChange(priceData.changePercent) }}
+            </span>
+          </div>
+          <div v-if="trendsData?.analysis" class="text-right">
+            <div class="text-caption text-uppercase text-label-muted font-weight-bold">{{ strengthLabel }}</div>
+            <div class="text-h4 font-weight-black font-mono" :class="`text-${strengthColor}`">{{ strengthScore }}%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════ -->
+      <!-- Candlestick Chart                                  -->
+      <!-- ═══════════════════════════════════════════════════ -->
       <div class="mb-4">
         <TradingCandlestickChart :symbol-id="symbolId" />
       </div>
 
       <!-- ═══════════════════════════════════════════════════ -->
-      <!-- Technical Indicators — All Timeframes Comparison    -->
+      <!-- Section 2: Indicator Summary (enhanced server data)-->
       <!-- ═══════════════════════════════════════════════════ -->
       <div class="mb-4">
-        <!-- Section header -->
+        <div class="text-overline font-weight-bold mb-2 text-label-muted">
+          <v-icon icon="mdi-chart-box" size="16" class="mr-1" />
+          Indicator Summary
+        </div>
+
+        <v-card class="glass-card mb-3" rounded="lg">
+          <v-card-text class="pa-3">
+            <div class="text-caption font-weight-bold text-uppercase text-label-muted mb-2">Signal Summary (per TF)</div>
+            <div class="d-flex ga-2 flex-wrap">
+              <template v-for="tf in TIMEFRAMES" :key="`summary-${tf}`">
+                <!-- Use server summary if available, otherwise client-side -->
+                <v-chip
+                  size="small"
+                  :color="
+                    (getTfServerSummary(tf)?.overall === 'BULLISH' || (!getTfServerSummary(tf) && getTfSignalCount(tf).bullish > getTfSignalCount(tf).bearish))
+                      ? 'success'
+                      : (getTfServerSummary(tf)?.overall === 'BEARISH' || (!getTfServerSummary(tf) && getTfSignalCount(tf).bearish > getTfSignalCount(tf).bullish))
+                        ? 'error'
+                        : 'grey'
+                  "
+                  variant="tonal"
+                  class="font-weight-bold"
+                >
+                  {{ tf }}
+                  <v-icon
+                    :icon="
+                      (getTfServerSummary(tf)?.overall === 'BULLISH' || (!getTfServerSummary(tf) && getTfSignalCount(tf).bullish > getTfSignalCount(tf).bearish))
+                        ? 'mdi-arrow-up-bold'
+                        : (getTfServerSummary(tf)?.overall === 'BEARISH' || (!getTfServerSummary(tf) && getTfSignalCount(tf).bearish > getTfSignalCount(tf).bullish))
+                          ? 'mdi-arrow-down-bold'
+                          : 'mdi-minus'
+                    "
+                    size="14"
+                    class="ml-1"
+                  />
+                  <template v-if="getTfServerSummary(tf)">
+                    {{ getTfServerSummary(tf)!.bullish }}/{{ getTfServerSummary(tf)!.bearish }}/{{ getTfServerSummary(tf)!.neutral }}
+                  </template>
+                  <template v-else>
+                    {{ getTfSignalCount(tf).bullish }}/{{ getTfSignalCount(tf).bearish }}/{{ getTfSignalCount(tf).neutral }}
+                  </template>
+                </v-chip>
+              </template>
+            </div>
+
+            <!-- Overall Bias (per TF) -->
+            <div v-if="TIMEFRAMES.some((tf) => getTfServerSummary(tf)?.overall)" class="mt-3">
+              <div class="text-caption font-weight-bold text-uppercase text-label-muted mb-2">Overall Bias</div>
+              <div class="d-flex ga-2 flex-wrap">
+                <template v-for="tf in TIMEFRAMES" :key="`bias-${tf}`">
+                  <v-chip
+                    v-if="getTfServerSummary(tf)?.overall"
+                    size="small"
+                    :color="getBiasColor(getTfServerSummary(tf)!.overall.toLowerCase() as OverallBias)"
+                    variant="tonal"
+                    class="font-weight-bold"
+                  >
+                    <v-icon :icon="getBiasIcon(getTfServerSummary(tf)!.overall.toLowerCase() as OverallBias)" size="14" class="mr-1" />
+                    {{ tf }}: {{ getTfServerSummary(tf)!.overall }}
+                  </v-chip>
+                </template>
+              </div>
+            </div>
+          </v-card-text>
+        </v-card>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════ -->
+      <!-- Section 3: Multi-TF Trends (from useTrends)        -->
+      <!-- ═══════════════════════════════════════════════════ -->
+      <div v-if="trendsData" class="mb-4">
+        <div class="text-overline font-weight-bold mb-2 text-label-muted">
+          <v-icon icon="mdi-chart-timeline-variant" size="16" class="mr-1" />
+          Multi-Timeframe Trends
+        </div>
+
+        <!-- Trend per timeframe -->
+        <v-card class="glass-card mb-2" rounded="lg">
+          <v-card-text class="pa-3">
+            <div class="d-flex ga-2 flex-wrap">
+              <div v-for="(tfData, tfKey) in trendsData.timeframes" :key="`trend-${tfKey}`" class="tf-cell">
+                <div class="text-caption text-label-muted text-center">{{ tfKey }}</div>
+                <v-chip
+                  size="small"
+                  :color="getTrendCacheColor(tfData.direction)"
+                  variant="tonal"
+                  class="font-weight-bold"
+                >
+                  <v-icon :icon="getTrendCacheIcon(tfData.direction)" size="14" class="mr-1" />
+                  {{ tfData.direction }}
+                </v-chip>
+                <v-chip
+                  size="x-small"
+                  :color="getTrendStrengthColor(tfData.strength)"
+                  variant="outlined"
+                  class="mt-1"
+                >
+                  {{ tfData.strength }}
+                </v-chip>
+                <div v-if="tfData.adx !== null" class="text-caption font-mono text-center mt-1">
+                  ADX {{ tfData.adx.toFixed(1) }}
+                </div>
+              </div>
+            </div>
+          </v-card-text>
+        </v-card>
+
+        <!-- Analysis summary -->
+        <v-card class="glass-card" rounded="lg">
+          <v-card-text class="pa-3">
+            <div class="d-flex align-center justify-space-between">
+              <div>
+                <span class="text-caption text-label-muted">Consensus: </span>
+                <v-chip
+                  size="small"
+                  :color="getConsensusColor(trendsData.analysis.consensus as any)"
+                  variant="tonal"
+                  class="font-weight-bold"
+                >
+                  {{ trendsData.analysis.consensus }}
+                </v-chip>
+              </div>
+              <div>
+                <v-chip
+                  size="small"
+                  :color="getTrendCacheColor(trendsData.analysis.majorityTrend)"
+                  variant="tonal"
+                  class="font-weight-bold"
+                >
+                  <v-icon :icon="getTrendCacheIcon(trendsData.analysis.majorityTrend)" size="14" class="mr-1" />
+                  {{ trendsData.analysis.majorityTrend }}
+                  {{ trendsData.analysis.strength }}%
+                </v-chip>
+              </div>
+            </div>
+          </v-card-text>
+        </v-card>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════ -->
+      <!-- Section 4: BB Position (enhanced indicator)         -->
+      <!-- ═══════════════════════════════════════════════════ -->
+      <div v-if="getTfBBPosition('15m') || getTfBBPosition('1h')" class="mb-4">
+        <div class="text-overline font-weight-bold mb-2 text-label-muted">
+          <v-icon icon="mdi-chart-bell-curve" size="16" class="mr-1" />
+          Bollinger Position
+        </div>
+
+        <v-card class="glass-card" rounded="lg">
+          <v-card-text class="pa-3">
+            <div class="d-flex ga-2 flex-wrap">
+              <div v-for="tf in TIMEFRAMES" :key="`bbpos-${tf}`" class="tf-cell">
+                <div class="text-caption text-label-muted text-center">{{ tf }}</div>
+                <template v-if="getTfBBPosition(tf)">
+                  <v-chip
+                    size="small"
+                    :color="getBBPositionLabelColor(getTfBBPosition(tf)!.position)"
+                    variant="tonal"
+                    class="font-weight-bold"
+                  >
+                    {{ getBBPositionLabelText(getTfBBPosition(tf)!.position) }}
+                  </v-chip>
+                  <div class="text-caption font-mono text-center mt-1">
+                    %B: {{ getTfBBPosition(tf)!.percentB.toFixed(2) }}
+                  </div>
+                </template>
+                <div v-else class="text-caption text-label-muted text-center">-</div>
+              </div>
+            </div>
+          </v-card-text>
+        </v-card>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════ -->
+      <!-- Section 5: Technical Indicators + Derived Signals   -->
+      <!-- ═══════════════════════════════════════════════════ -->
+      <div class="mb-4">
         <div class="d-flex align-center justify-space-between mb-3">
           <div class="text-overline font-weight-bold text-label-muted">
             <v-icon icon="mdi-chart-box" size="16" class="mr-1" />
@@ -300,7 +500,7 @@ async function handleAnalyze() {
           </v-chip>
         </div>
 
-        <!-- Loading state (first load — no data yet) -->
+        <!-- Loading state -->
         <div v-if="indicatorsLoading && !hasAnyIndicator" class="text-center py-6">
           <v-progress-circular indeterminate color="primary" size="28" width="2" />
           <div class="text-caption text-label-muted mt-2">กำลังโหลด indicators ทุก timeframe...</div>
@@ -313,31 +513,6 @@ async function handleAnalyze() {
 
         <!-- All-TF Indicator Comparison -->
         <template v-else-if="hasAnyIndicator">
-
-          <!-- ── Signal Summary per TF ── -->
-          <v-card class="glass-card mb-3" rounded="lg">
-            <v-card-text class="pa-3">
-              <div class="text-caption font-weight-bold text-uppercase text-label-muted mb-2">Signal Summary</div>
-              <div class="d-flex ga-2 flex-wrap">
-                <v-chip
-                  v-for="tf in TIMEFRAMES"
-                  :key="`signal-${tf}`"
-                  size="small"
-                  :color="getTfSignalCount(tf).bullish > getTfSignalCount(tf).bearish ? 'success' : getTfSignalCount(tf).bearish > getTfSignalCount(tf).bullish ? 'error' : 'grey'"
-                  variant="tonal"
-                  class="font-weight-bold"
-                >
-                  {{ tf }}
-                  <v-icon
-                    :icon="getTfSignalCount(tf).bullish > getTfSignalCount(tf).bearish ? 'mdi-arrow-up-bold' : getTfSignalCount(tf).bearish > getTfSignalCount(tf).bullish ? 'mdi-arrow-down-bold' : 'mdi-minus'"
-                    size="14"
-                    class="ml-1"
-                  />
-                  {{ getTfSignalCount(tf).bullish }}/{{ getTfSignalCount(tf).bearish }}/{{ getTfSignalCount(tf).neutral }}
-                </v-chip>
-              </div>
-            </v-card-text>
-          </v-card>
 
           <!-- ── RSI Comparison ── -->
           <v-card class="glass-card mb-2" rounded="lg">
@@ -366,7 +541,7 @@ async function handleAnalyze() {
           <!-- ── MACD Histogram Comparison ── -->
           <v-card class="glass-card mb-2" rounded="lg">
             <v-card-text class="pa-3">
-              <div class="text-caption font-weight-bold text-label-muted mb-2">MACD Histogram</div>
+              <div class="text-caption font-weight-bold text-label-muted mb-2">MACD</div>
               <div class="d-flex ga-2 flex-wrap">
                 <div v-for="tf in TIMEFRAMES" :key="`macd-${tf}`" class="tf-cell">
                   <div class="text-caption text-label-muted text-center">{{ tf }}</div>
@@ -375,6 +550,12 @@ async function handleAnalyze() {
                     :class="macdHist(tf) !== null && macdHist(tf)! > 0 ? 'text-success' : macdHist(tf) !== null && macdHist(tf)! < 0 ? 'text-error' : ''"
                   >
                     {{ macdHist(tf) !== null ? macdHist(tf)!.toFixed(4) : '-' }}
+                  </div>
+                  <div v-if="macdLine(tf) !== null" class="text-caption font-mono text-center text-label-muted">
+                    L: {{ macdLine(tf)!.toFixed(4) }}
+                  </div>
+                  <div v-if="macdSignal(tf) !== null" class="text-caption font-mono text-center text-label-muted">
+                    S: {{ macdSignal(tf)!.toFixed(4) }}
                   </div>
                   <v-chip
                     v-if="macdHist(tf) !== null"
@@ -409,7 +590,6 @@ async function handleAnalyze() {
                   >
                     {{ adxVal(tf)! < 20 ? 'Weak' : adxVal(tf)! < 40 ? 'Med' : 'Strong' }}
                   </v-chip>
-                  <!-- DI direction -->
                   <v-chip
                     v-if="adxPlusDI(tf) !== null && adxMinusDI(tf) !== null"
                     size="x-small"
@@ -427,12 +607,13 @@ async function handleAnalyze() {
           <!-- ── Stochastic Comparison ── -->
           <v-card class="glass-card mb-2" rounded="lg">
             <v-card-text class="pa-3">
-              <div class="text-caption font-weight-bold text-label-muted mb-2">Stochastic %K</div>
+              <div class="text-caption font-weight-bold text-label-muted mb-2">Stochastic %K / %D</div>
               <div class="d-flex ga-2 flex-wrap">
                 <div v-for="tf in TIMEFRAMES" :key="`stoch-${tf}`" class="tf-cell">
                   <div class="text-caption text-label-muted text-center">{{ tf }}</div>
                   <div class="text-body-2 font-weight-bold font-mono text-center">
                     {{ stochK(tf) !== null ? stochK(tf)!.toFixed(1) : '-' }}
+                    <span v-if="stochD(tf) !== null" class="text-label-muted"> · {{ stochD(tf)!.toFixed(1) }}</span>
                   </div>
                   <v-chip
                     v-if="stochK(tf) !== null"
@@ -466,10 +647,19 @@ async function handleAnalyze() {
           <!-- ── Moving Averages (SMA Cross) ── -->
           <v-card class="glass-card mb-2" rounded="lg">
             <v-card-text class="pa-3">
-              <div class="text-caption font-weight-bold text-label-muted mb-2">SMA Cross (50 vs 200)</div>
+              <div class="text-caption font-weight-bold text-label-muted mb-2">Moving Averages</div>
               <div class="d-flex ga-2 flex-wrap">
                 <div v-for="tf in TIMEFRAMES" :key="`sma-${tf}`" class="tf-cell">
                   <div class="text-caption text-label-muted text-center">{{ tf }}</div>
+                  <div v-if="ema20(tf) !== null" class="text-caption font-mono text-center">
+                    <span class="text-label-muted">E20</span> {{ formatNumber(ema20(tf)!) }}
+                  </div>
+                  <div v-if="sma50(tf) !== null" class="text-caption font-mono text-center">
+                    <span class="text-label-muted">S50</span> {{ formatNumber(sma50(tf)!) }}
+                  </div>
+                  <div v-if="sma200(tf) !== null" class="text-caption font-mono text-center">
+                    <span class="text-label-muted">S200</span> {{ formatNumber(sma200(tf)!) }}
+                  </div>
                   <v-chip
                     v-if="sma50(tf) !== null && sma200(tf) !== null"
                     size="x-small"
@@ -479,7 +669,7 @@ async function handleAnalyze() {
                   >
                     {{ sma50(tf)! > sma200(tf)! ? 'Golden' : 'Death' }}
                   </v-chip>
-                  <div v-else class="text-body-2 font-mono text-center text-label-muted">-</div>
+                  <div v-else-if="ema20(tf) === null && sma50(tf) === null" class="text-body-2 font-mono text-center text-label-muted">-</div>
                 </div>
               </div>
             </v-card-text>
@@ -503,78 +693,344 @@ async function handleAnalyze() {
             </v-card-text>
           </v-card>
 
-          <!-- TODO: Derived Signals — รอ backend เพิ่มใน analysis API
-          <DerivedSignals>
-            <Signal type="bollinger_squeeze" />
-            <Signal type="rsi_divergence" />
-            <Signal type="macd_divergence" />
-            <Signal type="sma_crossover" />
-            <Signal type="candlestick_pattern" />
-          </DerivedSignals>
-          -->
+          <!-- ── OBV (On-Balance Volume) ── -->
+          <v-card v-if="TIMEFRAMES.some((tf) => obvVal(tf) !== null)" class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="text-caption font-weight-bold text-label-muted mb-2">OBV (On-Balance Volume)</div>
+              <div class="d-flex ga-2 flex-wrap">
+                <div v-for="tf in TIMEFRAMES" :key="`obv-${tf}`" class="tf-cell">
+                  <div class="text-caption text-label-muted text-center">{{ tf }}</div>
+                  <div v-if="obvVal(tf) !== null" class="text-body-2 font-weight-bold font-mono text-center">
+                    {{ formatNumber(obvVal(tf)!) }}
+                  </div>
+                  <div v-else class="text-body-2 font-mono text-center text-label-muted">-</div>
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- ── Derived Signals (enhanced) ── -->
+          <v-card v-if="getTfDerivedSignals('15m') || getTfDerivedSignals('1h')" class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="text-caption font-weight-bold text-label-muted mb-2">
+                <v-icon icon="mdi-flash" size="14" class="mr-1" />
+                Derived Signals
+              </div>
+
+              <div class="d-flex ga-2 flex-wrap">
+                <div v-for="tf in TIMEFRAMES" :key="`derived-${tf}`" class="tf-cell">
+                  <div class="text-caption text-label-muted text-center mb-1">{{ tf }}</div>
+                  <template v-if="getTfDerivedSignals(tf)">
+                    <!-- BB Squeeze -->
+                    <v-chip
+                      size="x-small"
+                      :color="getTfDerivedSignals(tf)!.bollingerSqueeze ? 'warning' : 'grey'"
+                      variant="tonal"
+                      class="mb-1"
+                    >
+                      {{ getTfDerivedSignals(tf)!.bollingerSqueeze ? 'SQUEEZE' : 'No Sq' }}
+                    </v-chip>
+
+                    <!-- RSI Divergence -->
+                    <v-chip
+                      v-if="getTfDerivedSignals(tf)!.rsiDivergence"
+                      size="x-small"
+                      :color="getDivergenceColor(getTfDerivedSignals(tf)!.rsiDivergence)"
+                      variant="tonal"
+                      class="mb-1"
+                    >
+                      RSI {{ getTfDerivedSignals(tf)!.rsiDivergence }}
+                    </v-chip>
+
+                    <!-- MACD Divergence -->
+                    <v-chip
+                      v-if="getTfDerivedSignals(tf)!.macdDivergence"
+                      size="x-small"
+                      :color="getDivergenceColor(getTfDerivedSignals(tf)!.macdDivergence)"
+                      variant="tonal"
+                      class="mb-1"
+                    >
+                      MACD {{ getTfDerivedSignals(tf)!.macdDivergence }}
+                    </v-chip>
+
+                    <!-- SMA Crossover -->
+                    <v-chip
+                      v-if="getTfDerivedSignals(tf)!.smaCrossover"
+                      size="x-small"
+                      :color="getTfDerivedSignals(tf)!.smaCrossover === 'GOLDEN' ? 'success' : 'error'"
+                      variant="tonal"
+                      class="mb-1"
+                    >
+                      {{ getCrossoverLabel(getTfDerivedSignals(tf)!.smaCrossover) }}
+                    </v-chip>
+
+                    <!-- Candlestick Pattern -->
+                    <v-chip
+                      v-if="getTfDerivedSignals(tf)!.candlestickPattern"
+                      size="x-small"
+                      :color="getTfDerivedSignals(tf)!.patternDirection === 'BULLISH' ? 'success' : getTfDerivedSignals(tf)!.patternDirection === 'BEARISH' ? 'error' : 'grey'"
+                      variant="tonal"
+                    >
+                      {{ getTfDerivedSignals(tf)!.candlestickPattern }}
+                    </v-chip>
+                  </template>
+                  <div v-else class="text-caption text-label-muted text-center">-</div>
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
         </template>
       </div>
+
+      <!-- ═══════════════════════════════════════════════════ -->
+      <!-- Section 6: AI Decision Logic (Validation)           -->
+      <!-- ═══════════════════════════════════════════════════ -->
+      <div v-if="validationData" class="mb-4">
+        <div class="text-overline font-weight-bold mb-2 text-label-muted">
+          <v-icon icon="mdi-shield-check" size="16" class="mr-1" />
+          AI Decision Logic
+        </div>
+
+        <!-- Overall status -->
+        <v-card v-if="validationData.overallStatus" class="glass-card mb-2" rounded="lg">
+          <v-card-text class="pa-3">
+            <div class="d-flex align-center justify-space-between">
+              <div class="d-flex align-center ga-2">
+                <v-icon
+                  :icon="getValidationStatusIcon(validationData.overallStatus)"
+                  :color="getValidationStatusColor(validationData.overallStatus)"
+                  size="24"
+                />
+                <div>
+                  <div class="text-body-2 font-weight-bold">{{ validationData.overallStatusLabel }}</div>
+                  <div class="text-caption text-label-muted">
+                    {{ validationData.isValid ? 'Ready for signal' : 'Conditions not met' }}
+                  </div>
+                </div>
+              </div>
+              <v-chip
+                size="small"
+                :color="getValidationStatusColor(validationData.overallStatus)"
+                variant="tonal"
+                class="font-weight-bold"
+              >
+                {{ validationData.overallStatus.toUpperCase() }}
+              </v-chip>
+            </div>
+          </v-card-text>
+        </v-card>
+
+        <!-- Individual checks -->
+        <v-card class="glass-card mb-2" rounded="lg">
+          <v-card-text class="pa-3">
+            <div class="text-caption font-weight-bold text-label-muted mb-2">Validation Checks</div>
+            <div v-for="(check, checkKey) in validationData.checks" :key="checkKey" class="d-flex align-center ga-2 mb-2">
+              <v-icon
+                :icon="getValidationStatusIcon(check.status)"
+                :color="getValidationStatusColor(check.status)"
+                size="18"
+              />
+              <div class="flex-grow-1">
+                <div class="text-body-2">{{ check.message }}</div>
+                <div v-if="check.detail" class="text-caption text-label-muted">{{ check.detail }}</div>
+              </div>
+              <v-chip
+                size="x-small"
+                :color="getValidationStatusColor(check.status)"
+                variant="tonal"
+              >
+                {{ check.status }}
+              </v-chip>
+            </div>
+          </v-card-text>
+        </v-card>
+
+        <!-- Bollinger position from validation -->
+        <v-card v-if="validationData.bollingerPosition" class="glass-card mb-2" rounded="lg">
+          <v-card-text class="pa-3">
+            <div class="text-caption font-weight-bold text-label-muted mb-2">Price Position (Bollinger)</div>
+            <div class="d-flex align-center justify-space-between">
+              <span class="text-body-2">{{ validationData.bollingerPosition.pricePosition }}</span>
+              <span class="text-body-2 font-mono">%B: {{ validationData.bollingerPosition.percentB.toFixed(2) }}</span>
+            </div>
+          </v-card-text>
+        </v-card>
+
+        <!-- Next candle close -->
+        <v-card v-if="validationData.nextCandleClose" class="glass-card" rounded="lg">
+          <v-card-text class="pa-3">
+            <div class="d-flex align-center justify-space-between">
+              <span class="text-caption text-label-muted">Next {{ validationData.nextCandleClose.timeframe }} close</span>
+              <span class="text-body-2 font-weight-bold font-mono">
+                {{ formatTimeRemaining(validationData.nextCandleClose.secondsRemaining) }}
+              </span>
+            </div>
+          </v-card-text>
+        </v-card>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════ -->
+      <!-- Section 7: AI Signal Result                         -->
+      <!-- ═══════════════════════════════════════════════════ -->
+      <div class="mb-4">
+        <div class="text-overline font-weight-bold mb-2 text-label-muted">
+          <v-icon icon="mdi-robot" size="16" class="mr-1" />
+          AI Signal
+        </div>
+
+        <!-- AI Analyzing state -->
+        <v-card v-if="isAIWorking || isSignalAnalyzing" class="glass-card mb-2" rounded="lg">
+          <v-card-text class="pa-3 text-center">
+            <v-progress-circular indeterminate color="primary" size="32" width="3" class="mb-2" />
+            <div class="text-body-2">AI กำลังวิเคราะห์...</div>
+          </v-card-text>
+        </v-card>
+
+        <!-- Signal data -->
+        <template v-else-if="signalData">
+          <v-card class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <!-- Strategy + Confidence -->
+              <div class="d-flex align-center justify-space-between mb-3">
+                <div class="d-flex align-center ga-2">
+                  <v-icon
+                    :icon="getStrategyIcon(signalData.strategy)"
+                    :color="getStrategyColor(signalData.strategy)"
+                    size="32"
+                  />
+                  <div>
+                    <div class="text-h6 font-weight-black">{{ signalData.strategyLabel }}</div>
+                    <div class="text-caption text-label-muted">{{ formatTimeAgo(signalData.timestamp) }}</div>
+                  </div>
+                </div>
+                <v-chip
+                  size="small"
+                  :color="getConfidenceColor(signalData.confidence)"
+                  variant="tonal"
+                  class="font-weight-bold"
+                >
+                  {{ signalData.confidence }}% {{ signalData.confidenceLabel }}
+                </v-chip>
+              </div>
+
+              <!-- Entry / TP / SL -->
+              <div class="d-flex justify-space-between mb-2">
+                <div class="text-center">
+                  <div class="text-caption text-label-muted">Entry</div>
+                  <div class="text-body-2 font-weight-bold font-mono">{{ formatPrice(signalData.prices.entry) }}</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-caption text-success">Take Profit</div>
+                  <div class="text-body-2 font-weight-bold font-mono text-success">{{ formatPrice(signalData.prices.takeProfit) }}</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-caption text-error">Stop Loss</div>
+                  <div class="text-body-2 font-weight-bold font-mono text-error">{{ formatPrice(signalData.prices.stopLoss) }}</div>
+                </div>
+              </div>
+
+              <!-- R:R ratio -->
+              <div class="d-flex align-center justify-center ga-3">
+                <v-chip size="x-small" variant="tonal" color="info">R:R {{ signalData.prices.riskRewardRatio }}</v-chip>
+                <v-chip size="x-small" variant="tonal" color="success">+{{ signalData.prices.potentialProfit.toFixed(2) }}%</v-chip>
+                <v-chip size="x-small" variant="tonal" color="error">-{{ signalData.prices.potentialLoss.toFixed(2) }}%</v-chip>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- Analysis summary -->
+          <v-card v-if="signalData.analysis" class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="text-caption font-weight-bold text-label-muted mb-1">Analysis</div>
+              <div class="text-body-2 mb-2">{{ signalData.analysis.summary }}</div>
+
+              <div v-if="signalData.analysis.keyFactors.length" class="mb-2">
+                <div class="text-caption text-label-muted mb-1">Key Factors</div>
+                <v-chip
+                  v-for="(factor, i) in signalData.analysis.keyFactors"
+                  :key="`factor-${i}`"
+                  size="x-small"
+                  variant="tonal"
+                  color="info"
+                  class="mr-1 mb-1"
+                >
+                  {{ factor }}
+                </v-chip>
+              </div>
+
+              <div v-if="signalData.analysis.warnings.length">
+                <div class="text-caption text-label-muted mb-1">Warnings</div>
+                <v-chip
+                  v-for="(warn, i) in signalData.analysis.warnings"
+                  :key="`warn-${i}`"
+                  size="x-small"
+                  variant="tonal"
+                  color="warning"
+                  class="mr-1 mb-1"
+                >
+                  {{ warn }}
+                </v-chip>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- Performance -->
+          <v-card v-if="signalData.performance" class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="d-flex align-center justify-space-between mb-2">
+                <span class="text-caption font-weight-bold text-label-muted">Performance</span>
+                <v-chip
+                  size="x-small"
+                  :color="getPerformanceStatusColor(signalData.performance.status)"
+                  variant="tonal"
+                >
+                  {{ signalData.performance.statusLabel }}
+                </v-chip>
+              </div>
+              <div class="d-flex justify-space-between">
+                <div class="text-center">
+                  <div class="text-caption text-label-muted">P&L</div>
+                  <div
+                    class="text-body-2 font-weight-bold font-mono"
+                    :class="signalData.performance.profitLossPercent >= 0 ? 'text-success' : 'text-error'"
+                  >
+                    {{ signalData.performance.profitLossPercent >= 0 ? '+' : '' }}{{ signalData.performance.profitLossPercent.toFixed(2) }}%
+                  </div>
+                </div>
+                <div class="text-center">
+                  <div class="text-caption text-label-muted">Max Profit</div>
+                  <div class="text-body-2 font-mono text-success">+{{ signalData.performance.maxProfit.toFixed(2) }}%</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-caption text-label-muted">Max DD</div>
+                  <div class="text-body-2 font-mono text-error">-{{ signalData.performance.maxDrawdown.toFixed(2) }}%</div>
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
+        </template>
+
+        <!-- No signal + analyze button -->
+        <v-card v-else class="glass-card" rounded="lg">
+          <v-card-text class="pa-3 text-center">
+            <div class="text-body-2 text-label-muted mb-3">ยังไม่มี AI Signal</div>
+            <v-btn
+              color="primary"
+              variant="tonal"
+              size="small"
+              :loading="isAIWorking"
+              @click="handleAnalyze"
+            >
+              <v-icon start icon="mdi-robot" />
+              Analyze Now
+            </v-btn>
+            <div v-if="analyzeError" class="text-caption text-error mt-2">{{ analyzeError }}</div>
+          </v-card-text>
+        </v-card>
+      </div>
+
     </template>
 
-    <!-- ═══════════════════════════════════════════════════ -->
-    <!-- MAIN CONTENT (when summary exists)                 -->
-    <!-- ═══════════════════════════════════════════════════ -->
-    <div v-if="pageReady && summary">
-
-      <!-- ══════ Loading State ══════ -->
-      <div v-if="isLoading && !analysis" class="text-center py-8">
-        <v-progress-circular indeterminate color="primary" size="40" />
-        <div class="text-caption mt-3 text-label-muted">กำลังโหลดข้อมูลวิเคราะห์...</div>
-      </div>
-
-      <!-- ══════ COMMENTED OUT — uncomment เมื่อ verify graph เรียบร้อยแล้ว ══════ -->
-      <!--
-      <div class="mb-4">
-        <div class="d-flex align-center justify-space-between mb-2">
-          <div>
-            <div class="text-h4 font-weight-black font-mono">
-              {{ formatPrice(summary.price.current) }}
-            </div>
-            <span :class="['text-body-2 font-weight-bold font-mono', getPriceChangeColor(summary.price.changePercent) === 'success' ? 'text-success' : getPriceChangeColor(summary.price.changePercent) === 'error' ? 'text-error' : 'text-grey']">
-              {{ formatPriceChange(summary.price.changePercent) }}
-            </span>
-          </div>
-          <div class="text-right">
-            <div class="text-caption text-uppercase text-label-muted font-weight-bold">{{ strengthLabel }}</div>
-            <div class="text-h4 font-weight-black font-mono" :class="`text-${strengthColor}`">{{ strengthScore }}%</div>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="indicators" class="mb-4">
-        <div class="text-overline font-weight-bold mb-2 text-label-muted">
-          <v-icon icon="mdi-chart-box" size="16" class="mr-1" />
-          Indicator Summary
-        </div>
-        ... (indicator summary content) ...
-      </div>
-
-      <div v-if="trends" class="mb-4">
-        ... (multi-timeframe trends content) ...
-      </div>
-
-      <div v-if="bbData" class="mb-4">
-        ... (price position / bollinger bands content) ...
-      </div>
-
-      <div v-if="indicators" class="mb-4">
-        ... (technical indicators content) ...
-      </div>
-
-      <div class="mb-4">
-        ... (AI engine decision logic content) ...
-      </div>
-
-      <div v-if="isAIWorking || signal" class="mb-4">
-        ... (AI signal analysis result content) ...
-      </div>
-      -->
-    </div>
   </v-container>
 </template>
 

@@ -352,12 +352,11 @@ export function useAnalysis() {
       const needsRefresh = !cachedTimestamp || new Date(serverLatest) > new Date(cachedTimestamp)
 
       if (needsRefresh) {
-        // Data stale — auto refresh
-        // TODO: ปิดไว้ชั่วคราว — analysis + summary ช้ามาก
-        // await Promise.all([
-        //   fetchAnalysis(symbolId, { forceRefresh: true }),
-        //   fetchSymbolSummary(symbolId),
-        // ])
+        // Data stale — auto refresh (APIs optimized now)
+        await Promise.all([
+          fetchAnalysis(symbolId, { forceRefresh: true }),
+          fetchSymbolSummary(symbolId),
+        ])
         return true
       }
 
@@ -399,11 +398,10 @@ export function useAnalysis() {
 
         if (needsRefresh) {
           refreshedIds.push(serverTs.symbolId)
-          // TODO: ปิดไว้ชั่วคราว — analysis + summary ช้ามาก
-          // refreshPromises.push(
-          //   fetchAnalysis(serverTs.symbolId, { forceRefresh: true }),
-          //   fetchSymbolSummary(serverTs.symbolId),
-          // )
+          refreshPromises.push(
+            fetchAnalysis(serverTs.symbolId, { forceRefresh: true }),
+            fetchSymbolSummary(serverTs.symbolId),
+          )
         }
       }
 

@@ -50,17 +50,17 @@ async function loadProgressively() {
   }
 
   // Step 2: Fetch summary for each symbol progressively (parallel)
-  // TODO: ปิดไว้ชั่วคราว — /api/analysis/summary ช้ามาก
-  // const promises = symbolsList.value.map(async (s) => {
-  //   loadingSymbolIds.value.add(s.id)
-  //   try {
-  //     await fetchSymbolSummary(s.id)
-  //   } finally {
-  //     loadingSymbolIds.value.delete(s.id)
-  //   }
-  // })
-  //
-  // await Promise.allSettled(promises)
+  // API optimized (~40ms per symbol)
+  const promises = symbolsList.value.map(async (s) => {
+    loadingSymbolIds.value.add(s.id)
+    try {
+      await fetchSymbolSummary(s.id)
+    } finally {
+      loadingSymbolIds.value.delete(s.id)
+    }
+  })
+
+  await Promise.allSettled(promises)
 }
 
 // Fetch on mount + subscribe to price updates
