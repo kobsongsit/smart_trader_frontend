@@ -71,6 +71,10 @@ function mergeOverlays(older: ChartOverlays, existing: ChartOverlays): ChartOver
     bbUpper: mergeByTime(older.bbUpper, existing.bbUpper),
     bbMiddle: mergeByTime(older.bbMiddle, existing.bbMiddle),
     bbLower: mergeByTime(older.bbLower, existing.bbLower),
+    ichimokuConversion: mergeByTime(older.ichimokuConversion || [], existing.ichimokuConversion || []),
+    ichimokuBase: mergeByTime(older.ichimokuBase || [], existing.ichimokuBase || []),
+    ichimokuSpanA: mergeByTime(older.ichimokuSpanA || [], existing.ichimokuSpanA || []),
+    ichimokuSpanB: mergeByTime(older.ichimokuSpanB || [], existing.ichimokuSpanB || []),
   }
 }
 
@@ -83,7 +87,7 @@ function buildChartDataFromCache(key: string, symbol: string, timeframe: ChartTi
     timeframe,
     candles: timelineCache.get(key) || [],
     volume: volumeCache.get(key) || [],
-    overlays: overlayCache.get(key) || { sma50: [], sma200: [], ema20: [], bbUpper: [], bbMiddle: [], bbLower: [] },
+    overlays: overlayCache.get(key) || { sma50: [], sma200: [], ema20: [], bbUpper: [], bbMiddle: [], bbLower: [], ichimokuConversion: [], ichimokuBase: [], ichimokuSpanA: [], ichimokuSpanB: [] },
     signals: signalCache.get(key) || [],
   }
 }
@@ -198,6 +202,10 @@ export function useChart() {
           bbUpper: [...(chartData.overlays?.bbUpper || [])],
           bbMiddle: [...(chartData.overlays?.bbMiddle || [])],
           bbLower: [...(chartData.overlays?.bbLower || [])],
+          ichimokuConversion: [...(chartData.overlays?.ichimokuConversion || [])],
+          ichimokuBase: [...(chartData.overlays?.ichimokuBase || [])],
+          ichimokuSpanA: [...(chartData.overlays?.ichimokuSpanA || [])],
+          ichimokuSpanB: [...(chartData.overlays?.ichimokuSpanB || [])],
         })
         signalCache.set(key, [...(chartData.signals || [])])
 
@@ -297,7 +305,7 @@ export function useChart() {
       const mergedVolume = mergeByTime(olderData.volume, existingVolume)
 
       // Merge overlays (ทุก 6 lines)
-      const existingOverlays = overlayCache.get(key) || { sma50: [], sma200: [], ema20: [], bbUpper: [], bbMiddle: [], bbLower: [] }
+      const existingOverlays = overlayCache.get(key) || { sma50: [], sma200: [], ema20: [], bbUpper: [], bbMiddle: [], bbLower: [], ichimokuConversion: [], ichimokuBase: [], ichimokuSpanA: [], ichimokuSpanB: [] }
       const mergedOverlays = olderData.overlays
         ? mergeOverlays(olderData.overlays, existingOverlays)
         : existingOverlays

@@ -970,6 +970,10 @@ export interface ChartOverlays {
   bbUpper: ChartTimeValue[]
   bbMiddle: ChartTimeValue[]
   bbLower: ChartTimeValue[]
+  ichimokuConversion: ChartTimeValue[]  // Tenkan-sen (Conversion Line)
+  ichimokuBase: ChartTimeValue[]        // Kijun-sen (Base Line)
+  ichimokuSpanA: ChartTimeValue[]       // Senkou Span A (Leading Span A)
+  ichimokuSpanB: ChartTimeValue[]       // Senkou Span B (Leading Span B)
 }
 
 export interface ChartSignalMarker {

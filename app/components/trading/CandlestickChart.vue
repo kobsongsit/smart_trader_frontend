@@ -12,7 +12,9 @@ import type {
   Time,
   LogicalRange,
 } from 'lightweight-charts'
-import type { ChartTimeframe, ChartData } from '../../../types/trading'
+import type { ChartTimeframe, ChartData, ChartTimeValue } from '../../../types/trading'
+import { KumoCloudPaneView } from '~/utils/kumo-cloud-series'
+import type { KumoCloudData } from '~/utils/kumo-cloud-series'
 
 interface Props {
   symbolId: number
@@ -37,6 +39,7 @@ const hasMoreData = ref(true)
 const showMA = ref(true)
 const showBB = ref(true)
 const showSignals = ref(true)
+const showIchimoku = ref(false) // Default off — visually heavy indicator
 
 // Chart instance references
 let chart: IChartApi | null = null
@@ -48,6 +51,9 @@ let ema20Series: ISeriesApi<SeriesType> | null = null
 let bbUpperSeries: ISeriesApi<SeriesType> | null = null
 let bbMiddleSeries: ISeriesApi<SeriesType> | null = null
 let bbLowerSeries: ISeriesApi<SeriesType> | null = null
+let ichimokuConversionSeries: ISeriesApi<SeriesType> | null = null
+let ichimokuBaseSeries: ISeriesApi<SeriesType> | null = null
+let kumoCloudSeries: ISeriesApi<'Custom'> | null = null
 let seriesMarkers: ISeriesMarkersPluginApi<Time> | null = null
 let resizeObserver: ResizeObserver | null = null
 
@@ -200,6 +206,32 @@ function createChartInstance() {
     crosshairMarkerVisible: false,
   })
 
+  // Ichimoku Cloud overlay series
+  // Kumo cloud (filled area) — added first so it renders behind lines (z-order)
+  kumoCloudSeries = chart.addCustomSeries(new KumoCloudPaneView(), {
+    priceLineVisible: false,
+    lastValueVisible: false,
+    crosshairMarkerVisible: false,
+  })
+
+  // Tenkan-sen (Conversion Line) — #00E5FF cyan-A400 (Espresso-approved)
+  ichimokuConversionSeries = chart.addSeries(LineSeries, {
+    color: '#00E5FF',
+    lineWidth: 1,
+    priceLineVisible: false,
+    lastValueVisible: false,
+    crosshairMarkerVisible: false,
+  })
+
+  // Kijun-sen (Base Line) — #EF5350 red-400 (Espresso-approved)
+  ichimokuBaseSeries = chart.addSeries(LineSeries, {
+    color: '#EF5350',
+    lineWidth: 1,
+    priceLineVisible: false,
+    lastValueVisible: false,
+    crosshairMarkerVisible: false,
+  })
+
   // ─── Infinite Scroll: detect when user scrolls near the left edge ───
   chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleRangeChange)
 
@@ -314,6 +346,9 @@ function updateOverlays(data: ChartData) {
     bbUpperSeries?.setData([])
     bbMiddleSeries?.setData([])
     bbLowerSeries?.setData([])
+    ichimokuConversionSeries?.setData([])
+    ichimokuBaseSeries?.setData([])
+    kumoCloudSeries?.setData([])
     return
   }
 
@@ -338,6 +373,33 @@ function updateOverlays(data: ChartData) {
     bbMiddleSeries?.setData([])
     bbLowerSeries?.setData([])
   }
+
+  // Ichimoku Cloud
+  if (showIchimoku.value) {
+    ichimokuConversionSeries?.setData((data.overlays.ichimokuConversion || []) as any)
+    ichimokuBaseSeries?.setData((data.overlays.ichimokuBase || []) as any)
+    const kumoData = buildKumoData(data.overlays.ichimokuSpanA || [], data.overlays.ichimokuSpanB || [])
+    kumoCloudSeries?.setData(kumoData as any)
+  } else {
+    ichimokuConversionSeries?.setData([])
+    ichimokuBaseSeries?.setData([])
+    kumoCloudSeries?.setData([])
+  }
+}
+
+/**
+ * Build KumoCloudData by joining Span A and Span B arrays on time.
+ * Only includes data points where both Span A and Span B exist.
+ */
+function buildKumoData(spanA: ChartTimeValue[], spanB: ChartTimeValue[]): KumoCloudData[] {
+  const spanBMap = new Map(spanB.map(d => [d.time, d.value]))
+  return spanA
+    .filter(a => spanBMap.has(a.time))
+    .map(a => ({
+      time: a.time as unknown as Time,
+      spanA: a.value,
+      spanB: spanBMap.get(a.time)!,
+    }))
 }
 
 function updateSignalMarkers(data: ChartData) {
@@ -399,7 +461,7 @@ watch(selectedTimeframe, (_newTf, oldTf) => {
 })
 
 // ─── Watch overlay toggle changes ───
-watch([showMA, showBB, showSignals], () => {
+watch([showMA, showBB, showSignals, showIchimoku], () => {
   if (currentData.value) {
     updateOverlays(currentData.value)
     updateSignalMarkers(currentData.value)
@@ -437,6 +499,9 @@ onBeforeUnmount(() => {
   bbUpperSeries = null
   bbMiddleSeries = null
   bbLowerSeries = null
+  ichimokuConversionSeries = null
+  ichimokuBaseSeries = null
+  kumoCloudSeries = null
 })
 </script>
 
@@ -500,6 +565,16 @@ onBeforeUnmount(() => {
           >
             Signals
           </v-chip>
+          <v-divider vertical class="mx-1" />
+          <v-chip
+            size="x-small"
+            :variant="showIchimoku ? 'flat' : 'outlined'"
+            :color="showIchimoku ? 'teal' : 'grey'"
+            rounded="lg"
+            @click="showIchimoku = !showIchimoku"
+          >
+            Ichimoku
+          </v-chip>
         </div>
       </div>
 
@@ -555,6 +630,18 @@ onBeforeUnmount(() => {
           <span class="legend-dot" style="background: #9C27B0;" />
           <span class="text-caption text-medium-emphasis">BB</span>
         </div>
+        <div v-if="showIchimoku" class="d-flex align-center ga-1">
+          <span class="legend-dot" style="background: #00E5FF;" />
+          <span class="text-caption text-medium-emphasis">Tenkan</span>
+        </div>
+        <div v-if="showIchimoku" class="d-flex align-center ga-1">
+          <span class="legend-dot" style="background: #EF5350;" />
+          <span class="text-caption text-medium-emphasis">Kijun</span>
+        </div>
+        <div v-if="showIchimoku" class="d-flex align-center ga-1">
+          <span class="legend-cloud" />
+          <span class="text-caption text-medium-emphasis">Kumo</span>
+        </div>
       </div>
     </v-sheet>
   </div>
@@ -609,6 +696,15 @@ onBeforeUnmount(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-cloud {
+  display: inline-block;
+  width: 12px;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(to right, rgba(76, 175, 80, 0.35), rgba(239, 83, 80, 0.35));
   flex-shrink: 0;
 }
 
