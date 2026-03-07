@@ -129,6 +129,55 @@ function stochD(tf: IndicatorInterval): number | null { return getRaw(tf)?.stoch
 function macdLine(tf: IndicatorInterval): number | null { return getRaw(tf)?.macd?.line ?? null }
 function macdSignal(tf: IndicatorInterval): number | null { return getRaw(tf)?.macd?.signal ?? null }
 
+// ─── Enhanced display helpers (Status-first approach) ───
+function priceVsMA(tf: IndicatorInterval, maVal: number | null): { above: boolean; diff: string } | null {
+  if (!priceData.value || maVal === null) return null
+  const price = priceData.value.price
+  const above = price > maVal
+  const pct = ((price - maVal) / maVal) * 100
+  return { above, diff: `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` }
+}
+
+function macdStatus(tf: IndicatorInterval): { label: string; color: string } {
+  const line = macdLine(tf)
+  const signal = macdSignal(tf)
+  if (line === null || signal === null) return { label: '-', color: 'grey' }
+  if (line > signal) return { label: 'Bullish Cross', color: 'success' }
+  return { label: 'Bearish Cross', color: 'error' }
+}
+
+function rsiZone(tf: IndicatorInterval): { label: string; color: string; variant: string } {
+  const val = rsiVal(tf)
+  if (val === null) return { label: '-', color: 'grey', variant: 'tonal' }
+  if (val < 20) return { label: 'Oversold', color: 'success', variant: 'tonal' }
+  if (val < 30) return { label: 'Near OS', color: 'light-green', variant: 'tonal' }
+  if (val > 80) return { label: 'Overbought', color: 'error', variant: 'tonal' }
+  if (val > 70) return { label: 'Near OB', color: 'orange', variant: 'tonal' }
+  return { label: 'Neutral', color: 'grey', variant: 'outlined' }
+}
+
+function stochZone(tf: IndicatorInterval): { label: string; color: string; variant: string } {
+  const val = stochK(tf)
+  if (val === null) return { label: '-', color: 'grey', variant: 'tonal' }
+  if (val < 20) return { label: 'Oversold', color: 'success', variant: 'tonal' }
+  if (val < 25) return { label: 'Near OS', color: 'light-green', variant: 'tonal' }
+  if (val > 80) return { label: 'Overbought', color: 'error', variant: 'tonal' }
+  if (val > 75) return { label: 'Near OB', color: 'orange', variant: 'tonal' }
+  return { label: 'Neutral', color: 'grey', variant: 'outlined' }
+}
+
+function bbStatus(tf: IndicatorInterval): { position: string; posColor: string; squeeze: boolean; percentB: number } | null {
+  const bbPos = getTfBBPosition(tf)
+  const derived = getTfDerivedSignals(tf)
+  if (!bbPos) return null
+  return {
+    position: getBBPositionLabelText(bbPos.position),
+    posColor: getBBPositionLabelColor(bbPos.position),
+    squeeze: derived?.bollingerSqueeze ?? false,
+    percentB: bbPos.percentB,
+  }
+}
+
 // ─── Trends derived values ───
 const majorityTrend = computed((): TrendCacheDirection => trendsData.value?.analysis?.majorityTrend ?? 'SIDEWAYS')
 
@@ -452,41 +501,7 @@ async function handleAnalyze() {
       </div>
 
       <!-- ═══════════════════════════════════════════════════ -->
-      <!-- Section 4: BB Position (enhanced indicator)         -->
-      <!-- ═══════════════════════════════════════════════════ -->
-      <div v-if="getTfBBPosition('15m') || getTfBBPosition('1h')" class="mb-4">
-        <div class="text-overline font-weight-bold mb-2 text-label-muted">
-          <v-icon icon="mdi-chart-bell-curve" size="16" class="mr-1" />
-          Bollinger Position
-        </div>
-
-        <v-card class="glass-card" rounded="lg">
-          <v-card-text class="pa-3">
-            <div class="d-flex ga-2 flex-wrap">
-              <div v-for="tf in TIMEFRAMES" :key="`bbpos-${tf}`" class="tf-cell">
-                <div class="text-caption text-label-muted text-center">{{ tf }}</div>
-                <template v-if="getTfBBPosition(tf)">
-                  <v-chip
-                    size="small"
-                    :color="getBBPositionLabelColor(getTfBBPosition(tf)!.position)"
-                    variant="tonal"
-                    class="font-weight-bold"
-                  >
-                    {{ getBBPositionLabelText(getTfBBPosition(tf)!.position) }}
-                  </v-chip>
-                  <div class="text-caption font-mono text-center mt-1">
-                    %B: {{ getTfBBPosition(tf)!.percentB.toFixed(2) }}
-                  </div>
-                </template>
-                <div v-else class="text-caption text-label-muted text-center">-</div>
-              </div>
-            </div>
-          </v-card-text>
-        </v-card>
-      </div>
-
-      <!-- ═══════════════════════════════════════════════════ -->
-      <!-- Section 5: Technical Indicators + Derived Signals   -->
+      <!-- Section 4: Technical Indicators (Grouped)           -->
       <!-- ═══════════════════════════════════════════════════ -->
       <div class="mb-4">
         <div class="d-flex align-center justify-space-between mb-3">
@@ -511,67 +526,77 @@ async function handleAnalyze() {
           {{ indicatorError }}
         </v-alert>
 
-        <!-- All-TF Indicator Comparison -->
+        <!-- All-TF Indicator Comparison (Grouped) -->
         <template v-else-if="hasAnyIndicator">
 
-          <!-- ── RSI Comparison ── -->
+          <!-- ════════════════════════════════════════════ -->
+          <!-- GROUP: Trend Indicators                      -->
+          <!-- ════════════════════════════════════════════ -->
+          <div class="text-caption font-weight-bold text-uppercase text-label-muted mb-2 mt-1">
+            <v-icon icon="mdi-trending-up" size="14" class="mr-1" />
+            Trend
+          </div>
+
+          <!-- ── Moving Averages (Price vs MA comparison) ── -->
           <v-card class="glass-card mb-2" rounded="lg">
             <v-card-text class="pa-3">
-              <div class="text-caption font-weight-bold text-label-muted mb-2">RSI</div>
+              <div class="text-caption font-weight-bold text-label-muted mb-2">Moving Averages</div>
               <div class="d-flex ga-2 flex-wrap">
-                <div v-for="tf in TIMEFRAMES" :key="`rsi-${tf}`" class="tf-cell">
+                <div v-for="tf in TIMEFRAMES" :key="`ma-${tf}`" class="tf-cell">
                   <div class="text-caption text-label-muted text-center">{{ tf }}</div>
-                  <div class="text-body-2 font-weight-bold font-mono text-center">
-                    {{ rsiVal(tf) !== null ? rsiVal(tf)!.toFixed(1) : '-' }}
+                  <!-- EMA 20 vs Price -->
+                  <div v-if="ema20(tf) !== null" class="d-flex align-center ga-1">
+                    <v-icon
+                      :icon="priceVsMA(tf, ema20(tf))?.above ? 'mdi-check-circle' : 'mdi-close-circle'"
+                      :color="priceVsMA(tf, ema20(tf))?.above ? 'success' : 'error'"
+                      size="12"
+                    />
+                    <span class="text-caption font-mono">E20</span>
+                    <span class="text-caption font-mono" :class="priceVsMA(tf, ema20(tf))?.above ? 'text-success' : 'text-error'">
+                      {{ priceVsMA(tf, ema20(tf))?.diff }}
+                    </span>
                   </div>
+                  <!-- SMA 50 vs Price -->
+                  <div v-if="sma50(tf) !== null" class="d-flex align-center ga-1">
+                    <v-icon
+                      :icon="priceVsMA(tf, sma50(tf))?.above ? 'mdi-check-circle' : 'mdi-close-circle'"
+                      :color="priceVsMA(tf, sma50(tf))?.above ? 'success' : 'error'"
+                      size="12"
+                    />
+                    <span class="text-caption font-mono">S50</span>
+                    <span class="text-caption font-mono" :class="priceVsMA(tf, sma50(tf))?.above ? 'text-success' : 'text-error'">
+                      {{ priceVsMA(tf, sma50(tf))?.diff }}
+                    </span>
+                  </div>
+                  <!-- SMA 200 vs Price -->
+                  <div v-if="sma200(tf) !== null" class="d-flex align-center ga-1">
+                    <v-icon
+                      :icon="priceVsMA(tf, sma200(tf))?.above ? 'mdi-check-circle' : 'mdi-close-circle'"
+                      :color="priceVsMA(tf, sma200(tf))?.above ? 'success' : 'error'"
+                      size="12"
+                    />
+                    <span class="text-caption font-mono">S200</span>
+                    <span class="text-caption font-mono" :class="priceVsMA(tf, sma200(tf))?.above ? 'text-success' : 'text-error'">
+                      {{ priceVsMA(tf, sma200(tf))?.diff }}
+                    </span>
+                  </div>
+                  <!-- Cross status -->
                   <v-chip
-                    v-if="rsiVal(tf) !== null"
+                    v-if="sma50(tf) !== null && sma200(tf) !== null"
                     size="x-small"
-                    :color="rsiVal(tf)! < 30 ? 'success' : rsiVal(tf)! > 70 ? 'error' : 'grey'"
+                    :color="sma50(tf)! > sma200(tf)! ? 'success' : 'error'"
                     variant="tonal"
-                    class="d-flex justify-center"
+                    class="d-flex justify-center mt-1"
                   >
-                    {{ rsiVal(tf)! < 30 ? 'OS' : rsiVal(tf)! > 70 ? 'OB' : 'N' }}
+                    {{ sma50(tf)! > sma200(tf)! ? 'Golden' : 'Death' }}
                   </v-chip>
+                  <div v-else-if="ema20(tf) === null && sma50(tf) === null" class="text-body-2 font-mono text-center text-label-muted">-</div>
                 </div>
               </div>
             </v-card-text>
           </v-card>
 
-          <!-- ── MACD Histogram Comparison ── -->
-          <v-card class="glass-card mb-2" rounded="lg">
-            <v-card-text class="pa-3">
-              <div class="text-caption font-weight-bold text-label-muted mb-2">MACD</div>
-              <div class="d-flex ga-2 flex-wrap">
-                <div v-for="tf in TIMEFRAMES" :key="`macd-${tf}`" class="tf-cell">
-                  <div class="text-caption text-label-muted text-center">{{ tf }}</div>
-                  <div
-                    class="text-body-2 font-weight-bold font-mono text-center"
-                    :class="macdHist(tf) !== null && macdHist(tf)! > 0 ? 'text-success' : macdHist(tf) !== null && macdHist(tf)! < 0 ? 'text-error' : ''"
-                  >
-                    {{ macdHist(tf) !== null ? macdHist(tf)!.toFixed(4) : '-' }}
-                  </div>
-                  <div v-if="macdLine(tf) !== null" class="text-caption font-mono text-center text-label-muted">
-                    L: {{ macdLine(tf)!.toFixed(4) }}
-                  </div>
-                  <div v-if="macdSignal(tf) !== null" class="text-caption font-mono text-center text-label-muted">
-                    S: {{ macdSignal(tf)!.toFixed(4) }}
-                  </div>
-                  <v-chip
-                    v-if="macdHist(tf) !== null"
-                    size="x-small"
-                    :color="macdHist(tf)! > 0 ? 'success' : 'error'"
-                    variant="tonal"
-                    class="d-flex justify-center"
-                  >
-                    {{ macdHist(tf)! > 0 ? 'Bull' : 'Bear' }}
-                  </v-chip>
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
-
-          <!-- ── ADX Comparison ── -->
+          <!-- ── ADX (Trend Strength) ── -->
           <v-card class="glass-card mb-2" rounded="lg">
             <v-card-text class="pa-3">
               <div class="text-caption font-weight-bold text-label-muted mb-2">ADX (Trend Strength)</div>
@@ -585,7 +610,7 @@ async function handleAnalyze() {
                     v-if="adxVal(tf) !== null"
                     size="x-small"
                     :color="adxVal(tf)! < 20 ? 'grey' : adxVal(tf)! < 40 ? 'warning' : 'success'"
-                    variant="tonal"
+                    :variant="adxVal(tf)! < 20 ? 'outlined' : 'tonal'"
                     class="d-flex justify-center"
                   >
                     {{ adxVal(tf)! < 20 ? 'Weak' : adxVal(tf)! < 40 ? 'Med' : 'Strong' }}
@@ -597,14 +622,86 @@ async function handleAnalyze() {
                     variant="tonal"
                     class="d-flex justify-center mt-1"
                   >
-                    {{ adxPlusDI(tf)! > adxMinusDI(tf)! ? '▲' : '▼' }}
+                    {{ adxPlusDI(tf)! > adxMinusDI(tf)! ? '▲ +DI' : '▼ -DI' }}
                   </v-chip>
                 </div>
               </div>
             </v-card-text>
           </v-card>
 
-          <!-- ── Stochastic Comparison ── -->
+          <!-- ── MACD (Status-first approach) ── -->
+          <v-card class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="text-caption font-weight-bold text-label-muted mb-2">MACD</div>
+              <div class="d-flex ga-2 flex-wrap">
+                <div v-for="tf in TIMEFRAMES" :key="`macd-${tf}`" class="tf-cell">
+                  <div class="text-caption text-label-muted text-center">{{ tf }}</div>
+                  <!-- Crossover status (primary info) -->
+                  <v-chip
+                    v-if="macdLine(tf) !== null"
+                    size="x-small"
+                    :color="macdStatus(tf).color"
+                    variant="tonal"
+                    class="d-flex justify-center"
+                  >
+                    {{ macdStatus(tf).label }}
+                  </v-chip>
+                  <!-- Histogram value + direction (secondary) -->
+                  <div
+                    v-if="macdHist(tf) !== null"
+                    class="d-flex align-center justify-center ga-1 mt-1"
+                  >
+                    <v-icon
+                      :icon="macdHist(tf)! > 0 ? 'mdi-arrow-up' : 'mdi-arrow-down'"
+                      :color="macdHist(tf)! > 0 ? 'success' : 'error'"
+                      size="12"
+                    />
+                    <span
+                      class="text-caption font-mono"
+                      :class="macdHist(tf)! > 0 ? 'text-success' : 'text-error'"
+                    >
+                      {{ macdHist(tf)!.toFixed(4) }}
+                    </span>
+                  </div>
+                  <div v-else class="text-body-2 font-mono text-center text-label-muted">-</div>
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- ════════════════════════════════════════════ -->
+          <!-- GROUP: Momentum / Oscillators                -->
+          <!-- ════════════════════════════════════════════ -->
+          <div class="text-caption font-weight-bold text-uppercase text-label-muted mb-2 mt-4">
+            <v-icon icon="mdi-speedometer" size="14" class="mr-1" />
+            Momentum
+          </div>
+
+          <!-- ── RSI (with near-OS/OB zones) ── -->
+          <v-card class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="text-caption font-weight-bold text-label-muted mb-2">RSI (14)</div>
+              <div class="d-flex ga-2 flex-wrap">
+                <div v-for="tf in TIMEFRAMES" :key="`rsi-${tf}`" class="tf-cell">
+                  <div class="text-caption text-label-muted text-center">{{ tf }}</div>
+                  <div class="text-body-2 font-weight-bold font-mono text-center">
+                    {{ rsiVal(tf) !== null ? rsiVal(tf)!.toFixed(1) : '-' }}
+                  </div>
+                  <v-chip
+                    v-if="rsiVal(tf) !== null"
+                    size="x-small"
+                    :color="rsiZone(tf).color"
+                    :variant="(rsiZone(tf).variant as any)"
+                    class="d-flex justify-center"
+                  >
+                    {{ rsiZone(tf).label }}
+                  </v-chip>
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- ── Stochastic (with near-OS/OB zones) ── -->
           <v-card class="glass-card mb-2" rounded="lg">
             <v-card-text class="pa-3">
               <div class="text-caption font-weight-bold text-label-muted mb-2">Stochastic %K / %D</div>
@@ -618,18 +715,64 @@ async function handleAnalyze() {
                   <v-chip
                     v-if="stochK(tf) !== null"
                     size="x-small"
-                    :color="stochK(tf)! < 20 ? 'success' : stochK(tf)! > 80 ? 'error' : 'grey'"
-                    variant="tonal"
+                    :color="stochZone(tf).color"
+                    :variant="(stochZone(tf).variant as any)"
                     class="d-flex justify-center"
                   >
-                    {{ stochK(tf)! < 20 ? 'OS' : stochK(tf)! > 80 ? 'OB' : 'N' }}
+                    {{ stochZone(tf).label }}
                   </v-chip>
                 </div>
               </div>
             </v-card-text>
           </v-card>
 
-          <!-- ── ATR Comparison ── -->
+          <!-- ════════════════════════════════════════════ -->
+          <!-- GROUP: Volatility                            -->
+          <!-- ════════════════════════════════════════════ -->
+          <div class="text-caption font-weight-bold text-uppercase text-label-muted mb-2 mt-4">
+            <v-icon icon="mdi-chart-bell-curve" size="14" class="mr-1" />
+            Volatility
+          </div>
+
+          <!-- ── Bollinger Bands (Merged: Position + Squeeze) ── -->
+          <v-card class="glass-card mb-2" rounded="lg">
+            <v-card-text class="pa-3">
+              <div class="text-caption font-weight-bold text-label-muted mb-2">Bollinger Bands</div>
+              <div class="d-flex ga-2 flex-wrap">
+                <div v-for="tf in TIMEFRAMES" :key="`bb-${tf}`" class="tf-cell">
+                  <div class="text-caption text-label-muted text-center">{{ tf }}</div>
+                  <template v-if="bbStatus(tf)">
+                    <!-- Price position badge -->
+                    <v-chip
+                      size="x-small"
+                      :color="bbStatus(tf)!.posColor"
+                      variant="tonal"
+                      class="d-flex justify-center"
+                    >
+                      {{ bbStatus(tf)!.position }}
+                    </v-chip>
+                    <!-- %B value -->
+                    <div class="text-caption font-mono text-center mt-1">
+                      %B: {{ bbStatus(tf)!.percentB.toFixed(2) }}
+                    </div>
+                    <!-- Squeeze warning -->
+                    <v-chip
+                      v-if="bbStatus(tf)!.squeeze"
+                      size="x-small"
+                      color="warning"
+                      variant="tonal"
+                      class="d-flex justify-center mt-1"
+                    >
+                      SQUEEZE
+                    </v-chip>
+                  </template>
+                  <div v-else class="text-caption text-label-muted text-center">-</div>
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- ── ATR (Volatility) ── -->
           <v-card class="glass-card mb-2" rounded="lg">
             <v-card-text class="pa-3">
               <div class="text-caption font-weight-bold text-label-muted mb-2">ATR (Volatility)</div>
@@ -644,146 +787,110 @@ async function handleAnalyze() {
             </v-card-text>
           </v-card>
 
-          <!-- ── Moving Averages (SMA Cross) ── -->
-          <v-card class="glass-card mb-2" rounded="lg">
-            <v-card-text class="pa-3">
-              <div class="text-caption font-weight-bold text-label-muted mb-2">Moving Averages</div>
-              <div class="d-flex ga-2 flex-wrap">
-                <div v-for="tf in TIMEFRAMES" :key="`sma-${tf}`" class="tf-cell">
-                  <div class="text-caption text-label-muted text-center">{{ tf }}</div>
-                  <div v-if="ema20(tf) !== null" class="text-caption font-mono text-center">
-                    <span class="text-label-muted">E20</span> {{ formatNumber(ema20(tf)!) }}
+          <!-- ════════════════════════════════════════════ -->
+          <!-- GROUP: Volume                                -->
+          <!-- ════════════════════════════════════════════ -->
+          <template v-if="TIMEFRAMES.some((tf) => obvVal(tf) !== null)">
+            <div class="text-caption font-weight-bold text-uppercase text-label-muted mb-2 mt-4">
+              <v-icon icon="mdi-chart-bar" size="14" class="mr-1" />
+              Volume
+            </div>
+
+            <!-- ── OBV ── -->
+            <v-card class="glass-card mb-2" rounded="lg">
+              <v-card-text class="pa-3">
+                <div class="text-caption font-weight-bold text-label-muted mb-2">OBV (On-Balance Volume)</div>
+                <div class="d-flex ga-2 flex-wrap">
+                  <div v-for="tf in TIMEFRAMES" :key="`obv-${tf}`" class="tf-cell">
+                    <div class="text-caption text-label-muted text-center">{{ tf }}</div>
+                    <div v-if="obvVal(tf) !== null" class="text-body-2 font-weight-bold font-mono text-center">
+                      {{ formatNumber(obvVal(tf)!) }}
+                    </div>
+                    <div v-else class="text-body-2 font-mono text-center text-label-muted">-</div>
                   </div>
-                  <div v-if="sma50(tf) !== null" class="text-caption font-mono text-center">
-                    <span class="text-label-muted">S50</span> {{ formatNumber(sma50(tf)!) }}
+                </div>
+              </v-card-text>
+            </v-card>
+          </template>
+
+          <!-- ════════════════════════════════════════════ -->
+          <!-- GROUP: Derived Signals                       -->
+          <!-- ════════════════════════════════════════════ -->
+          <template v-if="getTfDerivedSignals('15m') || getTfDerivedSignals('1h')">
+            <div class="text-caption font-weight-bold text-uppercase text-label-muted mb-2 mt-4">
+              <v-icon icon="mdi-flash" size="14" class="mr-1" />
+              Derived Signals
+            </div>
+
+            <v-card class="glass-card mb-2" rounded="lg">
+              <v-card-text class="pa-3">
+                <div class="d-flex ga-2 flex-wrap">
+                  <div v-for="tf in TIMEFRAMES" :key="`derived-${tf}`" class="tf-cell">
+                    <div class="text-caption text-label-muted text-center mb-1">{{ tf }}</div>
+                    <template v-if="getTfDerivedSignals(tf)">
+                      <!-- RSI Divergence -->
+                      <v-chip
+                        v-if="getTfDerivedSignals(tf)!.rsiDivergence"
+                        size="x-small"
+                        :color="getDivergenceColor(getTfDerivedSignals(tf)!.rsiDivergence)"
+                        variant="tonal"
+                        class="mb-1"
+                      >
+                        RSI {{ getTfDerivedSignals(tf)!.rsiDivergence }}
+                      </v-chip>
+
+                      <!-- MACD Divergence -->
+                      <v-chip
+                        v-if="getTfDerivedSignals(tf)!.macdDivergence"
+                        size="x-small"
+                        :color="getDivergenceColor(getTfDerivedSignals(tf)!.macdDivergence)"
+                        variant="tonal"
+                        class="mb-1"
+                      >
+                        MACD {{ getTfDerivedSignals(tf)!.macdDivergence }}
+                      </v-chip>
+
+                      <!-- SMA Crossover -->
+                      <v-chip
+                        v-if="getTfDerivedSignals(tf)!.smaCrossover"
+                        size="x-small"
+                        :color="getTfDerivedSignals(tf)!.smaCrossover === 'GOLDEN' ? 'success' : 'error'"
+                        variant="tonal"
+                        class="mb-1"
+                      >
+                        {{ getCrossoverLabel(getTfDerivedSignals(tf)!.smaCrossover) }}
+                      </v-chip>
+
+                      <!-- Candlestick Pattern -->
+                      <v-chip
+                        v-if="getTfDerivedSignals(tf)!.candlestickPattern"
+                        size="x-small"
+                        :color="getTfDerivedSignals(tf)!.patternDirection === 'BULLISH' ? 'success' : getTfDerivedSignals(tf)!.patternDirection === 'BEARISH' ? 'error' : 'grey'"
+                        variant="tonal"
+                      >
+                        {{ getTfDerivedSignals(tf)!.candlestickPattern }}
+                      </v-chip>
+
+                      <!-- No active signals -->
+                      <div
+                        v-if="!getTfDerivedSignals(tf)!.rsiDivergence && !getTfDerivedSignals(tf)!.macdDivergence && !getTfDerivedSignals(tf)!.smaCrossover && !getTfDerivedSignals(tf)!.candlestickPattern"
+                        class="text-caption text-label-muted text-center"
+                      >
+                        -
+                      </div>
+                    </template>
+                    <div v-else class="text-caption text-label-muted text-center">-</div>
                   </div>
-                  <div v-if="sma200(tf) !== null" class="text-caption font-mono text-center">
-                    <span class="text-label-muted">S200</span> {{ formatNumber(sma200(tf)!) }}
-                  </div>
-                  <v-chip
-                    v-if="sma50(tf) !== null && sma200(tf) !== null"
-                    size="x-small"
-                    :color="sma50(tf)! > sma200(tf)! ? 'success' : 'error'"
-                    variant="tonal"
-                    class="d-flex justify-center"
-                  >
-                    {{ sma50(tf)! > sma200(tf)! ? 'Golden' : 'Death' }}
-                  </v-chip>
-                  <div v-else-if="ema20(tf) === null && sma50(tf) === null" class="text-body-2 font-mono text-center text-label-muted">-</div>
                 </div>
-              </div>
-            </v-card-text>
-          </v-card>
+              </v-card-text>
+            </v-card>
+          </template>
 
-          <!-- ── Bollinger Bands (per TF) ── -->
-          <v-card class="glass-card mb-2" rounded="lg">
-            <v-card-text class="pa-3">
-              <div class="text-caption font-weight-bold text-label-muted mb-2">Bollinger Bands</div>
-              <div class="d-flex ga-2 flex-wrap">
-                <div v-for="tf in TIMEFRAMES" :key="`bb-${tf}`" class="tf-cell">
-                  <div class="text-caption text-label-muted text-center mb-1">{{ tf }}</div>
-                  <template v-if="getRaw(tf)?.bollingerBands">
-                    <div class="text-caption font-mono text-center text-error">{{ getRaw(tf)!.bollingerBands!.upper?.toFixed(3) }}</div>
-                    <div class="text-caption font-mono text-center">{{ getRaw(tf)!.bollingerBands!.middle?.toFixed(3) }}</div>
-                    <div class="text-caption font-mono text-center text-success">{{ getRaw(tf)!.bollingerBands!.lower?.toFixed(3) }}</div>
-                  </template>
-                  <div v-else class="text-caption font-mono text-center text-label-muted">-</div>
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
-
-          <!-- ── OBV (On-Balance Volume) ── -->
-          <v-card v-if="TIMEFRAMES.some((tf) => obvVal(tf) !== null)" class="glass-card mb-2" rounded="lg">
-            <v-card-text class="pa-3">
-              <div class="text-caption font-weight-bold text-label-muted mb-2">OBV (On-Balance Volume)</div>
-              <div class="d-flex ga-2 flex-wrap">
-                <div v-for="tf in TIMEFRAMES" :key="`obv-${tf}`" class="tf-cell">
-                  <div class="text-caption text-label-muted text-center">{{ tf }}</div>
-                  <div v-if="obvVal(tf) !== null" class="text-body-2 font-weight-bold font-mono text-center">
-                    {{ formatNumber(obvVal(tf)!) }}
-                  </div>
-                  <div v-else class="text-body-2 font-mono text-center text-label-muted">-</div>
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
-
-          <!-- ── Derived Signals (enhanced) ── -->
-          <v-card v-if="getTfDerivedSignals('15m') || getTfDerivedSignals('1h')" class="glass-card mb-2" rounded="lg">
-            <v-card-text class="pa-3">
-              <div class="text-caption font-weight-bold text-label-muted mb-2">
-                <v-icon icon="mdi-flash" size="14" class="mr-1" />
-                Derived Signals
-              </div>
-
-              <div class="d-flex ga-2 flex-wrap">
-                <div v-for="tf in TIMEFRAMES" :key="`derived-${tf}`" class="tf-cell">
-                  <div class="text-caption text-label-muted text-center mb-1">{{ tf }}</div>
-                  <template v-if="getTfDerivedSignals(tf)">
-                    <!-- BB Squeeze -->
-                    <v-chip
-                      size="x-small"
-                      :color="getTfDerivedSignals(tf)!.bollingerSqueeze ? 'warning' : 'grey'"
-                      variant="tonal"
-                      class="mb-1"
-                    >
-                      {{ getTfDerivedSignals(tf)!.bollingerSqueeze ? 'SQUEEZE' : 'No Sq' }}
-                    </v-chip>
-
-                    <!-- RSI Divergence -->
-                    <v-chip
-                      v-if="getTfDerivedSignals(tf)!.rsiDivergence"
-                      size="x-small"
-                      :color="getDivergenceColor(getTfDerivedSignals(tf)!.rsiDivergence)"
-                      variant="tonal"
-                      class="mb-1"
-                    >
-                      RSI {{ getTfDerivedSignals(tf)!.rsiDivergence }}
-                    </v-chip>
-
-                    <!-- MACD Divergence -->
-                    <v-chip
-                      v-if="getTfDerivedSignals(tf)!.macdDivergence"
-                      size="x-small"
-                      :color="getDivergenceColor(getTfDerivedSignals(tf)!.macdDivergence)"
-                      variant="tonal"
-                      class="mb-1"
-                    >
-                      MACD {{ getTfDerivedSignals(tf)!.macdDivergence }}
-                    </v-chip>
-
-                    <!-- SMA Crossover -->
-                    <v-chip
-                      v-if="getTfDerivedSignals(tf)!.smaCrossover"
-                      size="x-small"
-                      :color="getTfDerivedSignals(tf)!.smaCrossover === 'GOLDEN' ? 'success' : 'error'"
-                      variant="tonal"
-                      class="mb-1"
-                    >
-                      {{ getCrossoverLabel(getTfDerivedSignals(tf)!.smaCrossover) }}
-                    </v-chip>
-
-                    <!-- Candlestick Pattern -->
-                    <v-chip
-                      v-if="getTfDerivedSignals(tf)!.candlestickPattern"
-                      size="x-small"
-                      :color="getTfDerivedSignals(tf)!.patternDirection === 'BULLISH' ? 'success' : getTfDerivedSignals(tf)!.patternDirection === 'BEARISH' ? 'error' : 'grey'"
-                      variant="tonal"
-                    >
-                      {{ getTfDerivedSignals(tf)!.candlestickPattern }}
-                    </v-chip>
-                  </template>
-                  <div v-else class="text-caption text-label-muted text-center">-</div>
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
         </template>
       </div>
 
       <!-- ═══════════════════════════════════════════════════ -->
-      <!-- Section 6: AI Decision Logic (Validation)           -->
+      <!-- Section 5: AI Decision Logic (Validation)           -->
       <!-- ═══════════════════════════════════════════════════ -->
       <div v-if="validationData" class="mb-4">
         <div class="text-overline font-weight-bold mb-2 text-label-muted">
@@ -870,7 +977,7 @@ async function handleAnalyze() {
       </div>
 
       <!-- ═══════════════════════════════════════════════════ -->
-      <!-- Section 7: AI Signal Result                         -->
+      <!-- Section 6: AI Signal Result                         -->
       <!-- ═══════════════════════════════════════════════════ -->
       <div class="mb-4">
         <div class="text-overline font-weight-bold mb-2 text-label-muted">
