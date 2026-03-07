@@ -133,17 +133,36 @@ function macdSignal(tf: IndicatorInterval): number | null { return getRaw(tf)?.m
 function priceVsMA(tf: IndicatorInterval, maVal: number | null): { above: boolean; diff: string } | null {
   if (!priceData.value || maVal === null) return null
   const price = priceData.value.price
-  const above = price > maVal
+  const above = price >= maVal // BUG-3 fix: >= so price === MA shows green (not bearish)
   const pct = ((price - maVal) / maVal) * 100
-  return { above, diff: `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` }
+  return { above, diff: `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%` }
 }
 
 function macdStatus(tf: IndicatorInterval): { label: string; color: string } {
   const line = macdLine(tf)
   const signal = macdSignal(tf)
   if (line === null || signal === null) return { label: '-', color: 'grey' }
-  if (line > signal) return { label: 'Bullish Cross', color: 'success' }
-  return { label: 'Bearish Cross', color: 'error' }
+  // BUG-4 fix: "Bullish"/"Bearish" = position, not crossover event
+  if (line > signal) return { label: 'Bullish', color: 'success' }
+  return { label: 'Bearish', color: 'error' }
+}
+
+// ─── Pre-computed indicator maps (BUG-1/2 fix: avoid repeated calls in template) ───
+function getMaComparison(tf: IndicatorInterval) {
+  return {
+    ema20: priceVsMA(tf, ema20(tf)),
+    sma50: priceVsMA(tf, sma50(tf)),
+    sma200: priceVsMA(tf, sma200(tf)),
+  }
+}
+
+function getIndicatorStatus(tf: IndicatorInterval) {
+  return {
+    macd: macdStatus(tf),
+    rsi: rsiZone(tf),
+    stoch: stochZone(tf),
+    bb: bbStatus(tf),
+  }
 }
 
 function rsiZone(tf: IndicatorInterval): { label: string; color: string; variant: string } {
@@ -544,40 +563,40 @@ async function handleAnalyze() {
               <div class="d-flex ga-2 flex-wrap">
                 <div v-for="tf in TIMEFRAMES" :key="`ma-${tf}`" class="tf-cell">
                   <div class="text-caption text-label-muted text-center">{{ tf }}</div>
-                  <!-- EMA 20 vs Price -->
-                  <div v-if="ema20(tf) !== null" class="d-flex align-center ga-1">
+                  <!-- EMA 20 vs Price (pre-computed) -->
+                  <div v-if="getMaComparison(tf).ema20" class="d-flex align-center ga-1">
                     <v-icon
-                      :icon="priceVsMA(tf, ema20(tf))?.above ? 'mdi-check-circle' : 'mdi-close-circle'"
-                      :color="priceVsMA(tf, ema20(tf))?.above ? 'success' : 'error'"
+                      :icon="getMaComparison(tf).ema20!.above ? 'mdi-check-circle' : 'mdi-close-circle'"
+                      :color="getMaComparison(tf).ema20!.above ? 'success' : 'error'"
                       size="12"
                     />
                     <span class="text-caption font-mono">E20</span>
-                    <span class="text-caption font-mono" :class="priceVsMA(tf, ema20(tf))?.above ? 'text-success' : 'text-error'">
-                      {{ priceVsMA(tf, ema20(tf))?.diff }}
+                    <span class="text-caption font-mono" :class="getMaComparison(tf).ema20!.above ? 'text-success' : 'text-error'">
+                      {{ getMaComparison(tf).ema20!.diff }}
                     </span>
                   </div>
-                  <!-- SMA 50 vs Price -->
-                  <div v-if="sma50(tf) !== null" class="d-flex align-center ga-1">
+                  <!-- SMA 50 vs Price (pre-computed) -->
+                  <div v-if="getMaComparison(tf).sma50" class="d-flex align-center ga-1">
                     <v-icon
-                      :icon="priceVsMA(tf, sma50(tf))?.above ? 'mdi-check-circle' : 'mdi-close-circle'"
-                      :color="priceVsMA(tf, sma50(tf))?.above ? 'success' : 'error'"
+                      :icon="getMaComparison(tf).sma50!.above ? 'mdi-check-circle' : 'mdi-close-circle'"
+                      :color="getMaComparison(tf).sma50!.above ? 'success' : 'error'"
                       size="12"
                     />
                     <span class="text-caption font-mono">S50</span>
-                    <span class="text-caption font-mono" :class="priceVsMA(tf, sma50(tf))?.above ? 'text-success' : 'text-error'">
-                      {{ priceVsMA(tf, sma50(tf))?.diff }}
+                    <span class="text-caption font-mono" :class="getMaComparison(tf).sma50!.above ? 'text-success' : 'text-error'">
+                      {{ getMaComparison(tf).sma50!.diff }}
                     </span>
                   </div>
-                  <!-- SMA 200 vs Price -->
-                  <div v-if="sma200(tf) !== null" class="d-flex align-center ga-1">
+                  <!-- SMA 200 vs Price (pre-computed) -->
+                  <div v-if="getMaComparison(tf).sma200" class="d-flex align-center ga-1">
                     <v-icon
-                      :icon="priceVsMA(tf, sma200(tf))?.above ? 'mdi-check-circle' : 'mdi-close-circle'"
-                      :color="priceVsMA(tf, sma200(tf))?.above ? 'success' : 'error'"
+                      :icon="getMaComparison(tf).sma200!.above ? 'mdi-check-circle' : 'mdi-close-circle'"
+                      :color="getMaComparison(tf).sma200!.above ? 'success' : 'error'"
                       size="12"
                     />
                     <span class="text-caption font-mono">S200</span>
-                    <span class="text-caption font-mono" :class="priceVsMA(tf, sma200(tf))?.above ? 'text-success' : 'text-error'">
-                      {{ priceVsMA(tf, sma200(tf))?.diff }}
+                    <span class="text-caption font-mono" :class="getMaComparison(tf).sma200!.above ? 'text-success' : 'text-error'">
+                      {{ getMaComparison(tf).sma200!.diff }}
                     </span>
                   </div>
                   <!-- Cross status -->
@@ -636,15 +655,15 @@ async function handleAnalyze() {
               <div class="d-flex ga-2 flex-wrap">
                 <div v-for="tf in TIMEFRAMES" :key="`macd-${tf}`" class="tf-cell">
                   <div class="text-caption text-label-muted text-center">{{ tf }}</div>
-                  <!-- Crossover status (primary info) -->
+                  <!-- MACD position status (primary info, pre-computed) -->
                   <v-chip
                     v-if="macdLine(tf) !== null"
                     size="x-small"
-                    :color="macdStatus(tf).color"
+                    :color="getIndicatorStatus(tf).macd.color"
                     variant="tonal"
                     class="d-flex justify-center"
                   >
-                    {{ macdStatus(tf).label }}
+                    {{ getIndicatorStatus(tf).macd.label }}
                   </v-chip>
                   <!-- Histogram value + direction (secondary) -->
                   <div
@@ -690,11 +709,11 @@ async function handleAnalyze() {
                   <v-chip
                     v-if="rsiVal(tf) !== null"
                     size="x-small"
-                    :color="rsiZone(tf).color"
-                    :variant="(rsiZone(tf).variant as any)"
+                    :color="getIndicatorStatus(tf).rsi.color"
+                    :variant="(getIndicatorStatus(tf).rsi.variant as any)"
                     class="d-flex justify-center"
                   >
-                    {{ rsiZone(tf).label }}
+                    {{ getIndicatorStatus(tf).rsi.label }}
                   </v-chip>
                 </div>
               </div>
@@ -715,11 +734,11 @@ async function handleAnalyze() {
                   <v-chip
                     v-if="stochK(tf) !== null"
                     size="x-small"
-                    :color="stochZone(tf).color"
-                    :variant="(stochZone(tf).variant as any)"
+                    :color="getIndicatorStatus(tf).stoch.color"
+                    :variant="(getIndicatorStatus(tf).stoch.variant as any)"
                     class="d-flex justify-center"
                   >
-                    {{ stochZone(tf).label }}
+                    {{ getIndicatorStatus(tf).stoch.label }}
                   </v-chip>
                 </div>
               </div>
@@ -741,23 +760,23 @@ async function handleAnalyze() {
               <div class="d-flex ga-2 flex-wrap">
                 <div v-for="tf in TIMEFRAMES" :key="`bb-${tf}`" class="tf-cell">
                   <div class="text-caption text-label-muted text-center">{{ tf }}</div>
-                  <template v-if="bbStatus(tf)">
-                    <!-- Price position badge -->
+                  <template v-if="getIndicatorStatus(tf).bb">
+                    <!-- Price position badge (pre-computed) -->
                     <v-chip
                       size="x-small"
-                      :color="bbStatus(tf)!.posColor"
+                      :color="getIndicatorStatus(tf).bb!.posColor"
                       variant="tonal"
                       class="d-flex justify-center"
                     >
-                      {{ bbStatus(tf)!.position }}
+                      {{ getIndicatorStatus(tf).bb!.position }}
                     </v-chip>
                     <!-- %B value -->
                     <div class="text-caption font-mono text-center mt-1">
-                      %B: {{ bbStatus(tf)!.percentB.toFixed(2) }}
+                      %B: {{ getIndicatorStatus(tf).bb!.percentB.toFixed(2) }}
                     </div>
                     <!-- Squeeze warning -->
                     <v-chip
-                      v-if="bbStatus(tf)!.squeeze"
+                      v-if="getIndicatorStatus(tf).bb!.squeeze"
                       size="x-small"
                       color="warning"
                       variant="tonal"
@@ -816,7 +835,8 @@ async function handleAnalyze() {
           <!-- ════════════════════════════════════════════ -->
           <!-- GROUP: Derived Signals                       -->
           <!-- ════════════════════════════════════════════ -->
-          <template v-if="getTfDerivedSignals('15m') || getTfDerivedSignals('1h')">
+          <!-- BUG-5 fix: check ALL timeframes, not just 15m/1h -->
+          <template v-if="TIMEFRAMES.some((tf) => getTfDerivedSignals(tf))">
             <div class="text-caption font-weight-bold text-uppercase text-label-muted mb-2 mt-4">
               <v-icon icon="mdi-flash" size="14" class="mr-1" />
               Derived Signals
