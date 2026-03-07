@@ -1203,3 +1203,80 @@ export interface SymbolTimestamps {
 export interface TimestampCheckResponse {
   symbols: SymbolTimestamps[]
 }
+
+// ============================================================================
+// Readiness Score Types (GET /api/readiness/:symbolId)
+// ============================================================================
+
+export type ReadinessMarketCondition = 'PASS' | 'FAIL'
+export type ReadinessDirection = 'BUY' | 'SELL' | null
+export type ReadinessFinalAction = 'BUY' | 'SELL' | 'WAIT'
+
+export interface ReadinessTriggerPattern {
+  name: string
+  direction: 'BULLISH' | 'BEARISH'
+  weight: number
+}
+
+export interface ReadinessData {
+  symbolId: number
+  symbol: string
+  marketCondition: ReadinessMarketCondition
+  marketReasons: string[]
+  directionScore: number        // -10 to +10
+  trendScore: number            // -10 to +10 (Group A: 35%)
+  momentumScore: number         // -10 to +10 (Group B: 25%)
+  mtfScore: number              // -10 to +10 (Group C: 40%)
+  direction: ReadinessDirection
+  entryTimingScore: number      // 0-100
+  triggerPatterns: ReadinessTriggerPattern[]
+  finalAction: ReadinessFinalAction
+}
+
+export interface ReadinessResponse {
+  symbol: string
+  symbolId: number
+  readiness: ReadinessData
+}
+
+export interface ReadinessHistoryItem {
+  id: number
+  directionScore: number
+  entryTimingScore: number
+  finalAction: ReadinessFinalAction
+  createdAt: string
+}
+
+export interface ReadinessHistoryResponse {
+  history: ReadinessHistoryItem[]
+}
+
+// --- Readiness display helpers ---
+
+export function getReadinessActionColor(action: ReadinessFinalAction): string {
+  switch (action) {
+    case 'BUY': return '#10B981'
+    case 'SELL': return '#EF4444'
+    case 'WAIT': return '#F59E0B'
+    default: return '#6B7280'
+  }
+}
+
+export function getReadinessActionIcon(action: ReadinessFinalAction): string {
+  switch (action) {
+    case 'BUY': return 'mdi-arrow-up-bold-circle'
+    case 'SELL': return 'mdi-arrow-down-bold-circle'
+    case 'WAIT': return 'mdi-pause-circle'
+    default: return 'mdi-help-circle'
+  }
+}
+
+export function getDirectionScoreColor(score: number): string {
+  if (score >= 4) return '#10B981'
+  if (score <= -4) return '#EF4444'
+  return '#F59E0B'
+}
+
+export function getMarketConditionColor(condition: ReadinessMarketCondition): string {
+  return condition === 'PASS' ? 'success' : 'error'
+}

@@ -12,6 +12,8 @@ import type {
   IndicatorSummaryCount,
   OverallBias,
   IchimokuSignals,
+  ReadinessData,
+  ReadinessHistoryItem,
 } from '../../../../types/trading'
 import {
   formatPrice,
@@ -74,6 +76,16 @@ const {
   analyzeError,
 } = useAnalysis()
 
+const {
+  fetchReadiness,
+  fetchReadinessHistory,
+  getCachedReadiness,
+  getCachedHistory,
+  isLoadingReadiness,
+  startAutoRefresh,
+  stopAutoRefresh,
+} = useReadiness()
+
 const { subscribeSymbol, unsubscribeSymbol } = useSocket()
 
 // ─── Constants ───
@@ -91,6 +103,9 @@ const validationData = computed((): ValidationData | undefined => getCachedValid
 const signalData = computed((): SignalData | null => currentSignal.value as SignalData | null)
 const summary = computed(() => getCachedSummary(symbolId.value))
 const isAIWorking = computed(() => isAIAnalyzing(symbolId.value))
+const readinessData = computed((): ReadinessData | undefined => getCachedReadiness(symbolId.value))
+const readinessHistory = computed((): ReadinessHistoryItem[] => getCachedHistory(symbolId.value))
+const readinessLoading = computed(() => isLoadingReadiness(symbolId.value))
 
 // ─── Multi-TF Indicators ───
 function getRaw(tf: IndicatorInterval): RawIndicators | null {
@@ -245,13 +260,15 @@ onMounted(async () => {
   // 1. Subscribe to this symbol's WebSocket channel
   subscribeSymbol(symbolId.value)
 
-  // 2. Parallel fetch all 5 APIs
+  // 2. Parallel fetch all APIs (including readiness)
   await Promise.all([
     fetchPrice(symbolId.value),
     fetchTrends(symbolId.value),
     fetchAllTimeframes(),
     fetchValidation(symbolId.value),
     fetchLatestSignal(symbolId.value),
+    fetchReadiness(symbolId.value),
+    fetchReadinessHistory(symbolId.value),
   ])
 
   // 3. Also fetch summary for header (if not cached)
@@ -262,13 +279,17 @@ onMounted(async () => {
   // Mark page as ready
   pageReady.value = true
 
-  // 4. Check freshness in background
+  // 4. Start readiness auto-refresh (every 60s)
+  startAutoRefresh(symbolId.value)
+
+  // 5. Check freshness in background
   checkFreshness(symbolId.value)
 })
 
-// ─── Cleanup WebSocket on unmount ───
+// ─── Cleanup WebSocket + readiness timer on unmount ───
 onUnmounted(() => {
   unsubscribeSymbol(symbolId.value)
+  stopAutoRefresh(symbolId.value)
 })
 
 // ─── Visibility change listener — check freshness when user returns ───
@@ -304,6 +325,8 @@ async function handleReload() {
       fetchValidation(symbolId.value, '15m', true),
       fetchLatestSignal(symbolId.value),
       fetchSymbolSummary(symbolId.value),
+      fetchReadiness(symbolId.value, true),
+      fetchReadinessHistory(symbolId.value),
     ])
   } finally {
     setTimeout(() => { isRefreshing.value = false }, 500)
@@ -387,6 +410,30 @@ async function handleAnalyze() {
             <div class="text-h4 font-weight-black font-mono" :class="`text-${strengthColor}`">{{ strengthScore }}%</div>
           </div>
         </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════════════ -->
+      <!-- Signal Readiness                                    -->
+      <!-- ═══════════════════════════════════════════════════ -->
+      <div class="mb-4">
+        <div class="text-overline font-weight-bold mb-2 text-label-muted">
+          <v-icon icon="mdi-speedometer" size="16" class="mr-1" />
+          Signal Readiness Engine
+        </div>
+        <v-row dense>
+          <v-col cols="12" sm="7">
+            <TradingReadinessScore
+              :readiness="readinessData ?? null"
+              :loading="readinessLoading"
+            />
+          </v-col>
+          <v-col cols="12" sm="5">
+            <TradingReadinessHistory
+              :history="readinessHistory"
+              :loading="readinessLoading"
+            />
+          </v-col>
+        </v-row>
       </div>
 
       <!-- ═══════════════════════════════════════════════════ -->
