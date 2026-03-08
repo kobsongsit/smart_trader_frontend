@@ -13,6 +13,7 @@ import type {
   LogicalRange,
 } from 'lightweight-charts'
 import type { ChartTimeframe, ChartData, ChartTimeValue } from '../../../types/trading'
+import { formatChartTime, formatChartTickMark } from '~/utils/datetime'
 import { KumoCloudPaneView } from '~/utils/kumo-cloud-series'
 import type { KumoCloudData } from '~/utils/kumo-cloud-series'
 
@@ -114,6 +115,14 @@ const chartOptions: DeepPartial<ChartOptions> = {
     borderColor: 'rgba(255, 255, 255, 0.1)',
     timeVisible: true,
     secondsVisible: false,
+    tickMarkFormatter: (time: number, tickMarkType: number) => {
+      return formatChartTickMark(time, tickMarkType)
+    },
+  },
+  localization: {
+    timeFormatter: (time: number) => {
+      return formatChartTime(time)
+    },
   },
   handleScroll: { vertTouchDrag: false },
 }

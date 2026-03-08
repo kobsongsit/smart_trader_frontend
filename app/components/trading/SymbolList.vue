@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { PriceUpdatePayload } from '../../../types/trading'
 import { formatPrice } from '../../../types/trading'
+import { formatShortTime } from '~/utils/datetime'
 
 const {
   summaryError,
@@ -128,7 +129,7 @@ onUnmounted(() => {
           </span>
         </div>
         <span v-if="summaryLastRefresh" class="text-caption text-label-muted">
-          Last Refresh: {{ new Date(summaryLastRefresh).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) }}
+          Last Refresh: {{ formatShortTime(summaryLastRefresh) }}
         </span>
       </div>
 
