@@ -1223,12 +1223,12 @@ export interface ReadinessData {
   symbol: string
   marketCondition: ReadinessMarketCondition
   marketReasons: string[]
-  directionScore: number        // -10 to +10
-  trendScore: number            // -10 to +10 (Group A: 35%)
-  momentumScore: number         // -10 to +10 (Group B: 25%)
-  mtfScore: number              // -10 to +10 (Group C: 40%)
+  directionScore: number | null  // -10 to +10 (null if Gate 1 FAIL)
+  trendScore: number | null      // -10 to +10 (Group A: 35%) (null if Gate 1 FAIL)
+  momentumScore: number | null   // -10 to +10 (Group B: 25%) (null if Gate 1 FAIL)
+  mtfScore: number | null        // -10 to +10 (Group C: 40%) (null if Gate 1 FAIL)
   direction: ReadinessDirection
-  entryTimingScore: number      // 0-100
+  entryTimingScore: number | null // 0-100 (null if Gate 2 weak or Gate 1 FAIL)
   triggerPatterns: ReadinessTriggerPattern[]
   finalAction: ReadinessFinalAction
 }

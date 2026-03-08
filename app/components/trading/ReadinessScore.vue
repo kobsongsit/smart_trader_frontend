@@ -16,53 +16,73 @@ const props = withDefaults(defineProps<Props>(), {
   loading: false,
 })
 
+// ─── Null-safe helpers ───
+const NULL_COLOR = '#6B7280'
+
 // ─── Direction Score gauge position (map -10..+10 to 0..100) ───
 const gaugePercent = computed(() => {
-  if (!props.readiness) return 50
+  if (!props.readiness || props.readiness.directionScore === null) return 50
   return ((props.readiness.directionScore + 10) / 20) * 100
 })
 
 // ─── Entry timing color ───
 const entryTimingColor = computed(() => {
-  if (!props.readiness) return '#6B7280'
+  if (!props.readiness || props.readiness.entryTimingScore === null) return NULL_COLOR
   const score = props.readiness.entryTimingScore
   if (score >= 70) return '#10B981'
   if (score >= 40) return '#F59E0B'
   return '#EF4444'
 })
 
+// ─── Has valid entry timing score ───
+const hasEntryTiming = computed(() => {
+  return props.readiness?.entryTimingScore !== null && props.readiness?.entryTimingScore !== undefined
+})
+
+// ─── Has valid direction score ───
+const hasDirectionScore = computed(() => {
+  return props.readiness?.directionScore !== null && props.readiness?.directionScore !== undefined
+})
+
 // ─── Sub-scores (normalized to 0-100 for progress bars) ───
 const subScores = computed(() => {
   if (!props.readiness) return []
+
+  const trend = props.readiness.trendScore
+  const momentum = props.readiness.momentumScore
+  const mtf = props.readiness.mtfScore
+
   return [
     {
       label: 'Trend',
       weight: '35%',
-      score: props.readiness.trendScore,
-      percent: ((props.readiness.trendScore + 10) / 20) * 100,
+      score: trend,
+      percent: trend !== null ? ((trend + 10) / 20) * 100 : 0,
     },
     {
       label: 'Momentum',
       weight: '25%',
-      score: props.readiness.momentumScore,
-      percent: ((props.readiness.momentumScore + 10) / 20) * 100,
+      score: momentum,
+      percent: momentum !== null ? ((momentum + 10) / 20) * 100 : 0,
     },
     {
       label: 'MTF Alignment',
       weight: '40%',
-      score: props.readiness.mtfScore,
-      percent: ((props.readiness.mtfScore + 10) / 20) * 100,
+      score: mtf,
+      percent: mtf !== null ? ((mtf + 10) / 20) * 100 : 0,
     },
   ]
 })
 
-function getSubScoreColor(score: number): string {
+function getSubScoreColor(score: number | null): string {
+  if (score === null) return NULL_COLOR
   if (score >= 4) return '#10B981'
   if (score <= -4) return '#EF4444'
   return '#F59E0B'
 }
 
-function formatScore(score: number): string {
+function formatScore(score: number | null): string {
+  if (score === null) return 'N/A'
   return score >= 0 ? `+${score.toFixed(1)}` : score.toFixed(1)
 }
 </script>
@@ -127,7 +147,7 @@ function formatScore(score: number): string {
             <div class="text-label-muted gate-label">Direction</div>
             <div
               class="font-mono font-weight-black text-body-1 mt-1"
-              :style="{ color: getDirectionScoreColor(readiness.directionScore) }"
+              :style="{ color: hasDirectionScore ? getDirectionScoreColor(readiness.directionScore!) : NULL_COLOR }"
             >
               {{ formatScore(readiness.directionScore) }}
             </div>
@@ -140,13 +160,13 @@ function formatScore(score: number): string {
               class="font-mono font-weight-black text-body-1 mt-1"
               :style="{ color: entryTimingColor }"
             >
-              {{ readiness.entryTimingScore }}%
+              {{ hasEntryTiming ? `${readiness.entryTimingScore}%` : 'N/A' }}
             </div>
           </v-sheet>
         </div>
 
         <!-- Direction Score Gauge Bar -->
-        <div class="mb-4">
+        <div v-if="hasDirectionScore" class="mb-4">
           <div class="text-caption font-weight-bold text-label-muted mb-1">Direction Score Gauge</div>
           <div class="gauge-track">
             <div class="gauge-fill" :style="{ width: gaugePercent + '%' }" />
@@ -155,7 +175,7 @@ function formatScore(score: number): string {
               class="gauge-indicator"
               :style="{
                 left: gaugePercent + '%',
-                backgroundColor: getDirectionScoreColor(readiness.directionScore),
+                backgroundColor: getDirectionScoreColor(readiness.directionScore!),
               }"
             />
           </div>
@@ -171,11 +191,11 @@ function formatScore(score: number): string {
           <div class="d-flex align-center justify-space-between mb-1">
             <span class="text-caption font-weight-bold text-label-muted">Entry Timing Score</span>
             <span class="font-mono text-caption font-weight-bold" :style="{ color: entryTimingColor }">
-              {{ readiness.entryTimingScore }}/100
+              {{ hasEntryTiming ? `${readiness.entryTimingScore}/100` : 'N/A' }}
             </span>
           </div>
           <v-progress-linear
-            :model-value="readiness.entryTimingScore"
+            :model-value="readiness.entryTimingScore ?? 0"
             :color="entryTimingColor"
             height="6"
             rounded
