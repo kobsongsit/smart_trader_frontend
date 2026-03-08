@@ -468,13 +468,39 @@ watch([showMA, showBB, showSignals, showIchimoku], () => {
   }
 })
 
+// ─── WebSocket: auto-refresh chart when new candles arrive ───
+const { onCandleUpdate } = useSocket()
+let cleanupCandleWs: (() => void) | null = null
+
 // ─── Lifecycle ───
 onMounted(() => {
   createChartInstance()
   loadChart()
+
+  // Listen for candle:update — re-fetch chart if current TF was updated
+  cleanupCandleWs = onCandleUpdate((data) => {
+    if (data.symbolId !== props.symbolId) return
+
+    // Map backend intervals (lowercase) to chart timeframes (uppercase)
+    const tfMap: Record<string, string> = {
+      '1m': '1m', '5m': '5m', '15m': '15m',
+      '1h': '1H', '4h': '4H', '1d': '1D', '1w': '1W', '1mn': '1MN',
+    }
+    const updatedTfs = data.intervals.map(i => tfMap[i] || i)
+
+    if (updatedTfs.includes(selectedTimeframe.value)) {
+      loadChart() // Re-fetch current TF chart data
+    }
+  })
 })
 
 onBeforeUnmount(() => {
+  // Cleanup WS listener
+  if (cleanupCandleWs) {
+    cleanupCandleWs()
+    cleanupCandleWs = null
+  }
+
   // Clear debounce timer
   if (scrollDebounceTimer) {
     clearTimeout(scrollDebounceTimer)

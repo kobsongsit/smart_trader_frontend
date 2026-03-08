@@ -82,11 +82,15 @@ const {
   getCachedReadiness,
   getCachedHistory,
   isLoadingReadiness,
-  startAutoRefresh,
-  stopAutoRefresh,
 } = useReadiness()
 
-const { subscribeSymbol, unsubscribeSymbol } = useSocket()
+const {
+  subscribeSymbol,
+  unsubscribeSymbol,
+  onPriceUpdate,
+  onIndicatorsUpdate,
+  onTrendsUpdate,
+} = useSocket()
 
 // ─── Constants ───
 const TIMEFRAMES: IndicatorInterval[] = ['15m', '1h', '4h', '1d']
@@ -96,8 +100,45 @@ const pageReady = ref(false)
 const indicatorsLoading = ref(false)
 const isRefreshing = ref(false)
 
+// ─── Real-time price state (from Finnhub WS relay) ───
+const dailyOpen = ref<number | null>(null)
+const realtimePrice = ref<number | null>(null)
+const realtimeChange = ref<number | null>(null)
+const realtimeChangePercent = ref<number | null>(null)
+
+/** Simple throttle — returns a function that executes at most once every `ms` milliseconds */
+function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
+  let lastCall = 0
+  return ((...args: any[]) => {
+    const now = Date.now()
+    if (now - lastCall >= ms) {
+      lastCall = now
+      fn(...args)
+    }
+  }) as T
+}
+
+// WS cleanup functions
+const wsCleanups: (() => void)[] = []
+
 // ─── Reactive data from composables ───
-const priceData = computed((): LatestPriceData | undefined => getCachedPrice(symbolId.value))
+/** Price data — prefers real-time WS values over cached API values */
+const priceData = computed((): LatestPriceData | undefined => {
+  const cached = getCachedPrice(symbolId.value)
+  if (!cached) return undefined
+
+  // Override with real-time values if available
+  if (realtimePrice.value !== null) {
+    return {
+      ...cached,
+      price: realtimePrice.value,
+      change: realtimeChange.value ?? cached.change,
+      changePercent: realtimeChangePercent.value ?? cached.changePercent,
+    }
+  }
+
+  return cached
+})
 const trendsData = computed((): TrendsResponse | undefined => getCachedTrends(symbolId.value))
 const validationData = computed((): ValidationData | undefined => getCachedValidation(symbolId.value))
 const signalData = computed((): SignalData | null => currentSignal.value as SignalData | null)
@@ -279,17 +320,64 @@ onMounted(async () => {
   // Mark page as ready
   pageReady.value = true
 
-  // 4. Start readiness auto-refresh (every 60s)
-  startAutoRefresh(symbolId.value)
+  // 4. Store daily open for %change calculation
+  const initialPrice = getCachedPrice(symbolId.value)
+  if (initialPrice) {
+    dailyOpen.value = initialPrice.previousClose ?? initialPrice.price
+  }
 
-  // 5. Check freshness in background
+  // 5. Register real-time WS handlers
+
+  // Price (throttle 500ms) — Finnhub WS relay
+  const throttledPriceUpdate = throttle((data: any) => {
+    if (dailyOpen.value !== null && dailyOpen.value !== 0) {
+      realtimePrice.value = data.price
+      realtimeChange.value = data.price - dailyOpen.value
+      realtimeChangePercent.value =
+        Math.round(((data.price - dailyOpen.value) / dailyOpen.value) * 10000) / 100
+    }
+  }, 500)
+
+  wsCleanups.push(
+    onPriceUpdate((data) => {
+      // price:update uses symbol string, not symbolId — match via cached data
+      const cached = getCachedPrice(symbolId.value)
+      if (!cached) return
+      // Finnhub payload has `symbol` (finnhub format) — just accept any for this room
+      throttledPriceUpdate(data)
+    })
+  )
+
+  // Indicators + Validation (piggyback)
+  wsCleanups.push(
+    onIndicatorsUpdate((data) => {
+      if (data.symbolId !== symbolId.value) return
+      fetchAllTimeframes()
+      fetchValidation(symbolId.value, '15m', true)
+    })
+  )
+
+  // Trends
+  wsCleanups.push(
+    onTrendsUpdate((data) => {
+      if (data.symbolId !== symbolId.value) return
+      fetchTrends(symbolId.value, true)
+    })
+  )
+
+  // Readiness — handled automatically by useReadiness WS listener (inline data)
+  // Candle — handled by CandlestickChart component directly
+
+  // 6. Check freshness in background
   checkFreshness(symbolId.value)
 })
 
-// ─── Cleanup WebSocket + readiness timer on unmount ───
+// ─── Cleanup WebSocket on unmount ───
 onUnmounted(() => {
   unsubscribeSymbol(symbolId.value)
-  stopAutoRefresh(symbolId.value)
+  // Cleanup all WS listeners
+  wsCleanups.forEach(cleanup => cleanup())
+  wsCleanups.length = 0
 })
 
 // ─── Visibility change listener — check freshness when user returns ───

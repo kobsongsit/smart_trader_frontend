@@ -15,7 +15,8 @@ import type {
  * - GET  /api/readiness/:symbolId/history   -> Score history
  * - POST /api/readiness/:symbolId/evaluate  -> Manual trigger (debug)
  *
- * Auto-refresh every 60s (cron runs every 1 minute)
+ * Real-time updates via WebSocket `readiness:update` event
+ * (replaces previous HTTP polling every 60s)
  *
  * Shared singleton -- module-level state
  */
@@ -30,12 +31,32 @@ const loadingSymbols = ref<Set<number>>(new Set())
 const historyLoading = ref<Set<number>>(new Set())
 const errors = ref<Map<number, string>>(new Map())
 
-// Auto-refresh timer per symbol
-const refreshTimers = new Map<number, ReturnType<typeof setInterval>>()
+// Track whether WebSocket listener has been registered
+let wsListenerRegistered = false
 
 export function useReadiness() {
   const config = useRuntimeConfig()
   const baseUrl = config.public.apiBaseUrl
+
+  // ─── Register WebSocket listener (once, client-only) ───
+  if (import.meta.client && !wsListenerRegistered) {
+    wsListenerRegistered = true
+
+    try {
+      const { onReadinessUpdate } = useSocket()
+
+      onReadinessUpdate((data) => {
+        if (data.symbolId && data.readiness) {
+          // Update cache directly with inline data (no re-fetch needed)
+          readinessCache.value.set(data.symbolId, data.readiness as ReadinessData)
+          errors.value.delete(data.symbolId)
+        }
+      })
+    } catch {
+      // Registration failed — allow retry on next call
+      wsListenerRegistered = false
+    }
+  }
 
   // ─── Loading helpers ───
 
@@ -152,29 +173,6 @@ export function useReadiness() {
     }
   }
 
-  // ─── Auto-refresh (60s interval) ───
-
-  function startAutoRefresh(symbolId: number) {
-    if (refreshTimers.has(symbolId)) return // Already running
-
-    const timer = setInterval(async () => {
-      await Promise.all([
-        fetchReadiness(symbolId, true),
-        fetchReadinessHistory(symbolId),
-      ])
-    }, 60_000)
-
-    refreshTimers.set(symbolId, timer)
-  }
-
-  function stopAutoRefresh(symbolId: number) {
-    const timer = refreshTimers.get(symbolId)
-    if (timer) {
-      clearInterval(timer)
-      refreshTimers.delete(symbolId)
-    }
-  }
-
   // ─── Cache cleanup ───
 
   function clearReadinessCache(symbolId?: number) {
@@ -182,12 +180,10 @@ export function useReadiness() {
       readinessCache.value.delete(symbolId)
       historyCache.value.delete(symbolId)
       errors.value.delete(symbolId)
-      stopAutoRefresh(symbolId)
     } else {
       readinessCache.value.clear()
       historyCache.value.clear()
       errors.value.clear()
-      refreshTimers.forEach((_, id) => stopAutoRefresh(id))
     }
   }
 
@@ -210,9 +206,5 @@ export function useReadiness() {
     getCachedHistory,
     getReadinessError,
     clearReadinessCache,
-
-    // Auto-refresh
-    startAutoRefresh,
-    stopAutoRefresh,
   }
 }

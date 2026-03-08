@@ -8,7 +8,8 @@ import type { AnalysisData, SignalData, PriceUpdatePayload } from '../../types/t
  * Features:
  * - Auto-connect เมื่อเรียก connect()
  * - subscribe / unsubscribe symbol channels
- * - Listen events: signal:loading, analysis:full, signal:new
+ * - Listen events: signal:loading, analysis:full, signal:new,
+ *   price:update, indicators:update, trends:update, readiness:update, candle:update
  * - Reconnection handling
  * - Expose connection status
  *
@@ -37,6 +38,38 @@ export interface SignalNewPayload {
   timestamp: string
 }
 
+/** Notification-style payload — backend tells us "something changed", frontend re-fetches */
+export interface CandleUpdatePayload {
+  symbolId: number
+  intervals: string[]
+  timestamp: string
+}
+
+export interface IndicatorsUpdatePayload {
+  symbolId: number
+  intervals: string[]
+  timestamp: string
+}
+
+export interface TrendsUpdatePayload {
+  symbolId: number
+  intervals: string[]
+  timestamp: string
+}
+
+/** Inline-style payload — backend sends actual data, frontend updates cache directly */
+export interface ReadinessUpdatePayload {
+  symbolId: number
+  readiness: {
+    directionScore: number | null
+    entryTimingScore: number | null
+    direction: string | null
+    finalAction: string
+    marketCondition: string
+  }
+  timestamp: string
+}
+
 // ============================================================
 // Event callback types
 // ============================================================
@@ -45,6 +78,10 @@ type SignalLoadingCallback = (data: SignalLoadingPayload) => void
 type AnalysisFullCallback = (data: AnalysisFullPayload) => void
 type SignalNewCallback = (data: SignalNewPayload) => void
 type PriceUpdateCallback = (data: PriceUpdatePayload) => void
+type CandleUpdateCallback = (data: CandleUpdatePayload) => void
+type IndicatorsUpdateCallback = (data: IndicatorsUpdatePayload) => void
+type TrendsUpdateCallback = (data: TrendsUpdatePayload) => void
+type ReadinessUpdateCallback = (data: ReadinessUpdatePayload) => void
 
 // ============================================================
 // Shared state (module-level singleton)
@@ -60,6 +97,10 @@ const signalLoadingListeners: Set<SignalLoadingCallback> = new Set()
 const analysisFullListeners: Set<AnalysisFullCallback> = new Set()
 const signalNewListeners: Set<SignalNewCallback> = new Set()
 const priceUpdateListeners: Set<PriceUpdateCallback> = new Set()
+const candleUpdateListeners: Set<CandleUpdateCallback> = new Set()
+const indicatorsUpdateListeners: Set<IndicatorsUpdateCallback> = new Set()
+const trendsUpdateListeners: Set<TrendsUpdateCallback> = new Set()
+const readinessUpdateListeners: Set<ReadinessUpdateCallback> = new Set()
 
 export function useSocket() {
   const config = useRuntimeConfig()
@@ -124,6 +165,22 @@ export function useSocket() {
     socket.on('price:update', (data: PriceUpdatePayload) => {
       priceUpdateListeners.forEach(cb => cb(data))
     })
+
+    socket.on('candle:update', (data: CandleUpdatePayload) => {
+      candleUpdateListeners.forEach(cb => cb(data))
+    })
+
+    socket.on('indicators:update', (data: IndicatorsUpdatePayload) => {
+      indicatorsUpdateListeners.forEach(cb => cb(data))
+    })
+
+    socket.on('trends:update', (data: TrendsUpdatePayload) => {
+      trendsUpdateListeners.forEach(cb => cb(data))
+    })
+
+    socket.on('readiness:update', (data: ReadinessUpdatePayload) => {
+      readinessUpdateListeners.forEach(cb => cb(data))
+    })
   }
 
   /**
@@ -182,6 +239,26 @@ export function useSocket() {
     return () => priceUpdateListeners.delete(callback)
   }
 
+  function onCandleUpdate(callback: CandleUpdateCallback): () => void {
+    candleUpdateListeners.add(callback)
+    return () => candleUpdateListeners.delete(callback)
+  }
+
+  function onIndicatorsUpdate(callback: IndicatorsUpdateCallback): () => void {
+    indicatorsUpdateListeners.add(callback)
+    return () => indicatorsUpdateListeners.delete(callback)
+  }
+
+  function onTrendsUpdate(callback: TrendsUpdateCallback): () => void {
+    trendsUpdateListeners.add(callback)
+    return () => trendsUpdateListeners.delete(callback)
+  }
+
+  function onReadinessUpdate(callback: ReadinessUpdateCallback): () => void {
+    readinessUpdateListeners.add(callback)
+    return () => readinessUpdateListeners.delete(callback)
+  }
+
   return {
     // State
     isConnected: readonly(isConnected),
@@ -199,5 +276,9 @@ export function useSocket() {
     onAnalysisFull,
     onSignalNew,
     onPriceUpdate,
+    onCandleUpdate,
+    onIndicatorsUpdate,
+    onTrendsUpdate,
+    onReadinessUpdate,
   }
 }
