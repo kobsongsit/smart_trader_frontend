@@ -24,6 +24,7 @@ interface Props {
 const props = defineProps<Props>()
 
 const { fetchChartData, fetchOlderChartData, isLoadingChart, isFetchingOlder, getHasMore, clearTimelineForTf } = useChart()
+const { fetchIndicatorAt, isLoading: isLoadingIndicator } = useIndicatorDetail()
 
 // ─── State ───
 const chartContainer = ref<HTMLElement | null>(null)
@@ -241,6 +242,9 @@ function createChartInstance() {
     crosshairMarkerVisible: false,
   })
 
+  // ─── Click handler: fetch indicator data at clicked candle ───
+  chart.subscribeClick(onChartClick)
+
   // ─── Infinite Scroll: detect when user scrolls near the left edge ───
   chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleRangeChange)
 
@@ -252,6 +256,15 @@ function createChartInstance() {
     }
   })
   resizeObserver.observe(chartContainer.value)
+}
+
+// ─── Chart Click: fetch indicator detail at candle timestamp ───
+function onChartClick(param: any) {
+  // Only trigger if user clicked on a valid candle (has time value)
+  if (!param.time || isLoadingIndicator.value) return
+
+  const timestamp = param.time as number
+  fetchIndicatorAt(props.symbolId, timestamp, selectedTimeframe.value)
 }
 
 // ─── Scroll Detection (debounced) ───
@@ -522,6 +535,7 @@ onBeforeUnmount(() => {
     resizeObserver = null
   }
   if (chart) {
+    chart.unsubscribeClick(onChartClick)
     chart.remove()
     chart = null
   }

@@ -1259,3 +1259,65 @@ export function getDirectionScoreColor(score: number): string {
 export function getMarketConditionColor(condition: ReadinessMarketCondition): string {
   return condition === 'PASS' ? 'success' : 'error'
 }
+
+// ============================================================================
+// Indicator At API Types (GET /api/indicators/:symbolId/at)
+// ============================================================================
+
+export interface IndicatorAtRawValues {
+  sma50: number | null
+  sma200: number | null
+  ema20: number | null
+  rsi: number | null
+  stochK: number | null
+  stochD: number | null
+  macdLine: number | null
+  macdSignal: number | null
+  macdHistogram: number | null
+  bbUpper: number | null
+  bbMiddle: number | null
+  bbLower: number | null
+  adx: number | null
+  plusDI: number | null
+  minusDI: number | null
+  atr: number | null
+  obv: number | null
+  ichimokuConversion: number | null
+  ichimokuBase: number | null
+  ichimokuSpanA: number | null
+  ichimokuSpanB: number | null
+}
+
+export interface IndicatorAtDerivedSignals {
+  bollingerSqueeze: boolean | null
+  rsiDivergence: 'BULLISH' | 'BEARISH' | null
+  macdDivergence: 'BULLISH' | 'BEARISH' | null
+  smaCrossover: 'GOLDEN' | 'DEATH' | null
+  candlestickPattern: string | null
+  patternDirection: 'BULLISH' | 'BEARISH' | null
+}
+
+export interface IndicatorAtBollingerPosition {
+  percentB: number | null
+  position: string | null
+}
+
+export type IndicatorAtTrendDirection = 'BULLISH' | 'BEARISH' | 'SIDEWAYS' | null
+export type IndicatorAtTrendStrength = 'STRONG' | 'MODERATE' | 'WEAK' | null
+
+export interface IndicatorAtData {
+  timestamp: string
+  interval: string
+  symbol: string
+  symbolId: number
+  indicators: IndicatorAtRawValues
+  derivedSignals: IndicatorAtDerivedSignals
+  bollingerPosition: IndicatorAtBollingerPosition
+  trendDirection: IndicatorAtTrendDirection
+  trendStrength: IndicatorAtTrendStrength
+}
+
+export interface IndicatorAtResponse {
+  success: boolean
+  data: IndicatorAtData
+}

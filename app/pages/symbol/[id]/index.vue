@@ -531,6 +531,9 @@ async function handleAnalyze() {
         <TradingCandlestickChart :symbol-id="symbolId" />
       </div>
 
+      <!-- Indicator Detail Panel (click candle to open) -->
+      <TradingIndicatorDetailPanel />
+
       <!-- ═══════════════════════════════════════════════════ -->
       <!-- Section 2: Indicator Summary (enhanced server data)-->
       <!-- ═══════════════════════════════════════════════════ -->
