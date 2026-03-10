@@ -36,7 +36,7 @@ function fmtVal(val: number | null, decimals = 2): string {
 
 function fmtPercent(val: number | null): string {
   if (val === null || val === undefined) return '--'
-  return `${val.toFixed(1)}%`
+  return `${(val * 100).toFixed(1)}%`
 }
 
 // ─── RSI helpers ───
@@ -118,7 +118,7 @@ function trendStrChip(val: IndicatorAtTrendStrength): { label: string; color: st
 // ─── BB Position visual ───
 function bbPositionPercent(percentB: number | null): number {
   if (percentB === null) return 50
-  return Math.max(0, Math.min(100, percentB))
+  return Math.max(0, Math.min(100, percentB * 100))
 }
 </script>
 
