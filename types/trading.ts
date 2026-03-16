@@ -1,1263 +1,163 @@
 /**
- * Trading Types for Smart Trader Frontend
- * Based on FRONTEND_API_REFERENCE.md by Cappu
- *
- * Unified API: GET /api/analysis/:symbolId
- * Frontend does NOT compute anything - just display
+ * Generic API response wrapper
  */
-
-// ============================================================================
-// API Response Wrapper
-// ============================================================================
-
 export interface ApiResponse<T> {
   success: boolean
   data: T
-  meta?: {
-    total: number
-  }
   error?: string
 }
 
-// ============================================================================
-// Unified Analysis Response (GET /api/analysis/:symbolId)
-// ============================================================================
-
-export interface AnalysisData {
-  symbol: SymbolInfo
-  price: PriceData
-  indicators: IndicatorsData
-  trends: TrendsData
-  validation: ValidationData
-  signal: SignalData | null
-  news: NewsData | null
-  meta: MetaData
-}
-
-// ============================================================================
-// Section 3: Symbol
-// ============================================================================
-
-export interface SymbolInfo {
-  id: number
-  symbol: string        // e.g. "EUR-USD"
-  name: string          // e.g. "Euro / US Dollar"
-  type: 'FOREX' | 'CRYPTO' | 'STOCK' | 'COMMODITY'
-  exchange: string      // e.g. "FOREX", "NASDAQ", "BINANCE"
-  isActive: boolean
+/**
+ * Portfolio overview data from GET /api/strategy/portfolio
+ */
+export interface PortfolioData {
+  totalPips: number
+  wins: number
+  losses: number
+  totalTrades: number
+  winRate: number
+  profitFactor: number
+  streak: number
+  streakType: 'W' | 'L'
+  openPositions: number
+  since: string
+  maxDrawdown: number
+  todayPips: number
+  weekPips: number
 }
 
 /**
- * @deprecated Use SymbolInfo instead - kept for backward compat with useSymbols
+ * Open position data from GET /api/strategy/positions
  */
-export interface Symbol {
+export interface Position {
+  symbol: string
+  interval: string
+  action: 'BUY' | 'SELL'
+  entryPrice: string
+  currentPrice: string | null
+  slPrice: string
+  slLabel: string
+  entryTime: string
+  floatingPips: number | null
+  slDistancePercent: number | null
+  duration: string | null
+}
+
+// ============================================================
+// Trade History
+// ============================================================
+
+/**
+ * Summary stats for closed trades (filtered)
+ */
+export interface TradeHistorySummary {
+  totalTrades: number
+  wins: number
+  losses: number
+  winRate: number
+  totalPips: number
+  profitFactor: number
+  avgWinPips: number
+  avgLossPips: number
+}
+
+/**
+ * Single closed trade
+ */
+export interface ClosedTrade {
   id: number
-  name: string
-  displayName: string
-  type: 'CRYPTO' | 'STOCK' | 'FOREX'
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-// ============================================================================
-// Section 4: Price
-// ============================================================================
-
-export interface PriceData {
-  current: number
-  open: number
-  high: number
-  low: number
-  close: number
-  volume: number
-  change: number           // price change from open
-  changePercent: number    // % change (> 0 green, < 0 red, == 0 grey)
-  timestamp: string        // ISO string
-  high24h: number
-  low24h: number
-  volume24h: number
-}
-
-// ============================================================================
-// Section 5: Indicators (with derived values - no frontend calculation needed)
-// ============================================================================
-
-export interface IndicatorsData {
-  timestamp: string
-
-  movingAverages: MovingAveragesData
-  macd: MACDData
-  bollingerBands: BollingerBandsData
-  rsi: RSIData
-  stochastic: StochasticData
-  obv: OBVData
-  atr: ATRData
-  adx: ADXData
-  summary: IndicatorsSummary
-}
-
-// --- 5.1 Moving Averages ---
-
-export type PricePosition = 'above' | 'below'
-export type CrossType = 'golden_cross' | 'death_cross'
-
-export interface MovingAveragesData {
-  sma50: number | null
-  sma200: number | null
-  ema20: number | null
-  priceVsSma50: PricePosition
-  priceVsSma200: PricePosition
-  sma50VsSma200: CrossType
-  priceVsEma20: PricePosition
-}
-
-// --- 5.2 MACD ---
-
-export type MACDTrend = 'bullish' | 'bearish'
-export type Momentum = 'increasing' | 'decreasing' | 'flat'
-
-export interface MACDData {
-  line: number
-  signal: number
-  histogram: number
-  trend: MACDTrend
-  momentum: Momentum
-}
-
-// --- 5.3 Bollinger Bands ---
-
-export type BBPricePosition = 'above_upper' | 'upper_zone' | 'middle' | 'lower_zone' | 'below_lower'
-
-export interface BollingerBandsData {
-  upper: number
-  middle: number
-  lower: number
-  bandwidth: number
-  percentB: number           // 0-100 (can exceed)
-  pricePosition: BBPricePosition
-  squeeze: boolean           // true = potential breakout
-}
-
-// --- 5.4 RSI ---
-
-export type IndicatorZone = 'overbought' | 'oversold' | 'neutral'
-
-export interface RSIData {
-  value: number              // 0-100
-  zone: IndicatorZone
-  description: string        // Thai description
-}
-
-// --- 5.5 Stochastic ---
-
-export type StochCrossover = 'bullish_cross' | 'bearish_cross' | 'none'
-
-export interface StochasticData {
-  k: number
-  d: number
-  zone: IndicatorZone
-  crossover: StochCrossover
-  description: string
-}
-
-// --- 5.6 OBV ---
-
-export type OBVTrend = 'increasing' | 'decreasing' | 'flat'
-export type OBVConfirmation = 'confirmed' | 'divergence' | 'unknown'
-
-export interface OBVData {
-  value: number
-  trend: OBVTrend
-  confirmation: OBVConfirmation
-  description: string
-}
-
-// --- 5.7 ATR ---
-
-export type ATRLevel = 'low' | 'normal' | 'high' | 'extreme'
-
-export interface ATRData {
-  value: number
-  level: ATRLevel
-  suggestedSL: number
-  suggestedTP: number
-  description: string
-}
-
-// --- 5.8 ADX ---
-
-export type ADXTrendStrength = 'no_trend' | 'developing' | 'established' | 'strong' | 'extreme'
-export type ADXTrendDirection = 'bullish' | 'bearish' | 'neutral'
-
-export interface ADXData {
-  value: number              // 0-100
-  plusDI: number
-  minusDI: number
-  trendStrength: ADXTrendStrength
-  trendDirection: ADXTrendDirection
-  description: string
-}
-
-// --- 5.9 Indicators Summary ---
-
-export type OverallBias = 'bullish' | 'bearish' | 'neutral'
-export type BiasStrength = 'strong' | 'moderate' | 'weak'
-
-export interface IndicatorsSummary {
-  bullishCount: number
-  bearishCount: number
-  neutralCount: number
-  overallBias: OverallBias
-  overallBiasLabel: string     // Thai label
-  strength: BiasStrength
-}
-
-// ============================================================================
-// Section 6: Trends (Multi-Timeframe)
-// ============================================================================
-
-export type TrendDirection = 'UP' | 'DOWN' | 'NEUTRAL'
-export type Consensus = 'strong' | 'moderate' | 'weak' | 'none'
-
-export interface TimeframeTrend {
-  direction: TrendDirection | null
-  adx: number | null
-  label: string              // Thai label
-}
-
-export interface TrendsAnalysis {
-  majorityTrend: TrendDirection
-  majorityTrendLabel: string
-  upCount: number
-  downCount: number
-  neutralCount: number
-  sidewaysCount: number
-  consensus: Consensus
-}
-
-export interface PreFilterResult {
-  shouldAnalyze: boolean
-  reason: string | null
-  passedRules: string[]
-  warnings: string[]
-}
-
-export interface TrendsData {
-  timeframes: Record<string, TimeframeTrend>
-  analysis: TrendsAnalysis
-  preFilter: PreFilterResult
-}
-
-// ============================================================================
-// Section 7: Validation (ProIndicator)
-// ============================================================================
-
-export type ValidationStatus = 'pass' | 'fail' | 'warning'
-
-export interface ValidationCheck {
-  passed: boolean
-  status: ValidationStatus
-  message: string            // Thai description
-  isWarningOnly?: boolean
-  detail: string | null
-}
-
-export interface ValidationChecks {
-  channelDetection: ValidationCheck
-  newHighLow: ValidationCheck
-  candleClose: ValidationCheck
-}
-
-export interface BollingerPosition {
-  upper: number
-  middle: number
-  lower: number
-  pricePosition: string
-  percentB: number
-}
-
-export interface NextCandleClose {
-  timeframe: string
-  secondsRemaining: number
-  minutesRemaining: number
-}
-
-export interface ValidationData {
-  isValid: boolean
-  overallStatus: ValidationStatus
-  overallStatusLabel: string
-  checks: ValidationChecks
-  bollingerPosition: BollingerPosition
-  nextCandleClose: NextCandleClose | null
-}
-
-// ============================================================================
-// Section 8: Signal (AI Trading Signal)
-// ============================================================================
-
-export type SignalStrategy = 'BUY' | 'SELL' | 'WAIT'
-export type SignalPerformanceStatus = 'ACTIVE' | 'HIT_TP' | 'HIT_SL' | 'PENDING'
-
-export interface SignalPrices {
-  entry: number
-  takeProfit: number
-  stopLoss: number
-  riskRewardRatio: string    // e.g. "1:2.5"
-  potentialProfit: number    // % profit (entry -> TP)
-  potentialLoss: number      // % loss (entry -> SL)
+  symbol: string
+  interval: string
+  strategyName: string
+  action: 'BUY' | 'SELL'
+  entryPrice: string
+  entryTime: string
+  exitPrice: string
+  exitTime: string
+  exitReason: 'TP' | 'SL' | 'OPPOSITE_SIGNAL' | 'MANUAL'
   profitPips: number
-  lossPips: number
+  duration: string
 }
 
-export interface SignalLevels {
-  support: number[]          // 1-5 levels, nearest first
-  resistance: number[]       // 1-5 levels, nearest first
+/**
+ * Pagination info for trade history
+ */
+export interface TradeHistoryPagination {
+  page: number
+  limit: number
+  total: number
+  hasMore: boolean
 }
 
-export interface SignalAnalysis {
-  summary: string            // 2-3 sentences Thai
-  keyFactors: string[]       // 1-5 items
-  warnings: string[]
+/**
+ * Full trade history response data
+ */
+export interface TradeHistoryData {
+  summary: TradeHistorySummary
+  trades: ClosedTrade[]
+  pagination: TradeHistoryPagination
 }
 
-export interface SignalPerformance {
-  status: SignalPerformanceStatus
-  statusLabel: string
-  currentPrice: number
-  profitLoss: number
-  profitLossPercent: number
-  maxProfit: number
-  maxDrawdown: number
-  durationMinutes: number
-}
+// ============================================================
+// Monthly Performance
+// ============================================================
 
-export interface SignalData {
-  id: number
-  timestamp: string
-  strategy: SignalStrategy
-  strategyLabel: string
-  confidence: number         // 0-100
-  confidenceLabel: string
-  prices: SignalPrices
-  levels: SignalLevels
-  analysis: SignalAnalysis
-  performance: SignalPerformance
-}
-
-// ============================================================================
-// Section 9: News Sentiment
-// ============================================================================
-
-export type SentimentOverall = 'positive' | 'neutral' | 'negative'
-export type NewsImpactDirection = 'supportive' | 'conflicting' | 'neutral'
-
-export interface NewsSentiment {
-  overall: SentimentOverall
-  overallLabel: string
-  score: number              // -10 to +10
-  scoreLabel: string         // e.g. "+3.5/10"
-}
-
-export interface NewsHighlights {
-  positive: string[]         // max 3
-  negative: string[]         // max 3
-}
-
-export interface NewsImpact {
-  direction: NewsImpactDirection
-  directionLabel: string
-  confidenceAdjustment: string   // e.g. "+5%" or "-10%"
-  note: string
-}
-
-export interface NewsData {
-  available: boolean
-  totalArticles: number
-  timeRange: string
-  latestNewsDate: string
-  sentiment: NewsSentiment
-  highlights: NewsHighlights
-  keyEvents: string[]
-  summary: string
-  impactOnSignal: NewsImpact
-}
-
-// ============================================================================
-// Section 10: Meta
-// ============================================================================
-
-export interface DataAge {
-  priceSeconds: number
-  indicatorsSeconds: number
-  trendsSeconds: number
-  signalSeconds: number
-  newsSeconds: number
-}
-
-export interface MetaData {
-  timestamp: string
-  version: string
-  dataAge: DataAge
-  source: 'rest' | 'websocket'
-  nextUpdate: string | null
-}
-
-// ============================================================================
-// Section 11: Watchlist
-// ============================================================================
-
-export interface WatchlistItem {
-  id: number
-  symbolId: number
-  symbol: SymbolInfo
-  priority: number
-  notes: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-// ============================================================================
-// Section 12: Price Update (Finnhub WebSocket)
-// ============================================================================
-
-export interface PriceUpdatePayload {
+/**
+ * Best/worst trade highlight in a month
+ */
+export interface MonthlyTradeHighlight {
   symbol: string
-  price: number
-  volume: number
-  timestamp: string
-  source: 'finnhub-ws'
+  action: 'BUY' | 'SELL'
+  pips: number
+  date: string
+  interval: string
 }
 
-// ============================================================================
-// Section 13: WebSocket Events
-// ============================================================================
-
-export type WSServerEvent =
-  | 'analysis:full'
-  | 'price:update'
-  | 'indicators:update'
-  | 'trends:update'
-  | 'validation:update'
-  | 'signal:new'
-  | 'signal:loading'
-  | 'news:update'
-  | 'error'
-
-export type WSClientEvent =
-  | 'subscribe:symbol'
-  | 'unsubscribe:symbol'
-  | 'request:refresh'
-
-// ============================================================================
-// Display Helper Functions
-// ============================================================================
-
-// --- Trend helpers ---
-
-export function getTrendColor(trend: TrendDirection | null): string {
-  switch (trend) {
-    case 'UP': return 'success'
-    case 'DOWN': return 'error'
-    case 'NEUTRAL': return 'grey'
-    default: return 'grey'
-  }
-}
-
-export function getTrendIcon(trend: TrendDirection | null): string {
-  switch (trend) {
-    case 'UP': return 'mdi-trending-up'
-    case 'DOWN': return 'mdi-trending-down'
-    case 'NEUTRAL': return 'mdi-trending-neutral'
-    default: return 'mdi-help'
-  }
-}
-
-// --- Price helpers ---
-
-export function getPriceChangeColor(changePercent: number): string {
-  if (changePercent > 0) return 'success'
-  if (changePercent < 0) return 'error'
-  return 'grey'
-}
-
-export function formatPriceChange(changePercent: number): string {
-  const prefix = changePercent > 0 ? '+' : ''
-  return `${prefix}${changePercent.toFixed(2)}%`
-}
-
-// --- Indicator zone helpers ---
-
-export function getZoneColor(zone: IndicatorZone): string {
-  switch (zone) {
-    case 'overbought': return 'error'
-    case 'oversold': return 'success'
-    case 'neutral': return 'grey'
-    default: return 'grey'
-  }
-}
-
-export function getZoneLabel(zone: IndicatorZone): string {
-  switch (zone) {
-    case 'overbought': return 'Overbought'
-    case 'oversold': return 'Oversold'
-    case 'neutral': return 'Neutral'
-    default: return 'N/A'
-  }
-}
-
-// --- MA cross helpers ---
-
-export function getCrossColor(cross: CrossType): string {
-  return cross === 'golden_cross' ? 'success' : 'error'
-}
-
-export function getCrossLabel(cross: CrossType): string {
-  return cross === 'golden_cross' ? 'Golden Cross' : 'Death Cross'
-}
-
-export function getCrossIcon(cross: CrossType): string {
-  return cross === 'golden_cross' ? 'mdi-star-four-points' : 'mdi-skull'
-}
-
-// --- MACD helpers ---
-
-export function getMACDTrendColor(trend: MACDTrend): string {
-  return trend === 'bullish' ? 'success' : 'error'
-}
-
-export function getMomentumIcon(momentum: Momentum): string {
-  switch (momentum) {
-    case 'increasing': return 'mdi-arrow-up'
-    case 'decreasing': return 'mdi-arrow-down'
-    case 'flat': return 'mdi-arrow-right'
-    default: return 'mdi-help'
-  }
-}
-
-// --- Bollinger Bands helpers ---
-
-export function getBBPositionColor(position: BBPricePosition | string): string {
-  switch (position) {
-    case 'above_upper': return 'error'
-    case 'upper_zone': return 'warning'
-    case 'middle': return 'grey'
-    case 'lower_zone': return 'warning'
-    case 'below_lower': return 'success'
-    default: return 'grey'
-  }
-}
-
-// --- OBV helpers ---
-
-export function getOBVConfirmationColor(confirmation: OBVConfirmation): string {
-  switch (confirmation) {
-    case 'confirmed': return 'success'
-    case 'divergence': return 'warning'
-    case 'unknown': return 'grey'
-    default: return 'grey'
-  }
-}
-
-// --- ATR helpers ---
-
-export function getATRLevelColor(level: ATRLevel): string {
-  switch (level) {
-    case 'low': return 'info'
-    case 'normal': return 'grey'
-    case 'high': return 'warning'
-    case 'extreme': return 'error'
-    default: return 'grey'
-  }
-}
-
-// --- ADX helpers ---
-
-export function getADXStrengthColor(strength: ADXTrendStrength): string {
-  switch (strength) {
-    case 'no_trend': return 'grey'
-    case 'developing': return 'warning'
-    case 'established': return 'success'
-    case 'strong': return 'orange'
-    case 'extreme': return 'error'
-    default: return 'grey'
-  }
-}
-
-export function getADXStrengthIcon(strength: ADXTrendStrength): string {
-  switch (strength) {
-    case 'no_trend': return 'mdi-cancel'
-    case 'developing': return 'mdi-sprout'
-    case 'established': return 'mdi-chart-line'
-    case 'strong': return 'mdi-fire'
-    case 'extreme': return 'mdi-flash'
-    default: return 'mdi-help'
-  }
-}
-
-export function getADXDirectionColor(direction: ADXTrendDirection): string {
-  switch (direction) {
-    case 'bullish': return 'success'
-    case 'bearish': return 'error'
-    case 'neutral': return 'grey'
-    default: return 'grey'
-  }
-}
-
-// --- Overall bias helpers ---
-
-export function getBiasColor(bias: OverallBias): string {
-  switch (bias) {
-    case 'bullish': return 'success'
-    case 'bearish': return 'error'
-    case 'neutral': return 'grey'
-    default: return 'grey'
-  }
-}
-
-export function getBiasIcon(bias: OverallBias): string {
-  switch (bias) {
-    case 'bullish': return 'mdi-arrow-up-bold-circle'
-    case 'bearish': return 'mdi-arrow-down-bold-circle'
-    case 'neutral': return 'mdi-minus-circle'
-    default: return 'mdi-help-circle'
-  }
-}
-
-// --- Signal helpers ---
-
-export function getStrategyColor(strategy: SignalStrategy): string {
-  switch (strategy) {
-    case 'BUY': return 'success'
-    case 'SELL': return 'error'
-    case 'WAIT': return 'warning'
-    default: return 'grey'
-  }
-}
-
-export function getStrategyIcon(strategy: SignalStrategy): string {
-  switch (strategy) {
-    case 'BUY': return 'mdi-arrow-up-bold-circle'
-    case 'SELL': return 'mdi-arrow-down-bold-circle'
-    case 'WAIT': return 'mdi-pause-circle'
-    default: return 'mdi-help-circle'
-  }
-}
-
-export function getConfidenceColor(confidence: number): string {
-  if (confidence >= 80) return 'success'
-  if (confidence >= 60) return 'info'
-  if (confidence >= 40) return 'warning'
-  return 'error'
-}
-
-export function getPerformanceStatusColor(status: SignalPerformanceStatus): string {
-  switch (status) {
-    case 'ACTIVE': return 'info'
-    case 'HIT_TP': return 'success'
-    case 'HIT_SL': return 'error'
-    case 'PENDING': return 'grey'
-    default: return 'grey'
-  }
-}
-
-// --- News helpers ---
-
-export function getSentimentColor(sentiment: SentimentOverall): string {
-  switch (sentiment) {
-    case 'positive': return 'success'
-    case 'negative': return 'error'
-    case 'neutral': return 'grey'
-    default: return 'grey'
-  }
-}
-
-export function getNewsImpactColor(direction: NewsImpactDirection): string {
-  switch (direction) {
-    case 'supportive': return 'success'
-    case 'conflicting': return 'warning'
-    case 'neutral': return 'grey'
-    default: return 'grey'
-  }
-}
-
-// --- Validation helpers ---
-
-export function getValidationStatusColor(status: ValidationStatus): string {
-  switch (status) {
-    case 'pass': return 'success'
-    case 'fail': return 'error'
-    case 'warning': return 'warning'
-    default: return 'grey'
-  }
-}
-
-export function getValidationStatusIcon(status: ValidationStatus): string {
-  switch (status) {
-    case 'pass': return 'mdi-check-circle-outline'
-    case 'fail': return 'mdi-close-circle-outline'
-    case 'warning': return 'mdi-alert-outline'
-    default: return 'mdi-help-circle-outline'
-  }
-}
-
-export function getPreFilterStatus(preFilter: PreFilterResult): { label: string; color: string; icon: string } {
-  if (preFilter.shouldAnalyze) {
-    return { label: 'Ready to Analyze', color: 'success', icon: 'mdi-check-circle' }
-  }
-  return { label: 'Filtered Out', color: 'error', icon: 'mdi-filter-remove' }
-}
-
-// --- TrendCache helpers ---
-
-export function getTrendCacheColor(direction: TrendCacheDirection): string {
-  switch (direction) {
-    case 'BULLISH': return 'success'
-    case 'BEARISH': return 'error'
-    case 'SIDEWAYS': return 'grey'
-    default: return 'grey'
-  }
-}
-
-export function getTrendCacheIcon(direction: TrendCacheDirection): string {
-  switch (direction) {
-    case 'BULLISH': return 'mdi-trending-up'
-    case 'BEARISH': return 'mdi-trending-down'
-    case 'SIDEWAYS': return 'mdi-trending-neutral'
-    default: return 'mdi-help'
-  }
-}
-
-export function getTrendStrengthColor(strength: TrendCacheStrength): string {
-  switch (strength) {
-    case 'STRONG': return 'success'
-    case 'MODERATE': return 'warning'
-    case 'WEAK': return 'grey'
-    default: return 'grey'
-  }
-}
-
-// --- Derived Signals helpers ---
-
-export function getDivergenceColor(type: DivergenceType): string {
-  if (type === 'BULLISH') return 'success'
-  if (type === 'BEARISH') return 'error'
-  return 'grey'
-}
-
-export function getCrossoverLabel(type: CrossoverType): string {
-  if (type === 'GOLDEN') return 'Golden Cross'
-  if (type === 'DEATH') return 'Death Cross'
-  return '-'
-}
-
-export function getBBPositionLabelText(position: BBPositionLabel): string {
-  switch (position) {
-    case 'ABOVE_UPPER': return 'Above Upper'
-    case 'UPPER_HALF': return 'Upper Half'
-    case 'LOWER_HALF': return 'Lower Half'
-    case 'BELOW_LOWER': return 'Below Lower'
-    default: return '-'
-  }
-}
-
-export function getBBPositionLabelColor(position: BBPositionLabel): string {
-  switch (position) {
-    case 'ABOVE_UPPER': return 'error'
-    case 'UPPER_HALF': return 'warning'
-    case 'LOWER_HALF': return 'info'
-    case 'BELOW_LOWER': return 'success'
-    default: return 'grey'
-  }
-}
-
-// --- Ichimoku helpers ---
-
-export function getIchimokuTKColor(tkCross: IchimokuTKCross): string {
-  return tkCross === 'BULLISH' ? 'success' : 'error'
-}
-
-export function getIchimokuCloudPosColor(pos: IchimokuPriceVsCloud | null): string {
-  switch (pos) {
-    case 'ABOVE': return 'success'
-    case 'BELOW': return 'error'
-    case 'INSIDE': return 'warning'
-    default: return 'grey'
-  }
-}
-
-export function getIchimokuCloudColorHelper(color: IchimokuCloudColor | null): string {
-  return color === 'BULLISH' ? 'success' : color === 'BEARISH' ? 'error' : 'grey'
-}
-
-// --- Consensus helpers ---
-
-export function getConsensusColor(consensus: Consensus): string {
-  switch (consensus) {
-    case 'strong': return 'success'
-    case 'moderate': return 'info'
-    case 'weak': return 'warning'
-    case 'none': return 'error'
-    default: return 'grey'
-  }
-}
-
-// --- Format helpers ---
-
-export function formatNumber(value: number | null, decimals: number = 2): string {
-  if (value === null || value === undefined) return 'N/A'
-  if (Math.abs(value) >= 1_000_000) {
-    return (value / 1_000_000).toFixed(1) + 'M'
-  }
-  if (Math.abs(value) >= 1_000) {
-    return (value / 1_000).toFixed(1) + 'K'
-  }
-  return value.toFixed(decimals)
-}
-
-export function formatPrice(value: number | null | undefined): string {
-  if (value === null || value === undefined) return 'N/A'
-
-  // Detect meaningful decimal places from the actual value
-  // toPrecision(10) strips floating-point artifacts while keeping real decimals
-  const str = parseFloat(value.toPrecision(10)).toString()
-  const decimalPart = str.includes('.') ? str.split('.')[1]?.length || 0 : 0
-  const decimals = Math.max(2, decimalPart)
-
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(value)
-}
-
-export function formatTimeRemaining(seconds: number): string {
-  if (seconds < 60) {
-    return `${seconds}s`
-  }
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}m ${secs}s`
-}
-
-export { formatTimeAgo, formatThaiDate } from '../app/utils/datetime'
-
-// --- Symbol type helpers ---
-
-export function getSymbolTypeIcon(type: string): string {
-  switch (type) {
-    case 'CRYPTO': return 'mdi-bitcoin'
-    case 'STOCK': return 'mdi-chart-line'
-    case 'FOREX': return 'mdi-currency-usd'
-    case 'COMMODITY': return 'mdi-gold'
-    default: return 'mdi-chart-box'
-  }
-}
-
-export function getSymbolTypeColor(type: string): string {
-  switch (type) {
-    case 'STOCK': return 'info'
-    case 'CRYPTO': return 'warning'
-    case 'FOREX': return 'success'
-    case 'COMMODITY': return 'amber'
-    case 'INDEX': return 'purple'
-    default: return 'grey'
-  }
-}
-
-// --- Data age helpers ---
-
-export function isDataStale(seconds: number, threshold: number = 300): boolean {
-  return seconds > threshold
-}
-
-// ============================================================================
-// Summary API Types (GET /api/analysis/summary)
-// ============================================================================
-
-export interface SummaryPrice {
-  current: number
-  changePercent: number
-  updatedAt: string
-  updatedAgo: string
-}
-
-export interface SummaryTrend {
-  direction: TrendDirection
-  directionLabel: string
-  upCount: number
-  downCount: number
-  neutralCount: number
-  totalTimeframes: number
-  consensus: string
-  consensusLabel: string
-}
-
-export interface SummarySignal {
-  strategy: SignalStrategy
-  confidence: number
-  timestamp: string
-}
-
-export interface SymbolSummary {
-  id: number
+/**
+ * Per-symbol breakdown within a month
+ */
+export interface MonthlySymbolBreakdown {
   symbol: string
-  name: string
-  type: 'FOREX' | 'CRYPTO' | 'STOCK' | 'COMMODITY'
-  exchange: string | null
-  price: SummaryPrice
-  trend: SummaryTrend
-  signal: SummarySignal | null
+  totalPips: number
+  wins: number
+  losses: number
+  totalTrades: number
 }
 
-export interface SummaryResponse {
-  symbols: SymbolSummary[]
-  totalSymbols: number
-  lastRefresh: string
+/**
+ * Per-interval breakdown within a month
+ */
+export interface MonthlyIntervalBreakdown {
+  interval: string
+  wins: number
+  losses: number
+  totalPips: number
 }
 
-// ============================================================================
-// Chart API Types (GET /api/data/:symbolId/chart)
-// ============================================================================
-
-export type ChartTimeframe = '1m' | '5m' | '15m' | '1H' | '4H' | '1D' | '1W' | '1M'
-
-export interface ChartCandle {
-  time: number   // UNIX timestamp (seconds)
-  open: number
-  high: number
-  low: number
-  close: number
+/**
+ * Single month performance data
+ */
+export interface MonthlyData {
+  month: string         // "2026-03"
+  label: string         // "Mar 2026"
+  totalPips: number
+  wins: number
+  losses: number
+  totalTrades: number
+  winRate: number
+  profitFactor: number
+  cumulativePips: number
+  bestTrade: MonthlyTradeHighlight
+  worstTrade: MonthlyTradeHighlight
+  symbols: MonthlySymbolBreakdown[]
+  intervals: MonthlyIntervalBreakdown[]
 }
 
-export interface ChartVolume {
-  time: number
-  value: number
-  color: string  // rgba color string
-}
-
-export interface ChartTimeValue {
-  time: number
-  value: number
-}
-
-export interface ChartOverlays {
-  sma50: ChartTimeValue[]
-  sma200: ChartTimeValue[]
-  ema20: ChartTimeValue[]
-  bbUpper: ChartTimeValue[]
-  bbMiddle: ChartTimeValue[]
-  bbLower: ChartTimeValue[]
-  ichimokuConversion: ChartTimeValue[]  // Tenkan-sen (Conversion Line)
-  ichimokuBase: ChartTimeValue[]        // Kijun-sen (Base Line)
-  ichimokuSpanA: ChartTimeValue[]       // Senkou Span A (Leading Span A)
-  ichimokuSpanB: ChartTimeValue[]       // Senkou Span B (Leading Span B)
-}
-
-export interface ChartSignalMarker {
-  time: number
-  position: 'belowBar' | 'aboveBar'
-  color: string
-  shape: 'arrowUp' | 'arrowDown' | 'circle'
-  text: string
-  strategy: SignalStrategy
-  confidence: number
-  entryPrice: number
-  takeProfit: number
-  stopLoss: number
-}
-
-export interface ChartData {
-  symbol: string
-  timeframe: ChartTimeframe
-  candles: ChartCandle[]
-  volume: ChartVolume[]
-  overlays: ChartOverlays
-  signals: ChartSignalMarker[]
-}
-
-export interface ChartMeta {
-  totalCandles: number
-  timeframe: ChartTimeframe
-  startTime: string
-  endTime: string
-  candlesPerDay: number
-  hasMore: boolean  // ยังมี data เก่ากว่าให้ fetch อีกไหม (infinite scroll)
-}
-
-export interface ChartApiResponse {
-  success: boolean
-  data: ChartData
-  meta: ChartMeta
-}
-
-// ============================================================================
-// Price API Types (GET /api/data/:symbolId/price)
-// ============================================================================
-
-/** Lightweight latest price — fast endpoint (~3ms) */
-export interface LatestPriceData {
-  symbolId: number
-  symbol: string
-  price: number
-  previousClose: number
-  change: number
-  changePercent: number
-  timestamp: string
-}
-
-// ============================================================================
-// Trends API Types (GET /api/trends/:symbolId) — TrendCache shape
-// ============================================================================
-
-export type TrendCacheDirection = 'BULLISH' | 'BEARISH' | 'SIDEWAYS'
-export type TrendCacheStrength = 'STRONG' | 'MODERATE' | 'WEAK'
-
-export interface TrendTimeframeData {
-  direction: TrendCacheDirection
-  strength: TrendCacheStrength
-  adx: number | null
-  plusDI: number | null
-  minusDI: number | null
-}
-
-export interface TrendAnalysisSummary {
-  majorityTrend: TrendCacheDirection
-  strength: number
-  consensus: string
-}
-
-export interface TrendsResponse {
-  timeframes: Record<IndicatorInterval, TrendTimeframeData>
-  analysis: TrendAnalysisSummary
-}
-
-// ============================================================================
-// Enhanced Indicator Types (GET /api/indicators/:symbolId?enhanced=true)
-// ============================================================================
-
-export type DivergenceType = 'BULLISH' | 'BEARISH' | null
-export type CrossoverType = 'GOLDEN' | 'DEATH' | null
-export type BBPositionLabel = 'ABOVE_UPPER' | 'UPPER_HALF' | 'LOWER_HALF' | 'BELOW_LOWER'
-
-export interface DerivedSignals {
-  bollingerSqueeze: boolean
-  rsiDivergence: DivergenceType
-  macdDivergence: DivergenceType
-  smaCrossover: CrossoverType
-  candlestickPattern: string | null
-  patternDirection: 'BULLISH' | 'BEARISH' | null
-}
-
-export interface BBPosition {
-  percentB: number
-  position: BBPositionLabel
-}
-
-export interface IndicatorSummaryCount {
-  bullish: number
-  bearish: number
-  neutral: number
-  overall: 'BULLISH' | 'BEARISH' | 'NEUTRAL'
-}
-
-export type IchimokuTKCross = 'BULLISH' | 'BEARISH'
-export type IchimokuPriceVsCloud = 'ABOVE' | 'BELOW' | 'INSIDE'
-export type IchimokuCloudColor = 'BULLISH' | 'BEARISH'
-
-export interface IchimokuSignals {
-  tkCross: IchimokuTKCross
-  priceVsCloud: IchimokuPriceVsCloud | null
-  cloudColor: IchimokuCloudColor | null
-}
-
-export interface EnhancedIndicatorResponse extends RawIndicatorResponse {
-  derivedSignals: DerivedSignals
-  bollingerPosition: BBPosition
-  ichimokuSignals: IchimokuSignals | null
-  summary: IndicatorSummaryCount
-}
-
-// ============================================================================
-// Raw Indicator API Types (GET /api/indicators/:symbolId?interval=)
-// ============================================================================
-
-/** Valid timeframes for multi-TF indicator API */
-export type IndicatorInterval = '15m' | '1h' | '4h' | '1d'
-
-/** Raw indicator values — shape ต่างจาก analysis API (ค่า raw ไม่มี derived fields) */
-export interface RawIndicators {
-  timestamp: string
-  movingAverages: {
-    sma50: number | null
-    sma200: number | null
-    ema20: number | null
-  }
-  macd: {
-    line: number | null
-    signal: number | null
-    histogram: number | null
-  }
-  bollingerBands: {
-    upper: number | null
-    middle: number | null
-    lower: number | null
-  }
-  rsi: number | null
-  stochastic: {
-    k: number | null
-    d: number | null
-  } | null
-  obv: number | null
-  atr: number | null
-  adx: {
-    adx: number | null
-    plusDI: number | null
-    minusDI: number | null
-  } | null
-  ichimoku: {
-    conversion: number | null
-    base: number | null
-    spanA: number | null
-    spanB: number | null
-  } | null
-}
-
-/** Response from GET /api/indicators/:symbolId?interval= */
-export interface RawIndicatorResponse {
-  symbol: string
-  symbolName: string
-  interval: IndicatorInterval
-  indicators: RawIndicators
-}
-
-/** Client-side computed summary per-TF */
-export interface IndicatorSignalCount {
-  bullish: number
-  bearish: number
-  neutral: number
-}
-
-// ============================================================================
-// Market Holiday Types (GET/POST/DELETE /api/market-holidays)
-// ============================================================================
-
-export interface MarketHoliday {
-  id: number
-  date: string            // "2026-07-04" (ISO date)
-  name: string            // "Independence Day"
-  market: string | null   // "STOCK" | "CRYPTO" | "FOREX" | "INDEX" | null (all markets)
-  exchange: string | null // "NYSE" | null (all exchanges)
-  isActive: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-export interface HolidayCleanupResult {
-  deletedCandles: number
-  affectedSymbols: number
-}
-
-export interface CreateHolidayResponse {
-  holiday: MarketHoliday
-  cleanup: HolidayCleanupResult
-}
-
-// ============================================================================
-// Timestamp Check API Types (GET /api/analysis/timestamps)
-// ============================================================================
-
-export interface SymbolTimestamps {
-  symbolId: number
-  timestamps: {
-    price: string
-    indicators: string
-    trends: string
-    signal: string | null
-    summary: string
-  }
-}
-
-export interface TimestampCheckResponse {
-  symbols: SymbolTimestamps[]
-}
-
-// ============================================================================
-// Readiness Score Types (GET /api/readiness/:symbolId)
-// ============================================================================
-
-export type ReadinessMarketCondition = 'PASS' | 'FAIL'
-export type ReadinessDirection = 'BUY' | 'SELL' | null
-export type ReadinessFinalAction = 'BUY' | 'SELL' | 'WAIT'
-
-export interface ReadinessTriggerPattern {
-  name: string
-  direction: 'BULLISH' | 'BEARISH'
-  weight: number
-}
-
-export interface ReadinessData {
-  symbolId: number
-  symbol: string
-  marketCondition: ReadinessMarketCondition
-  marketReasons: string[]
-  directionScore: number | null  // -10 to +10 (null if Gate 1 FAIL)
-  trendScore: number | null      // -10 to +10 (Group A: 35%) (null if Gate 1 FAIL)
-  momentumScore: number | null   // -10 to +10 (Group B: 25%) (null if Gate 1 FAIL)
-  mtfScore: number | null        // -10 to +10 (Group C: 40%) (null if Gate 1 FAIL)
-  direction: ReadinessDirection
-  entryTimingScore: number | null // 0-100 (null if Gate 2 weak or Gate 1 FAIL)
-  triggerPatterns: ReadinessTriggerPattern[]
-  finalAction: ReadinessFinalAction
-}
-
-export interface ReadinessResponse {
-  symbol: string
-  symbolId: number
-  readiness: ReadinessData
-}
-
-export interface ReadinessHistoryItem {
-  id: number
-  directionScore: number
-  entryTimingScore: number
-  finalAction: ReadinessFinalAction
-  createdAt: string
-}
-
-export interface ReadinessHistoryResponse {
-  history: ReadinessHistoryItem[]
-}
-
-// --- Readiness display helpers ---
-
-export function getReadinessActionColor(action: ReadinessFinalAction): string {
-  switch (action) {
-    case 'BUY': return '#10B981'
-    case 'SELL': return '#EF4444'
-    case 'WAIT': return '#F59E0B'
-    default: return '#6B7280'
-  }
-}
-
-export function getReadinessActionIcon(action: ReadinessFinalAction): string {
-  switch (action) {
-    case 'BUY': return 'mdi-arrow-up-bold-circle'
-    case 'SELL': return 'mdi-arrow-down-bold-circle'
-    case 'WAIT': return 'mdi-pause-circle'
-    default: return 'mdi-help-circle'
-  }
-}
-
-export function getDirectionScoreColor(score: number): string {
-  if (score >= 4) return '#10B981'
-  if (score <= -4) return '#EF4444'
-  return '#F59E0B'
-}
-
-export function getMarketConditionColor(condition: ReadinessMarketCondition): string {
-  return condition === 'PASS' ? 'success' : 'error'
+/**
+ * Full monthly performance response data
+ */
+export interface MonthlyPerformanceData {
+  months: MonthlyData[]
 }
 
 // ============================================================================

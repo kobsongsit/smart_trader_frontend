@@ -1,83 +1,33 @@
-<script setup lang="ts">
-const { clearCache } = useAnalysis()
-
-const isRefreshing = ref(false)
-const refreshKey = ref(0)
-
-useHead({
-  title: 'Smart Trader - AI Trading Signals',
-  meta: [
-    { name: 'description', content: 'AI-Powered Trading Signal Bot with Technical Analysis' }
-  ]
-})
-
-async function handleRefresh() {
-  isRefreshing.value = true
-  try {
-    clearCache()
-    // Increment key → remount SymbolList → triggers progressive loading fresh
-    refreshKey.value++
-  } finally {
-    // Small delay so user sees the loading indicator
-    setTimeout(() => { isRefreshing.value = false }, 500)
-  }
-}
-</script>
-
 <template>
   <v-container fluid class="page-container pa-3 pa-sm-4">
-
-    <!-- Header: avatar + title + refresh on ONE line -->
+    <!-- Header -->
     <div class="d-flex align-center ga-3 mb-1">
       <v-avatar color="primary" size="40" rounded="lg">
-        <v-icon icon="mdi-flash" color="white" size="22" />
+        <v-icon icon="mdi-flash" size="22" />
       </v-avatar>
-      <span class="text-h5 font-weight-bold">Smart Trader</span>
-      <v-spacer />
-      <v-btn
-        icon
-        variant="text"
-        size="small"
-        :loading="isRefreshing"
-        @click="handleRefresh"
-      >
-        <v-icon icon="mdi-sync" size="26" class="text-label-muted" />
-      </v-btn>
+      <div>
+        <div class="text-h5 font-weight-bold">Smart Trader</div>
+      </div>
     </div>
-    <p class="text-caption font-weight-medium text-label-muted mb-4">
-      AI-Powered Trading Signal Bot v0.1
-    </p>
-
+    <div class="text-caption text-label-muted mb-4">
+      AI-Powered Trading Signal Dashboard
+    </div>
     <v-divider class="mb-4" />
 
-    <!-- Symbol List (key change → remount → progressive loading fresh) -->
-    <TradingSymbolList :key="refreshKey" />
+    <!-- Portfolio Overview -->
+    <TradingPortfolioOverview />
+
+    <div class="my-4" />
+
+    <!-- Open Positions -->
+    <TradingOpenPositions />
 
     <!-- Footer -->
-    <v-sheet color="transparent" class="pa-3 text-center mt-4">
+    <div class="text-center mt-8">
       <div class="text-caption text-medium-emphasis">
-        <v-icon icon="mdi-shield-check" size="14" class="mr-1" />
-        Smart Trader — AI-Powered Trading Signal Bot
+        <v-icon icon="mdi-shield-check" size="12" class="mr-1" />
+        KOB-Trade v2.0
       </div>
-      <div class="text-caption text-medium-emphasis mt-1">
-        ข้อมูลเพื่อประกอบการตัดสินใจเท่านั้น ไม่ใช่คำแนะนำการลงทุน
-      </div>
-    </v-sheet>
-
-    <!-- FAB: Create Symbol (bottom-right) -->
-    <v-btn
-      icon
-      color="primary"
-      size="large"
-      elevation="8"
-      position="fixed"
-      location="bottom end"
-      class="mb-4 mr-4"
-      @click="navigateTo('/symbol/create')"
-    >
-      <v-icon icon="mdi-plus" size="28" />
-      <v-tooltip activator="parent" location="start">เพิ่ม Symbol</v-tooltip>
-    </v-btn>
-
+    </div>
   </v-container>
 </template>
