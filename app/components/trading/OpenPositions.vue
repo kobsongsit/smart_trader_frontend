@@ -17,55 +17,11 @@ onMounted(() => {
 // ============================================================
 
 /**
- * Format floating pips with sign + comma separator
- * +33 / -98 / 0 / +1,250
- */
-function formatFloatingPips(pips: number): string {
-  const prefix = pips > 0 ? '+' : ''
-  return `${prefix}${pips.toLocaleString('en-US')}`
-}
-
-/**
  * Format pips for header total (same logic)
  */
 function formatPips(pips: number): string {
   const prefix = pips > 0 ? '+' : ''
   return `${prefix}${pips.toLocaleString('en-US')}`
-}
-
-// ============================================================
-// Color logic
-// ============================================================
-
-/**
- * P&L color class for a position
- */
-function plColorClass(position: Position): string {
-  if (position.floatingPips == null) return ''
-  if (position.floatingPips > 0) return 'text-success'
-  if (position.floatingPips < 0) return 'text-error'
-  return 'text-medium-emphasis'
-}
-
-/**
- * SL Distance Bar color (3-tier)
- * <50% green, 50-74% amber, 75%+ red
- */
-function slBarColor(percent: number | null): string {
-  if (percent == null) return '#2A2A2A'
-  if (percent < 50) return '#4CAF50'
-  if (percent < 75) return '#FB8C00'
-  return '#FF5252'
-}
-
-/**
- * SL percentage text color class
- */
-function slPercentColorClass(percent: number | null): string {
-  if (percent == null) return 'text-medium-emphasis'
-  if (percent < 50) return 'text-success'
-  if (percent < 75) return 'text-warning'
-  return 'text-error'
 }
 
 // ============================================================
@@ -122,24 +78,13 @@ function retry() {
           <v-skeleton-loader type="text" width="60" />
         </div>
 
-        <!-- Row 2: Prices skeleton -->
-        <v-sheet rounded="lg" class="glass-sheet pa-3 mb-3">
+        <!-- Row 2: Entry & SL skeleton -->
+        <v-sheet rounded="lg" class="glass-sheet pa-3">
           <div class="d-flex justify-space-between">
             <v-skeleton-loader type="text@2" width="80" />
             <v-skeleton-loader type="text@2" width="80" />
           </div>
         </v-sheet>
-
-        <!-- Row 3: SL bar skeleton -->
-        <v-sheet rounded="lg" class="glass-sheet pa-3 mb-3">
-          <v-skeleton-loader type="text" width="100%" class="mb-1" />
-          <v-skeleton-loader type="text" width="60%" />
-        </v-sheet>
-
-        <!-- Row 4: P&L skeleton -->
-        <div class="text-center">
-          <v-skeleton-loader type="heading" width="120" class="mx-auto" />
-        </div>
       </v-card-text>
     </v-card>
   </div>
@@ -247,8 +192,8 @@ function retry() {
           </span>
         </div>
 
-        <!-- Row 2: Prices -->
-        <div class="glass-sheet rounded-lg pa-3 mb-3">
+        <!-- Row 2: Entry & SL -->
+        <div class="glass-sheet rounded-lg pa-3">
           <div class="d-flex justify-space-between">
             <!-- Entry Price -->
             <div>
@@ -258,70 +203,17 @@ function retry() {
               </div>
             </div>
 
-            <!-- Arrow -->
-            <div class="d-flex align-center">
-              <v-icon
-                icon="mdi-arrow-right"
-                size="16"
-                class="text-label-muted"
-              />
-            </div>
-
-            <!-- Current Price -->
+            <!-- SL Price -->
             <div class="text-right">
-              <div class="text-caption text-label-muted font-weight-medium mb-1">Now</div>
-              <div class="text-body-2 font-weight-bold font-mono" :class="plColorClass(position)">
-                {{ position.currentPrice ?? '---' }}
+              <div class="text-caption text-label-muted font-weight-medium mb-1">
+                SL
+                <span class="text-medium-emphasis ml-1">({{ position.slLabel }})</span>
+              </div>
+              <div class="text-body-2 font-weight-bold font-mono text-error">
+                {{ position.slPrice }}
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- Row 3: SL Distance -->
-        <div class="glass-sheet rounded-lg pa-3 mb-3">
-          <!-- Progress bar -->
-          <v-progress-linear
-            :model-value="position.slDistancePercent ?? 0"
-            :color="slBarColor(position.slDistancePercent)"
-            bg-color="#2A2A2A"
-            rounded
-            height="6"
-            class="mb-2"
-          />
-
-          <!-- SL info row -->
-          <div class="d-flex justify-space-between align-center">
-            <div class="text-caption text-label-muted">
-              SL
-              <span class="font-mono font-weight-medium text-medium-emphasis">
-                {{ position.slPrice }}
-              </span>
-              <span class="text-medium-emphasis ml-1">({{ position.slLabel }})</span>
-            </div>
-            <span
-              class="text-caption font-weight-bold font-mono"
-              :class="slPercentColorClass(position.slDistancePercent)"
-            >
-              {{ position.slDistancePercent != null ? position.slDistancePercent + '%' : '--' }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Row 4: Floating P&L (Hero) -->
-        <div class="text-center">
-          <span
-            v-if="position.floatingPips != null"
-            class="text-h5 font-weight-black font-mono"
-            :class="plColorClass(position)"
-          >
-            {{ formatFloatingPips(position.floatingPips) }} pips
-          </span>
-          <span
-            v-else
-            class="text-h5 font-weight-black font-mono text-medium-emphasis"
-          >
-            --- pips
-          </span>
         </div>
       </v-card-text>
     </v-card>
