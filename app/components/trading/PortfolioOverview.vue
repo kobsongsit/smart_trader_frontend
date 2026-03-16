@@ -109,16 +109,6 @@ const streakText = computed(() => {
   return `${portfolio.value.streak}${portfolio.value.streakType}`
 })
 
-// ============================================================
-// Navigation
-// ============================================================
-
-function navigateToOpenPositions() {
-  const el = document.getElementById('open-positions-section')
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-}
 
 // ============================================================
 // Retry
@@ -304,20 +294,6 @@ function retry() {
         </v-col>
       </v-row>
 
-      <!-- Row 3: Open Positions (clickable chip) -->
-      <div class="d-flex align-center justify-center">
-        <v-chip
-          size="small"
-          variant="tonal"
-          color="info"
-          class="font-mono font-weight-bold cursor-pointer"
-          @click="navigateToOpenPositions"
-        >
-          <v-icon icon="mdi-chart-timeline-variant-shimmer" start size="16" />
-          {{ portfolio.openPositions }} Open Positions
-          <v-icon icon="mdi-chevron-right" end size="16" />
-        </v-chip>
-      </div>
 
     </v-card-text>
   </v-card>
