@@ -25,3 +25,6 @@ coverage
 .env
 .env.*
 !.env.example
+
+# Backup files
+_backup/
