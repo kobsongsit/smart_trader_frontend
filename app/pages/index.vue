@@ -1,18 +1,36 @@
+<script setup lang="ts">
+const { fetchPortfolio } = usePortfolio()
+const { fetchPositions } = useOpenPositions()
+
+const isRefreshing = ref(false)
+
+async function handleRefresh() {
+  isRefreshing.value = true
+  await Promise.all([fetchPortfolio(), fetchPositions()])
+  isRefreshing.value = false
+}
+</script>
+
 <template>
   <v-container fluid class="page-container pa-3 pa-sm-4">
-    <!-- Header -->
-    <div class="d-flex align-center ga-3 mb-1">
-      <v-avatar color="primary" size="40" rounded="lg">
-        <v-icon icon="mdi-flash" size="22" />
-      </v-avatar>
-      <div>
-        <div class="text-h5 font-weight-bold">Smart Trader</div>
+
+    <!-- ── Header ── -->
+    <div class="d-flex align-center ga-3 mb-5 mt-1">
+      <div class="page-header-icon">
+        <v-icon icon="mdi-flash" size="22" color="#050505" />
       </div>
+
+      <div class="flex-grow-1">
+        <div class="text-h5 font-weight-bold">Smart Trader</div>
+        <div class="text-caption text-label-muted mt-1">AI-Powered Trading Signal Dashboard</div>
+      </div>
+
+      <button class="refresh-btn" :class="{ 'refresh-btn--spinning': isRefreshing }" @click="handleRefresh">
+        <v-icon icon="mdi-refresh" size="20" />
+      </button>
     </div>
-    <div class="text-caption text-label-muted mb-4">
-      AI-Powered Trading Signal Dashboard
-    </div>
-    <v-divider class="mb-4" />
+
+    <div class="page-header-divider mb-5" />
 
     <!-- Portfolio Overview -->
     <TradingPortfolioOverview />
@@ -29,5 +47,7 @@
         KOB-Trade v2.0
       </div>
     </div>
+
   </v-container>
 </template>
+

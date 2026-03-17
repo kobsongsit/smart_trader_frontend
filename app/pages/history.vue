@@ -136,39 +136,25 @@ onMounted(() => {
 // Formatting helpers
 // ============================================================
 
-/**
- * Format pips with sign + comma separator
- */
 function formatPips(pips: number): string {
   const prefix = pips > 0 ? '+' : ''
   return `${prefix}${pips.toLocaleString('en-US')}`
 }
 
-/**
- * Format entry/exit time
- * "2026-03-14T10:00:00Z" -> "Mar 14 10:00"
- */
 function formatTime(timeStr: string): string {
-  return dayjs(timeStr).format('MMM D HH:mm')
+  return dayjs(timeStr).format('D MMM HH:mm')
 }
 
 // ============================================================
 // Color logic
 // ============================================================
 
-/**
- * P&L color class
- */
 function plColorClass(pips: number): string {
   if (pips > 0) return 'text-success'
   if (pips < 0) return 'text-error'
   return 'text-medium-emphasis'
 }
 
-/**
- * Profit Factor color thresholds
- * >= 2.0 success, >= 1.5 primary, >= 1.2 warning, < 1.2 error
- */
 function pfColorClass(pf: number): string {
   if (pf >= 2.0) return 'text-success'
   if (pf >= 1.5) return 'text-primary'
@@ -176,10 +162,6 @@ function pfColorClass(pf: number): string {
   return 'text-error'
 }
 
-/**
- * Exit reason color
- * TP = success, SL = error, OPPOSITE_SIGNAL = info, MANUAL = warning
- */
 function exitReasonColor(reason: string): string {
   switch (reason) {
     case 'TP': return 'success'
@@ -190,9 +172,6 @@ function exitReasonColor(reason: string): string {
   }
 }
 
-/**
- * Exit reason display label
- */
 function exitReasonLabel(reason: string): string {
   switch (reason) {
     case 'TP': return 'TP'
@@ -200,6 +179,17 @@ function exitReasonLabel(reason: string): string {
     case 'OPPOSITE_SIGNAL': return 'SIGNAL EXIT'
     case 'MANUAL': return 'MANUAL'
     default: return reason
+  }
+}
+
+/** CSS class for exit reason badge */
+function exitBadgeClass(reason: string): string {
+  switch (reason) {
+    case 'TP': return 'exit-badge--tp'
+    case 'SL': return 'exit-badge--sl'
+    case 'OPPOSITE_SIGNAL': return 'exit-badge--signal'
+    case 'MANUAL': return 'exit-badge--manual'
+    default: return 'exit-badge--default'
   }
 }
 
@@ -219,6 +209,10 @@ function retry() {
   applyFilters()
 }
 
+async function handleRefresh() {
+  await applyFilters()
+}
+
 async function handleLoadMore() {
   await loadMore()
 }
@@ -227,418 +221,300 @@ async function handleLoadMore() {
 <template>
   <v-container fluid class="page-container pa-3 pa-sm-4">
 
-    <!-- Zone A: Page Header -->
-    <div class="d-flex align-center ga-3 mb-1">
-      <v-avatar color="primary" variant="tonal" size="40" rounded="lg">
-        <v-icon icon="mdi-history" size="22" />
-      </v-avatar>
-      <div>
-        <div class="text-h5 font-weight-bold">TRADE HISTORY</div>
+    <!-- ── Zone A: Page Header ── -->
+    <div class="d-flex align-center ga-3 mb-5 mt-1">
+      <div class="page-header-icon">
+        <v-icon icon="mdi-history" size="22" color="#050505" />
       </div>
+
+      <div class="flex-grow-1">
+        <div class="text-h5 font-weight-bold">Trade History</div>
+        <div class="text-caption text-label-muted mt-1">Closed trades log</div>
+      </div>
+
+      <button class="refresh-btn" :class="{ 'refresh-btn--spinning': loading }" @click="handleRefresh">
+        <v-icon icon="mdi-refresh" size="20" />
+      </button>
     </div>
-    <div class="text-caption text-label-muted mb-4">Closed trades log</div>
-    <v-divider class="mb-4" />
 
-    <!-- Zone B: Filter Bar -->
-    <v-card elevation="0" rounded="lg" class="glass-card mb-2">
-      <v-card-text class="pa-3">
-        <!-- Symbol filter (always visible) -->
-        <div class="mb-3">
-          <div class="text-caption font-weight-bold text-label-muted text-uppercase mb-2">
-            Symbol
-          </div>
-          <div class="d-flex flex-wrap ga-1">
-            <v-chip
-              v-for="sym in symbolOptions"
-              :key="sym"
-              :color="selectedSymbol === sym ? 'primary' : undefined"
-              :variant="selectedSymbol === sym ? 'flat' : 'outlined'"
-              size="small"
-              class="font-weight-bold"
-              @click="selectSymbol(sym)"
-            >
-              {{ sym }}
-            </v-chip>
-          </div>
+    <div class="page-header-divider mb-5" />
+
+    <!-- ── Zone B: Filters ── -->
+    <div class="dark-card pa-4 mb-4">
+
+      <!-- Symbol filter -->
+      <div class="mb-4">
+        <div class="filter-label mb-2">SYMBOL</div>
+        <div class="d-flex flex-wrap ga-2">
+          <button
+            v-for="sym in symbolOptions"
+            :key="sym"
+            class="filter-pill"
+            :class="{ 'filter-pill--active': selectedSymbol === sym }"
+            @click="selectSymbol(sym)"
+          >
+            {{ sym }}
+          </button>
         </div>
+      </div>
 
-        <!-- Month/Year navigator (always visible) -->
-        <div class="mb-2">
-          <div class="text-caption font-weight-bold text-label-muted text-uppercase mb-2">
-            Period
-          </div>
-          <div class="d-flex align-center justify-center ga-2">
-            <v-btn
-              icon
-              variant="text"
-              size="x-small"
-              @click="prevMonth"
-            >
-              <v-icon icon="mdi-chevron-left" size="20" />
-            </v-btn>
-            <span class="text-body-2 font-weight-bold" style="min-width: 120px; text-align: center;">
-              {{ currentMonthLabel }}
-            </span>
-            <v-btn
-              icon
-              variant="text"
-              size="x-small"
+      <!-- Period navigator -->
+      <div class="mb-1">
+        <div class="filter-label mb-2">PERIOD</div>
+        <div class="d-flex flex-column align-center ga-2 mt-2">
+          <div class="d-flex align-center ga-5">
+            <button class="nav-arrow-btn" @click="prevMonth">
+              <v-icon icon="mdi-chevron-left" size="18" />
+            </button>
+            <span class="month-label-text">{{ currentMonthLabel }}</span>
+            <button
+              class="nav-arrow-btn"
+              :class="{ 'nav-arrow-btn--disabled': isCurrentMonth }"
               :disabled="isCurrentMonth"
               @click="nextMonth"
             >
-              <v-icon icon="mdi-chevron-right" size="20" />
-            </v-btn>
+              <v-icon icon="mdi-chevron-right" size="18" />
+            </button>
+          </div>
+
+          <!-- More Filters toggle -->
+          <button class="more-filters-btn" @click="showMoreFilters = !showMoreFilters">
+            <v-icon
+              :icon="showMoreFilters ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+              size="14"
+            />
+            {{ showMoreFilters ? 'Less Filters' : 'More Filters' }}
+            <span v-if="!showMoreFilters && activeExtraFilterCount > 0" class="extra-filter-badge">
+              {{ activeExtraFilterCount }}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Expandable extra filters -->
+      <v-expand-transition>
+        <div v-show="showMoreFilters">
+          <div class="section-divider my-3" />
+
+          <!-- Result -->
+          <div class="mb-3">
+            <div class="filter-label mb-2">RESULT</div>
+            <div class="d-flex flex-wrap ga-2">
+              <button
+                v-for="r in resultOptions"
+                :key="r"
+                class="filter-pill"
+                :class="{ 'filter-pill--active': selectedResult === r }"
+                @click="selectResult(r)"
+              >
+                {{ r }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Timeframe -->
+          <div class="mb-3">
+            <div class="filter-label mb-2">TIMEFRAME</div>
+            <div class="d-flex flex-wrap ga-2">
+              <button
+                v-for="tf in tfOptions"
+                :key="tf"
+                class="filter-pill"
+                :class="{ 'filter-pill--active': selectedTF === tf }"
+                @click="selectTF(tf)"
+              >
+                {{ tf }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Exit Reason -->
+          <div class="mb-1">
+            <div class="filter-label mb-2">EXIT</div>
+            <div class="d-flex flex-wrap ga-2">
+              <button
+                v-for="ex in exitOptions"
+                :key="ex"
+                class="filter-pill"
+                :class="{ 'filter-pill--active': selectedExit === ex }"
+                @click="selectExit(ex)"
+              >
+                {{ ex }}
+              </button>
+            </div>
           </div>
         </div>
+      </v-expand-transition>
 
-        <!-- Expandable "More Filters" toggle -->
-        <v-btn
-          variant="text"
-          size="small"
-          class="text-caption text-label-muted w-100"
-          @click="showMoreFilters = !showMoreFilters"
-        >
-          <v-icon
-            :icon="showMoreFilters ? 'mdi-chevron-up' : 'mdi-chevron-down'"
-            size="16"
-            start
-          />
-          {{ showMoreFilters ? 'Less Filters' : 'More Filters' }}
-          <v-badge
-            v-if="!showMoreFilters && activeExtraFilterCount > 0"
-            :content="activeExtraFilterCount"
-            color="primary"
-            inline
-            class="ml-1"
-          />
-        </v-btn>
-
-        <!-- Expandable filter section -->
-        <v-expand-transition>
-          <div v-show="showMoreFilters">
-            <v-divider class="my-2" />
-
-            <!-- Result filter (Win/Loss) -->
-            <div class="mb-3">
-              <div class="text-caption font-weight-bold text-label-muted text-uppercase mb-2">
-                Result
-              </div>
-              <div class="d-flex flex-wrap ga-1">
-                <v-chip
-                  v-for="r in resultOptions"
-                  :key="r"
-                  :color="selectedResult === r ? 'primary' : undefined"
-                  :variant="selectedResult === r ? 'flat' : 'outlined'"
-                  size="small"
-                  class="font-weight-bold"
-                  @click="selectResult(r)"
-                >
-                  {{ r }}
-                </v-chip>
-              </div>
-            </div>
-
-            <!-- Timeframe filter -->
-            <div class="mb-3">
-              <div class="text-caption font-weight-bold text-label-muted text-uppercase mb-2">
-                Timeframe
-              </div>
-              <div class="d-flex flex-wrap ga-1">
-                <v-chip
-                  v-for="tf in tfOptions"
-                  :key="tf"
-                  :color="selectedTF === tf ? 'primary' : undefined"
-                  :variant="selectedTF === tf ? 'flat' : 'outlined'"
-                  size="small"
-                  class="font-weight-bold"
-                  @click="selectTF(tf)"
-                >
-                  {{ tf }}
-                </v-chip>
-              </div>
-            </div>
-
-            <!-- Exit Reason filter -->
-            <div>
-              <div class="text-caption font-weight-bold text-label-muted text-uppercase mb-2">
-                Exit
-              </div>
-              <div class="d-flex flex-wrap ga-1">
-                <v-chip
-                  v-for="ex in exitOptions"
-                  :key="ex"
-                  :color="selectedExit === ex ? 'primary' : undefined"
-                  :variant="selectedExit === ex ? 'flat' : 'outlined'"
-                  size="small"
-                  class="font-weight-bold"
-                  @click="selectExit(ex)"
-                >
-                  {{ ex }}
-                </v-chip>
-              </div>
-            </div>
-          </div>
-        </v-expand-transition>
-      </v-card-text>
-    </v-card>
-
-    <!-- Zone B2: Sort Toggle -->
-    <div class="d-flex justify-end mb-3">
-      <v-select
-        v-model="selectedSort"
-        :items="[
-          { title: 'Latest First', value: 'newest' },
-          { title: 'Oldest First', value: 'oldest' },
-        ]"
-        density="compact"
-        variant="plain"
-        hide-details
-        class="text-caption"
-        style="max-width: 150px;"
-        @update:model-value="selectSort"
-      />
+      <!-- Sort toggle (inside card) -->
+      <div class="section-divider mt-3 mb-3" />
+      <div class="d-flex justify-end">
+        <button class="sort-btn" @click="selectSort(selectedSort === 'newest' ? 'oldest' : 'newest')">
+          {{ selectedSort === 'newest' ? 'Latest First' : 'Oldest First' }}
+          <v-icon icon="mdi-chevron-down" size="15" class="ml-1" />
+        </button>
+      </div>
     </div>
 
-    <!-- Loading State -->
+    <!-- ── Loading State ── -->
     <template v-if="loading && !data">
-      <!-- Summary skeleton -->
-      <v-card elevation="0" rounded="lg" class="glass-card mb-3">
-        <v-card-text class="pa-4">
-          <v-row dense class="mb-3">
-            <v-col v-for="i in 3" :key="'r1-' + i" cols="4">
-              <div class="glass-sheet rounded-lg pa-3 text-center">
-                <v-skeleton-loader type="text" width="40" class="mx-auto mb-1" />
-                <v-skeleton-loader type="text" width="50" class="mx-auto" />
-              </div>
-            </v-col>
-          </v-row>
-          <v-row dense>
-            <v-col v-for="i in 3" :key="'r2-' + i" cols="4">
-              <div class="glass-sheet rounded-lg pa-3 text-center">
-                <v-skeleton-loader type="text" width="40" class="mx-auto mb-1" />
-                <v-skeleton-loader type="text" width="50" class="mx-auto" />
-              </div>
-            </v-col>
-          </v-row>
-        </v-card-text>
-      </v-card>
+      <!-- Summary grid skeleton -->
+      <v-row dense class="mb-3">
+        <v-col v-for="i in 6" :key="'skel-stat-' + i" cols="4">
+          <div class="stat-cell d-flex flex-column align-center pa-2">
+            <v-skeleton-loader type="text" width="36" class="mb-1" />
+            <v-skeleton-loader type="text" width="44" />
+          </div>
+        </v-col>
+      </v-row>
 
       <!-- Trade card skeletons -->
-      <v-card
-        v-for="i in 3"
-        :key="'skel-' + i"
-        elevation="0"
-        rounded="lg"
-        class="glass-card mb-3"
-      >
-        <v-card-text class="pa-4">
-          <div class="d-flex align-center ga-2 mb-3">
-            <v-skeleton-loader type="chip" width="50" />
-            <v-skeleton-loader type="text" width="100" />
-            <v-spacer />
-            <v-skeleton-loader type="text" width="60" />
-          </div>
-          <v-sheet rounded="lg" class="glass-sheet pa-3 mb-3">
-            <div class="d-flex justify-space-between">
-              <v-skeleton-loader type="text@2" width="80" />
-              <v-skeleton-loader type="text@2" width="80" />
-            </div>
-          </v-sheet>
-          <div class="d-flex align-center ga-2 mb-3">
-            <v-skeleton-loader type="chip" width="60" />
-            <v-skeleton-loader type="text" width="80" />
-          </div>
-          <div class="text-center">
-            <v-skeleton-loader type="heading" width="120" class="mx-auto" />
-          </div>
-        </v-card-text>
-      </v-card>
+      <div v-for="i in 3" :key="'skel-card-' + i" class="dark-card pa-3 mb-3">
+        <div class="d-flex align-center ga-2 mb-3">
+          <v-skeleton-loader type="chip" width="44" />
+          <v-skeleton-loader type="text" width="90" />
+          <v-spacer />
+          <v-skeleton-loader type="text" width="60" />
+        </div>
+        <div class="d-flex justify-space-between mb-3 px-1">
+          <v-skeleton-loader type="text@3" width="80" />
+          <v-skeleton-loader type="text@3" width="80" />
+        </div>
+        <div class="d-flex align-center justify-space-between pt-2">
+          <v-skeleton-loader type="chip" width="70" />
+          <v-skeleton-loader type="heading" width="80" />
+        </div>
+      </div>
     </template>
 
-    <!-- Error State -->
+    <!-- ── Error State ── -->
     <template v-else-if="error">
-      <v-card elevation="0" rounded="lg" class="glass-card">
-        <v-card-text class="pa-4">
-          <v-alert type="error" variant="tonal" class="mb-0">
-            Failed to load trade history
-            <template #append>
-              <v-btn variant="text" size="small" @click="retry">Retry</v-btn>
-            </template>
-          </v-alert>
-        </v-card-text>
-      </v-card>
+      <div class="dark-card pa-4">
+        <v-alert type="error" variant="tonal" class="mb-0">
+          Failed to load trade history
+          <template #append>
+            <v-btn variant="text" size="small" @click="retry">Retry</v-btn>
+          </template>
+        </v-alert>
+      </div>
     </template>
 
-    <!-- Data State -->
+    <!-- ── Data State ── -->
     <template v-else-if="data">
 
-      <!-- Zone C: Summary Stats Bar -->
-      <v-card v-if="summary" elevation="0" rounded="lg" class="glass-card mb-3">
-        <v-card-text class="pa-4">
-          <!-- Row 1: Trades / Win Rate / Total Pips -->
-          <v-row dense class="mb-3">
-            <v-col cols="4">
-              <div class="glass-sheet rounded-lg pa-3 text-center">
-                <div class="text-h6 font-weight-bold font-mono">
-                  {{ summary.totalTrades }}
-                </div>
-                <div class="text-caption text-label-muted font-weight-medium">Trades</div>
-              </div>
-            </v-col>
-            <v-col cols="4">
-              <div class="glass-sheet rounded-lg pa-3 text-center">
-                <div class="text-h6 font-weight-bold font-mono text-primary">
-                  {{ summary.winRate }}%
-                </div>
-                <div class="text-caption text-label-muted font-weight-medium">Win Rate</div>
-              </div>
-            </v-col>
-            <v-col cols="4">
-              <div class="glass-sheet rounded-lg pa-3 text-center">
-                <div
-                  class="text-h6 font-weight-bold font-mono"
-                  :class="plColorClass(summary.totalPips)"
-                >
-                  {{ formatPips(summary.totalPips) }}
-                </div>
-                <div class="text-caption text-label-muted font-weight-medium">Pips</div>
-              </div>
-            </v-col>
-          </v-row>
-
-          <!-- Row 2: Avg Win / Avg Loss / PF -->
-          <v-row dense>
-            <v-col cols="4">
-              <div class="glass-sheet rounded-lg pa-3 text-center">
-                <div class="text-h6 font-weight-bold font-mono text-success">
-                  {{ formatPips(summary.avgWinPips) }}
-                </div>
-                <div class="text-caption text-label-muted font-weight-medium">Avg Win</div>
-              </div>
-            </v-col>
-            <v-col cols="4">
-              <div class="glass-sheet rounded-lg pa-3 text-center">
-                <div class="text-h6 font-weight-bold font-mono text-error">
-                  {{ summary.avgLossPips.toLocaleString('en-US') }}
-                </div>
-                <div class="text-caption text-label-muted font-weight-medium">Avg Loss</div>
-              </div>
-            </v-col>
-            <v-col cols="4">
-              <div class="glass-sheet rounded-lg pa-3 text-center">
-                <div
-                  class="text-h6 font-weight-bold font-mono"
-                  :class="pfColorClass(summary.profitFactor)"
-                >
-                  {{ summary.profitFactor.toFixed(2) }}
-                </div>
-                <div class="text-caption text-label-muted font-weight-medium">PF</div>
-              </div>
-            </v-col>
-          </v-row>
-        </v-card-text>
-      </v-card>
+      <!-- Zone C: Summary Stats 3×2 Grid -->
+      <v-row v-if="summary" dense class="mb-4">
+        <v-col cols="4">
+          <div class="stat-cell d-flex flex-column align-center pa-2">
+            <div class="stat-value font-mono">{{ summary.totalTrades }}</div>
+            <div class="stat-label">Trades</div>
+          </div>
+        </v-col>
+        <v-col cols="4">
+          <div class="stat-cell d-flex flex-column align-center pa-2">
+            <div class="stat-value font-mono text-success">{{ summary.winRate }}%</div>
+            <div class="stat-label">Win Rate</div>
+          </div>
+        </v-col>
+        <v-col cols="4">
+          <div class="stat-cell d-flex flex-column align-center pa-2">
+            <div class="stat-value font-mono" :class="plColorClass(summary.totalPips)">
+              {{ formatPips(summary.totalPips) }}
+            </div>
+            <div class="stat-label">Pips</div>
+          </div>
+        </v-col>
+        <v-col cols="4">
+          <div class="stat-cell d-flex flex-column align-center pa-2">
+            <div class="stat-value font-mono text-success">{{ formatPips(summary.avgWinPips) }}</div>
+            <div class="stat-label">Avg Win</div>
+          </div>
+        </v-col>
+        <v-col cols="4">
+          <div class="stat-cell d-flex flex-column align-center pa-2">
+            <div class="stat-value font-mono text-error">
+              {{ summary.avgLossPips.toLocaleString('en-US') }}
+            </div>
+            <div class="stat-label">Avg Loss</div>
+          </div>
+        </v-col>
+        <v-col cols="4">
+          <div class="stat-cell d-flex flex-column align-center pa-2">
+            <div class="stat-value font-mono" :class="pfColorClass(summary.profitFactor)">
+              {{ summary.profitFactor.toFixed(2) }}
+            </div>
+            <div class="stat-label">PF</div>
+          </div>
+        </v-col>
+      </v-row>
 
       <!-- Empty State -->
-      <v-card
-        v-if="trades.length === 0 && !loading"
-        elevation="0"
-        rounded="lg"
-        class="glass-card"
-      >
-        <v-card-text class="pa-4 text-center">
-          <v-icon icon="mdi-file-search-outline" size="48" class="text-medium-emphasis mb-2" />
-          <div class="text-body-2 text-medium-emphasis">No trades found</div>
-          <div class="text-caption text-label-muted mt-1">
-            Try adjusting your filters or selecting a different period
-          </div>
-        </v-card-text>
-      </v-card>
+      <div v-if="trades.length === 0 && !loading" class="dark-card pa-6 text-center">
+        <v-icon icon="mdi-file-search-outline" size="48" class="text-medium-emphasis mb-2" />
+        <div class="text-body-2 text-medium-emphasis">No trades found</div>
+        <div class="text-caption text-label-muted mt-1">
+          Try adjusting your filters or selecting a different period
+        </div>
+      </div>
 
       <!-- Zone D: Trade Cards -->
-      <v-card
+      <div
         v-for="trade in trades"
         :key="trade.id"
-        elevation="0"
-        rounded="lg"
-        class="glass-card mb-3"
+        class="dark-card mb-3"
       >
-        <v-card-text class="pa-4">
-          <!-- Row 1: Action chip + Symbol + Interval + Duration -->
+        <div class="pa-3">
+
+          <!-- Row 1: Direction + Symbol | Interval + Duration -->
           <div class="d-flex align-center ga-2 mb-3">
-            <v-chip
-              :color="trade.action === 'BUY' ? 'success' : 'error'"
-              size="x-small"
-              variant="tonal"
-              class="font-weight-black"
+            <span
+              class="direction-badge"
+              :class="trade.action === 'BUY' ? 'direction-badge--buy' : 'direction-badge--sell'"
             >
               {{ trade.action }}
-            </v-chip>
-            <span class="text-subtitle-1 font-weight-bold">{{ trade.symbol }}</span>
+            </span>
+            <span class="trade-symbol">{{ trade.symbol }}</span>
             <v-spacer />
-            <span class="text-caption text-label-muted font-weight-medium">
-              {{ trade.interval }}
-            </span>
-            <span class="text-caption text-medium-emphasis font-mono">
-              <v-icon icon="mdi-clock-outline" size="12" class="mr-1" />{{ trade.duration }}
-            </span>
+            <span class="trade-tf font-mono">{{ trade.interval }}</span>
+            <v-icon icon="mdi-clock-outline" size="11" class="text-label-muted ml-1" />
+            <span class="trade-duration font-mono">{{ trade.duration }}</span>
           </div>
 
-          <!-- Row 2: Entry -> Exit Price -->
-          <div class="glass-sheet rounded-lg pa-3 mb-3">
-            <div class="d-flex justify-space-between">
-              <!-- Entry -->
-              <div>
-                <div class="text-caption text-label-muted font-weight-medium mb-1">Entry</div>
-                <div class="text-body-2 font-weight-bold font-mono">
-                  {{ trade.entryPrice }}
-                </div>
-                <div class="text-caption text-medium-emphasis font-mono" style="font-size: 10px;">
-                  {{ formatTime(trade.entryTime) }}
-                </div>
-              </div>
+          <!-- Row 2: Entry → Exit -->
+          <div class="d-flex align-center justify-space-between px-1 mb-3">
+            <!-- Entry -->
+            <div>
+              <div class="price-label mb-1">Entry</div>
+              <div class="price-value font-mono">{{ trade.entryPrice }}</div>
+              <div class="price-date font-mono">{{ formatTime(trade.entryTime) }}</div>
+            </div>
 
-              <!-- Arrow -->
-              <div class="d-flex align-center">
-                <v-icon icon="mdi-arrow-right" size="16" class="text-label-muted" />
-              </div>
+            <!-- Arrow -->
+            <v-icon icon="mdi-arrow-right" size="14" class="text-label-muted mt-1" />
 
-              <!-- Exit -->
-              <div class="text-right">
-                <div class="text-caption text-label-muted font-weight-medium mb-1">Exit</div>
-                <div class="text-body-2 font-weight-bold font-mono">
-                  {{ trade.exitPrice }}
-                </div>
-                <div class="text-caption text-medium-emphasis font-mono" style="font-size: 10px;">
-                  {{ formatTime(trade.exitTime) }}
-                </div>
-              </div>
+            <!-- Exit -->
+            <div class="text-right">
+              <div class="price-label mb-1">Exit</div>
+              <div class="price-value font-mono">{{ trade.exitPrice }}</div>
+              <div class="price-date font-mono">{{ formatTime(trade.exitTime) }}</div>
             </div>
           </div>
 
-          <!-- Row 3: Exit Reason Badge -->
-          <div class="d-flex align-center ga-2 mb-3">
-            <v-chip
-              :color="exitReasonColor(trade.exitReason)"
-              size="x-small"
-              variant="tonal"
-              class="font-weight-bold"
-            >
+          <!-- Row 3: Footer — Exit reason | P&L -->
+          <div class="d-flex align-center justify-space-between pt-2 card-footer">
+            <span class="exit-badge" :class="exitBadgeClass(trade.exitReason)">
               {{ exitReasonLabel(trade.exitReason) }}
-            </v-chip>
-          </div>
-
-          <!-- Row 4: P&L Hero -->
-          <div class="text-center">
+            </span>
             <span
-              class="text-h5 font-weight-black font-mono"
+              class="pips-hero font-mono"
               :class="plColorClass(trade.profitPips)"
             >
               {{ formatPips(trade.profitPips) }} pips
             </span>
           </div>
-        </v-card-text>
-      </v-card>
+
+        </div>
+      </div>
 
       <!-- Zone E: Load More -->
       <div
@@ -658,6 +534,7 @@ async function handleLoadMore() {
           {{ trades.length }} of {{ pagination.total }} shown
         </div>
       </div>
+
     </template>
 
     <!-- Footer -->
@@ -667,5 +544,263 @@ async function handleLoadMore() {
         KOB-Trade v2.0
       </div>
     </div>
+
   </v-container>
 </template>
+
+<style scoped>
+/* ── Page Header ── */
+.section-divider {
+  height: 1px;
+  background: rgb(30 41 59 / 0.8);
+}
+
+/* ── Filter section ── */
+.filter-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+}
+
+/* Filter pill buttons */
+.filter-pill {
+  background: rgb(30 41 59 / 0.5);
+  color: rgb(203 213 225);
+  border: 1px solid rgb(51 65 85 / 0.7);
+  border-radius: 9999px;
+  padding: 3px 12px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.filter-pill:hover {
+  border-color: rgb(74 222 128 / 0.4);
+  color: rgb(226 232 240);
+}
+
+.filter-pill--active {
+  background: rgb(74 222 128) !important;
+  color: #050505 !important;
+  border-color: rgb(74 222 128) !important;
+}
+
+/* Month navigator */
+.month-label-text {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: rgb(226 232 240);
+  min-width: 90px;
+  text-align: center;
+}
+
+.nav-arrow-btn {
+  background: transparent;
+  border: none;
+  color: rgb(203 213 225);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+  display: flex;
+  align-items: center;
+}
+
+.nav-arrow-btn:hover {
+  color: #fff;
+}
+
+.nav-arrow-btn--disabled {
+  color: rgb(71 85 105) !important;
+  cursor: not-allowed;
+}
+
+/* More filters button */
+.more-filters-btn {
+  background: transparent;
+  border: none;
+  color: rgb(100 116 139);
+  font-size: 0.65rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+}
+
+.more-filters-btn:hover {
+  color: rgb(203 213 225);
+}
+
+.extra-filter-badge {
+  background: rgb(74 222 128);
+  color: #050505;
+  font-size: 0.55rem;
+  font-weight: 700;
+  border-radius: 9999px;
+  padding: 0 5px;
+  line-height: 1.5;
+}
+
+/* Sort button */
+.sort-btn {
+  background: transparent;
+  border: none;
+  color: rgb(203 213 225);
+  font-size: 0.68rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+}
+
+.sort-btn:hover {
+  color: #fff;
+}
+
+/* ── Summary stats grid ── */
+.stat-cell {
+  background: rgb(23 30 45);
+  border: 1px solid rgb(51 65 85 / 0.5);
+  border-radius: 12px;
+}
+
+.stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgb(226 232 240);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: rgb(100 116 139);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+
+/* ── Dark card (trade cards) ── */
+.dark-card {
+  background: rgb(17 22 32);
+  border: 1px solid rgb(51 65 85 / 0.7);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgb(0 0 0 / 0.25);
+}
+
+/* ── Trade card internals ── */
+.direction-badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.direction-badge--buy {
+  background: rgb(16 185 129 / 0.1);
+  color: rgb(52 211 153);
+  border: 1px solid rgb(16 185 129 / 0.2);
+}
+
+.direction-badge--sell {
+  background: rgb(239 68 68 / 0.1);
+  color: rgb(252 165 165);
+  border: 1px solid rgb(239 68 68 / 0.2);
+}
+
+.trade-symbol {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: rgb(248 250 252);
+}
+
+.trade-tf {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgb(148 163 184);
+}
+
+.trade-duration {
+  font-size: 0.68rem;
+  color: rgb(100 116 139);
+}
+
+/* Prices */
+.price-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+}
+
+.price-value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgb(226 232 240);
+}
+
+.price-date {
+  font-size: 0.6rem;
+  color: rgb(100 116 139);
+  margin-top: 2px;
+}
+
+/* Footer row */
+.card-footer {
+  border-top: 1px solid rgb(51 65 85 / 0.7);
+}
+
+/* Exit reason badges */
+.exit-badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  line-height: 1.6;
+}
+
+.exit-badge--tp {
+  background: rgb(5 46 22 / 0.5);
+  color: rgb(52 211 153);
+}
+
+.exit-badge--sl {
+  background: rgb(69 10 10 / 0.5);
+  color: rgb(252 165 165);
+}
+
+.exit-badge--signal {
+  background: rgb(30 58 138 / 0.4);
+  color: rgb(147 197 253);
+}
+
+.exit-badge--manual {
+  background: rgb(92 45 5 / 0.4);
+  color: rgb(251 191 36);
+}
+
+.exit-badge--default {
+  background: rgb(51 65 85 / 0.3);
+  color: rgb(148 163 184);
+}
+
+/* P&L hero in footer */
+.pips-hero {
+  font-size: 1rem;
+  font-weight: 700;
+}
+</style>

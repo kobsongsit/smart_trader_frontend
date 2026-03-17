@@ -39,13 +39,14 @@ const monthsChronological = computed(() => {
 /** Latest cumulative pips (from newest month) */
 const latestCumulativePips = computed(() => {
   if (months.value.length === 0) return 0
-  return months.value[0].cumulativePips
+  return months.value[0]?.cumulativePips ?? 0
 })
 
 /** First month label (oldest) */
 const firstMonthLabel = computed(() => {
   if (months.value.length === 0) return ''
   const oldest = months.value[months.value.length - 1]
+  if (!oldest) return ''
   return dayjs(oldest.month, 'YYYY-MM').format('MMM YYYY')
 })
 
@@ -55,11 +56,11 @@ const maxAbsPips = computed(() => {
 })
 
 /** Selected month data */
-const selectedMonthData = computed<MonthlyData | null>(() => {
-  if (!selectedMonthKey.value && months.value.length > 0) {
-    return months.value[0] // default to newest
-  }
-  return months.value.find(m => m.month === selectedMonthKey.value) ?? null
+const selectedMonthData = computed(() => {
+  const raw = !selectedMonthKey.value
+    ? (months.value[0] ?? null)
+    : (months.value.find(m => m.month === selectedMonthKey.value) ?? null)
+  return raw as MonthlyData | null
 })
 
 /** Other months (not selected) for Zone E */
@@ -96,24 +97,15 @@ const sortedIntervals = computed(() => {
 // Formatting helpers
 // ============================================================
 
-/**
- * Format pips with sign + comma separator
- */
 function formatPips(pips: number): string {
   const prefix = pips > 0 ? '+' : ''
   return `${prefix}${pips.toLocaleString('en-US')}`
 }
 
-/**
- * Short label from month string: "2026-03" -> "Mar"
- */
 function shortLabel(monthStr: string): string {
   return dayjs(monthStr, 'YYYY-MM').format('MMM')
 }
 
-/**
- * Format date: "2026-03-03" -> "Mar 3"
- */
 function formatDate(dateStr: string): string {
   return dayjs(dateStr, 'YYYY-MM-DD').format('MMM D')
 }
@@ -122,32 +114,22 @@ function formatDate(dateStr: string): string {
 // Color logic
 // ============================================================
 
-/**
- * P&L color class
- */
 function plColorClass(pips: number): string {
   if (pips > 0) return 'text-success'
   if (pips < 0) return 'text-error'
   return 'text-medium-emphasis'
 }
 
-/** Cumulative pips color */
 const cumulativePipsColorClass = computed(() => {
   return plColorClass(latestCumulativePips.value)
 })
 
-/**
- * Win Rate color
- */
 function winRateColorClass(wr: number): string {
   if (wr >= 60) return 'text-success'
   if (wr >= 50) return 'text-primary'
   return 'text-warning'
 }
 
-/**
- * Profit Factor color thresholds
- */
 function pfColorClass(pf: number): string {
   if (pf >= 2.0) return 'text-success'
   if (pf >= 1.5) return 'text-primary'
@@ -182,405 +164,312 @@ function selectMonth(monthKey: string) {
 function retry() {
   fetchMonthly()
 }
+
+async function handleRefresh() {
+  await fetchMonthly()
+}
 </script>
 
 <template>
   <v-container fluid class="page-container pa-3 pa-sm-4">
 
-    <!-- Zone A: Page Header -->
-    <div class="d-flex align-center ga-3 mb-1">
-      <v-avatar color="primary" variant="tonal" size="40" rounded="lg">
-        <v-icon icon="mdi-chart-bar" size="22" />
-      </v-avatar>
-      <div>
-        <div class="text-h5 font-weight-bold">PERFORMANCE</div>
+    <!-- ── Zone A: Page Header ── -->
+    <div class="d-flex align-center ga-3 mb-5 mt-1">
+      <div class="page-header-icon">
+        <v-icon icon="mdi-chart-bar" size="22" color="#050505" />
       </div>
+
+      <div class="flex-grow-1">
+        <div class="text-h5 font-weight-bold">Performance</div>
+        <div class="text-caption text-label-muted mt-1">Monthly summary</div>
+      </div>
+
+      <button class="refresh-btn" :class="{ 'refresh-btn--spinning': loading }" @click="handleRefresh">
+        <v-icon icon="mdi-refresh" size="20" />
+      </button>
     </div>
-    <div class="text-caption text-label-muted mb-4">Monthly summary</div>
-    <v-divider class="mb-4" />
 
-    <!-- Loading State -->
+    <div class="page-header-divider mb-5" />
+
+    <!-- ── Loading State ── -->
     <template v-if="loading && !data">
-      <!-- Hero skeleton -->
-      <v-card elevation="0" rounded="lg" class="glass-card mb-3">
-        <v-card-text class="pa-4">
-          <div class="glass-sheet rounded-lg pa-4">
-            <v-skeleton-loader type="text" width="120" class="mb-2" />
-            <v-skeleton-loader type="heading" width="200" class="mb-3" />
-            <v-skeleton-loader type="text" width="150" />
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <!-- Bar chart skeleton -->
-      <v-card elevation="0" rounded="lg" class="glass-card mb-3">
-        <v-card-text class="pa-4">
-          <v-skeleton-loader type="text" width="120" class="mb-3" />
-          <div v-for="i in 4" :key="'bar-' + i" class="d-flex align-center ga-2 mb-2">
-            <v-skeleton-loader type="text" width="32" />
-            <v-skeleton-loader type="text" class="flex-grow-1" />
-            <v-skeleton-loader type="text" width="50" />
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <!-- Detail skeleton -->
-      <v-card elevation="0" rounded="lg" class="glass-card mb-3">
-        <v-card-text class="pa-4">
-          <div class="d-flex justify-space-between mb-3">
-            <v-skeleton-loader type="text" width="100" />
-            <v-skeleton-loader type="text" width="80" />
-          </div>
-          <v-row dense class="mb-4">
-            <v-col v-for="i in 3" :key="i" cols="4">
-              <div class="glass-sheet rounded-lg pa-3 text-center">
-                <v-skeleton-loader type="text" width="40" class="mx-auto mb-1" />
-                <v-skeleton-loader type="text" width="50" class="mx-auto" />
-              </div>
-            </v-col>
-          </v-row>
-        </v-card-text>
-      </v-card>
+      <div class="dark-card pa-4 mb-3">
+        <v-skeleton-loader type="text" width="120" class="mb-2" />
+        <v-skeleton-loader type="heading" width="200" class="mb-2" />
+        <v-skeleton-loader type="text" width="150" />
+      </div>
+      <div class="dark-card pa-4 mb-3">
+        <v-skeleton-loader type="text" width="120" class="mb-3" />
+        <div v-for="i in 3" :key="'bar-' + i" class="d-flex align-center ga-2 mb-2">
+          <v-skeleton-loader type="text" width="32" />
+          <v-skeleton-loader type="text" class="flex-grow-1" />
+          <v-skeleton-loader type="text" width="50" />
+        </div>
+      </div>
+      <div class="dark-card pa-4 mb-3">
+        <div class="d-flex justify-space-between mb-3">
+          <v-skeleton-loader type="text" width="100" />
+          <v-skeleton-loader type="text" width="80" />
+        </div>
+        <v-row dense class="mb-4">
+          <v-col v-for="i in 3" :key="i" cols="4">
+            <div class="stat-mini-cell text-center pa-3">
+              <v-skeleton-loader type="text" width="40" class="mx-auto mb-1" />
+              <v-skeleton-loader type="text" width="50" class="mx-auto" />
+            </div>
+          </v-col>
+        </v-row>
+      </div>
     </template>
 
-    <!-- Error State -->
+    <!-- ── Error State ── -->
     <template v-else-if="error">
-      <v-card elevation="0" rounded="lg" class="glass-card">
-        <v-card-text class="pa-4">
-          <v-alert type="error" variant="tonal" class="mb-0">
-            Failed to load monthly performance
-            <template #append>
-              <v-btn variant="text" size="small" @click="retry">Retry</v-btn>
-            </template>
-          </v-alert>
-        </v-card-text>
-      </v-card>
+      <div class="dark-card pa-4">
+        <v-alert type="error" variant="tonal" class="mb-0">
+          Failed to load monthly performance
+          <template #append>
+            <v-btn variant="text" size="small" @click="retry">Retry</v-btn>
+          </template>
+        </v-alert>
+      </div>
     </template>
 
-    <!-- Empty State -->
+    <!-- ── Empty State ── -->
     <template v-else-if="data && months.length === 0">
-      <v-card elevation="0" rounded="lg" class="glass-card">
-        <v-card-text class="pa-4 text-center">
-          <v-icon icon="mdi-chart-box-outline" size="48" class="text-medium-emphasis mb-2" />
-          <div class="text-body-2 text-medium-emphasis">No performance data yet</div>
-          <div class="text-caption text-label-muted mt-1">
-            Complete some trades to see monthly performance
-          </div>
-        </v-card-text>
-      </v-card>
+      <div class="dark-card pa-6 text-center">
+        <v-icon icon="mdi-chart-box-outline" size="48" class="text-medium-emphasis mb-2" />
+        <div class="text-body-2 text-medium-emphasis">No performance data yet</div>
+        <div class="text-caption text-label-muted mt-1">
+          Complete some trades to see monthly performance
+        </div>
+      </div>
     </template>
 
-    <!-- Data State -->
+    <!-- ── Data State ── -->
     <template v-else-if="data && months.length > 0">
 
-      <!-- Zone B: Cumulative Hero -->
-      <v-card elevation="0" rounded="lg" class="glass-card mb-3">
-        <v-card-text class="pa-4">
-          <div class="glass-sheet rounded-lg pa-4">
-            <div class="text-caption font-weight-bold text-label-muted text-uppercase mb-1">
-              CUMULATIVE P&L
-            </div>
-            <div class="d-flex align-end ga-2 mb-2">
-              <span
-                class="text-h4 font-weight-black font-mono"
-                :class="cumulativePipsColorClass"
-              >
-                {{ formatPips(latestCumulativePips) }}
-              </span>
-              <span class="text-caption font-weight-medium text-label-muted pb-1">pips</span>
-            </div>
-            <div class="text-caption text-medium-emphasis">
-              Since {{ firstMonthLabel }}
-              <span class="text-label-muted mx-1">|</span>
-              {{ months.length }} months
-            </div>
-          </div>
-        </v-card-text>
-      </v-card>
+      <!-- Zone B: Cumulative P&L -->
+      <div class="dark-card pa-4 mb-3">
+        <div class="section-label mb-2">CUMULATIVE P&L</div>
+        <div class="d-flex align-end ga-2 mb-2">
+          <span
+            class="cumulative-number font-mono"
+            :class="cumulativePipsColorClass"
+          >
+            {{ formatPips(latestCumulativePips) }}
+          </span>
+          <span class="unit-label pb-1">pips</span>
+        </div>
+        <div class="text-caption text-medium-emphasis">
+          Since {{ firstMonthLabel }}
+          <span class="text-label-muted mx-1">|</span>
+          {{ months.length }} months
+        </div>
+      </div>
 
       <!-- Zone C: Monthly Bar Chart -->
-      <v-card elevation="0" rounded="lg" class="glass-card mb-3">
-        <v-card-text class="pa-4">
-          <div class="d-flex align-center justify-space-between mb-3">
-            <div class="text-caption font-weight-bold text-label-muted text-uppercase">
-              MONTHLY P&L
-            </div>
-            <div class="text-caption text-label-muted" style="font-size: 10px;">
-              oldest -> newest
-            </div>
-          </div>
-
-          <!-- Bar rows -->
-          <div
-            v-for="month in monthsChronological"
-            :key="month.month"
-            class="d-flex align-center ga-2 mb-2 cursor-pointer"
-            :class="{ 'opacity-80': selectedMonthData && selectedMonthData.month !== month.month }"
-            @click="selectMonth(month.month)"
-          >
-            <!-- Month label -->
-            <span
-              class="text-caption font-weight-medium"
-              :class="selectedMonthData?.month === month.month ? 'text-primary' : 'text-label-muted'"
-              style="min-width: 32px;"
-            >
-              {{ shortLabel(month.month) }}
-            </span>
-
-            <!-- Bar -->
-            <div class="flex-grow-1" style="height: 20px;">
-              <div
-                class="rounded"
-                :class="month.totalPips >= 0 ? 'bg-success' : 'bg-error'"
-                :style="{
-                  width: barWidth(month.totalPips) + '%',
-                  height: '100%',
-                  minWidth: '4px',
-                  opacity: selectedMonthData?.month === month.month ? 1 : 0.7,
-                  transition: 'opacity 0.2s ease',
-                }"
-              />
-            </div>
-
-            <!-- Value -->
-            <span
-              class="text-caption font-weight-bold font-mono"
-              :class="month.totalPips >= 0 ? 'text-success' : 'text-error'"
-              style="min-width: 64px; text-align: right;"
-            >
-              {{ formatPips(month.totalPips) }}
-            </span>
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <!-- Zone D: Month Detail Card -->
-      <v-card
-        v-if="selectedMonthData"
-        elevation="0"
-        rounded="lg"
-        class="glass-card mb-3"
-      >
-        <v-card-text class="pa-4">
-          <!-- Month header -->
-          <div class="d-flex align-center justify-space-between mb-3">
-            <div class="text-subtitle-1 font-weight-bold">{{ selectedMonthData.label }}</div>
-            <span
-              class="text-h6 font-weight-bold font-mono"
-              :class="plColorClass(selectedMonthData.totalPips)"
-            >
-              {{ formatPips(selectedMonthData.totalPips) }} pips
-            </span>
-          </div>
-
-          <!-- Stats row: Trades / Win Rate / PF -->
-          <v-row dense class="mb-4">
-            <v-col cols="4">
-              <div class="glass-sheet rounded-lg pa-3 text-center">
-                <div class="text-h6 font-weight-bold font-mono">
-                  {{ selectedMonthData.totalTrades }}
-                </div>
-                <div class="text-caption text-label-muted font-weight-medium">Trades</div>
-              </div>
-            </v-col>
-            <v-col cols="4">
-              <div class="glass-sheet rounded-lg pa-3 text-center">
-                <div
-                  class="text-h6 font-weight-bold font-mono"
-                  :class="winRateColorClass(selectedMonthData.winRate)"
-                >
-                  {{ selectedMonthData.winRate }}%
-                </div>
-                <div class="text-caption text-label-muted font-weight-medium">Win Rate</div>
-              </div>
-            </v-col>
-            <v-col cols="4">
-              <div class="glass-sheet rounded-lg pa-3 text-center">
-                <div
-                  class="text-h6 font-weight-bold font-mono"
-                  :class="pfColorClass(selectedMonthData.profitFactor)"
-                >
-                  {{ selectedMonthData.profitFactor.toFixed(2) }}
-                </div>
-                <div class="text-caption text-label-muted font-weight-medium">PF</div>
-              </div>
-            </v-col>
-          </v-row>
-
-          <!-- Best / Worst Trade -->
-          <div class="glass-sheet rounded-lg pa-3 mb-4">
-            <div class="text-caption font-weight-bold text-label-muted text-uppercase mb-2">
-              BEST / WORST TRADE
-            </div>
-
-            <!-- Best Trade -->
-            <div class="d-flex align-center ga-2 mb-2">
-              <v-icon icon="mdi-trophy" size="16" color="success" />
-              <v-chip
-                :color="selectedMonthData.bestTrade.action === 'BUY' ? 'success' : 'error'"
-                size="x-small"
-                variant="tonal"
-                class="font-weight-bold"
-              >
-                {{ selectedMonthData.bestTrade.action }}
-              </v-chip>
-              <span class="text-caption font-weight-bold">
-                {{ selectedMonthData.bestTrade.symbol }}
-              </span>
-              <v-spacer />
-              <span class="text-caption font-weight-bold font-mono text-success">
-                {{ formatPips(selectedMonthData.bestTrade.pips) }}
-              </span>
-              <span class="text-caption text-medium-emphasis font-mono" style="font-size: 10px;">
-                {{ formatDate(selectedMonthData.bestTrade.date) }}, {{ selectedMonthData.bestTrade.interval }}
-              </span>
-            </div>
-
-            <!-- Worst Trade -->
-            <div class="d-flex align-center ga-2">
-              <v-icon icon="mdi-alert-circle-outline" size="16" color="error" />
-              <v-chip
-                :color="selectedMonthData.worstTrade.action === 'BUY' ? 'success' : 'error'"
-                size="x-small"
-                variant="tonal"
-                class="font-weight-bold"
-              >
-                {{ selectedMonthData.worstTrade.action }}
-              </v-chip>
-              <span class="text-caption font-weight-bold">
-                {{ selectedMonthData.worstTrade.symbol }}
-              </span>
-              <v-spacer />
-              <span class="text-caption font-weight-bold font-mono text-error">
-                {{ formatPips(selectedMonthData.worstTrade.pips) }}
-              </span>
-              <span class="text-caption text-medium-emphasis font-mono" style="font-size: 10px;">
-                {{ formatDate(selectedMonthData.worstTrade.date) }}, {{ selectedMonthData.worstTrade.interval }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Symbol Breakdown -->
-          <div class="glass-sheet rounded-lg pa-3 mb-4">
-            <div class="text-caption font-weight-bold text-label-muted text-uppercase mb-2">
-              SYMBOL BREAKDOWN
-            </div>
-            <div
-              v-for="sym in sortedSymbols"
-              :key="sym.symbol"
-              class="d-flex align-center ga-2 mb-2"
-            >
-              <span class="text-caption font-weight-bold" style="min-width: 64px;">
-                {{ sym.symbol }}
-              </span>
-              <span class="text-caption text-medium-emphasis font-mono" style="min-width: 48px;">
-                {{ sym.wins }}W {{ sym.losses }}L
-              </span>
-              <div class="flex-grow-1" style="height: 12px;">
-                <div
-                  class="rounded"
-                  :class="sym.totalPips >= 0 ? 'bg-success' : 'bg-error'"
-                  :style="{
-                    width: symbolBarWidth(sym.totalPips) + '%',
-                    height: '100%',
-                    minWidth: '4px',
-                  }"
-                />
-              </div>
-              <span
-                class="text-caption font-weight-bold font-mono"
-                :class="plColorClass(sym.totalPips)"
-                style="min-width: 48px; text-align: right;"
-              >
-                {{ formatPips(sym.totalPips) }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Timeframe Breakdown -->
-          <div class="glass-sheet rounded-lg pa-3">
-            <div class="text-caption font-weight-bold text-label-muted text-uppercase mb-2">
-              TIMEFRAME BREAKDOWN
-            </div>
-            <div
-              v-for="tf in sortedIntervals"
-              :key="tf.interval"
-              class="d-flex align-center ga-2 mb-2"
-            >
-              <span class="text-caption font-weight-bold" style="min-width: 32px;">
-                {{ tf.interval }}
-              </span>
-              <span class="text-caption text-medium-emphasis font-mono" style="min-width: 48px;">
-                {{ tf.wins }}W {{ tf.losses }}L
-              </span>
-              <div class="flex-grow-1" style="height: 12px;">
-                <div
-                  class="rounded"
-                  :class="tf.totalPips >= 0 ? 'bg-success' : 'bg-error'"
-                  :style="{
-                    width: intervalBarWidth(tf.totalPips) + '%',
-                    height: '100%',
-                    minWidth: '4px',
-                  }"
-                />
-              </div>
-              <span
-                class="text-caption font-weight-bold font-mono"
-                :class="plColorClass(tf.totalPips)"
-                style="min-width: 48px; text-align: right;"
-              >
-                {{ formatPips(tf.totalPips) }}
-              </span>
-            </div>
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <!-- Zone E: Compact Month List -->
-      <div v-if="otherMonths.length > 0">
-        <div class="text-caption font-weight-bold text-label-muted text-uppercase mb-2">
-          ALL MONTHS
+      <div class="dark-card pa-4 mb-3">
+        <div class="d-flex align-center justify-space-between mb-3">
+          <div class="section-label">MONTHLY P&L</div>
+          <div class="oldest-label">oldest → newest</div>
         </div>
 
-        <v-card
-          v-for="month in otherMonths"
+        <div
+          v-for="month in monthsChronological"
           :key="month.month"
-          elevation="0"
-          rounded="lg"
-          class="glass-card mb-2 cursor-pointer"
-          :class="{ 'border-primary': selectedMonthData?.month === month.month }"
+          class="d-flex align-center ga-2 mb-2 cursor-pointer"
+          :class="{ 'row-dimmed': selectedMonthData && selectedMonthData.month !== month.month }"
           @click="selectMonth(month.month)"
         >
-          <v-card-text class="pa-3">
-            <div class="d-flex align-center justify-space-between mb-1">
-              <span class="text-body-2 font-weight-bold">{{ month.label }}</span>
-              <span
-                class="text-body-2 font-weight-bold font-mono"
-                :class="plColorClass(month.totalPips)"
-              >
-                {{ formatPips(month.totalPips) }} pips
-              </span>
-            </div>
-            <div class="d-flex align-center ga-2">
-              <span class="text-caption text-medium-emphasis font-mono">
-                {{ month.totalTrades }} trades
-              </span>
-              <span class="text-caption text-medium-emphasis">|</span>
-              <span class="text-caption font-mono" :class="winRateColorClass(month.winRate)">
-                {{ month.winRate }}% WR
-              </span>
-              <span class="text-caption text-medium-emphasis">|</span>
-              <span class="text-caption font-mono" :class="pfColorClass(month.profitFactor)">
-                PF {{ month.profitFactor.toFixed(2) }}
-              </span>
-              <v-spacer />
-              <span class="text-caption text-medium-emphasis font-mono" style="font-size: 10px;">
-                cum: {{ formatPips(month.cumulativePips) }}
-              </span>
-            </div>
-          </v-card-text>
-        </v-card>
+          <!-- Month label -->
+          <span
+            class="month-label"
+            :class="selectedMonthData?.month === month.month ? 'text-primary' : 'text-label-muted'"
+          >
+            {{ shortLabel(month.month) }}
+          </span>
+
+          <!-- Bar track -->
+          <div class="flex-grow-1 bar-track">
+            <div
+              class="bar-fill rounded"
+              :class="month.totalPips >= 0 ? 'bar-positive' : 'bar-negative'"
+              :style="{
+                width: barWidth(month.totalPips) + '%',
+                opacity: selectedMonthData?.month === month.month ? 1 : 0.7,
+              }"
+            />
+          </div>
+
+          <!-- Value -->
+          <span
+            class="bar-value font-mono"
+            :class="month.totalPips >= 0 ? 'text-success' : 'text-error'"
+          >
+            {{ formatPips(month.totalPips) }}
+          </span>
+        </div>
       </div>
+
+      <!-- Zone D: Selected Month Detail -->
+      <div v-if="selectedMonthData" class="dark-card pa-4 mb-3">
+
+        <!-- Month header -->
+        <div class="d-flex align-center justify-space-between mb-4">
+          <span class="month-detail-title">{{ selectedMonthData.label }}</span>
+          <div class="d-flex align-baseline ga-1">
+            <span
+              class="month-detail-pips font-mono"
+              :class="plColorClass(selectedMonthData.totalPips)"
+            >
+              {{ formatPips(selectedMonthData.totalPips) }}
+            </span>
+            <span class="unit-label" :class="plColorClass(selectedMonthData.totalPips)">pips</span>
+          </div>
+        </div>
+
+        <!-- Stats 3-cell grid: Trades / Win Rate / PF -->
+        <v-row dense class="mb-5">
+          <v-col cols="4">
+            <div class="stat-mini-cell d-flex flex-column align-center pa-3">
+              <div class="stat-mini-value mb-1 font-mono">{{ selectedMonthData.totalTrades }}</div>
+              <div class="stat-mini-label">Trades</div>
+            </div>
+          </v-col>
+          <v-col cols="4">
+            <div class="stat-mini-cell d-flex flex-column align-center pa-3">
+              <div class="stat-mini-value mb-1 font-mono" :class="winRateColorClass(selectedMonthData.winRate)">
+                {{ selectedMonthData.winRate }}%
+              </div>
+              <div class="stat-mini-label">Win Rate</div>
+            </div>
+          </v-col>
+          <v-col cols="4">
+            <div class="stat-mini-cell d-flex flex-column align-center pa-3">
+              <div class="stat-mini-value mb-1 font-mono" :class="pfColorClass(selectedMonthData.profitFactor)">
+                {{ selectedMonthData.profitFactor.toFixed(2) }}
+              </div>
+              <div class="stat-mini-label">PF</div>
+            </div>
+          </v-col>
+        </v-row>
+
+        <!-- Best / Worst Trade -->
+        <div class="subsection-label mb-3">BEST / WORST TRADE</div>
+        <div class="d-flex align-center ga-2 mb-3">
+          <v-icon icon="mdi-trophy" size="15" color="success" />
+          <span
+            class="direction-badge"
+            :class="selectedMonthData.bestTrade.action === 'BUY' ? 'direction-badge--buy' : 'direction-badge--sell'"
+          >
+            {{ selectedMonthData.bestTrade.action }}
+          </span>
+          <span class="trade-symbol">{{ selectedMonthData.bestTrade.symbol }}</span>
+          <v-spacer />
+          <span class="trade-pips text-success font-mono">{{ formatPips(selectedMonthData.bestTrade.pips) }}</span>
+          <span class="trade-meta font-mono">{{ formatDate(selectedMonthData.bestTrade.date) }}, {{ selectedMonthData.bestTrade.interval }}</span>
+        </div>
+        <div class="d-flex align-center ga-2 mb-5">
+          <v-icon icon="mdi-alert-circle-outline" size="15" color="error" />
+          <span
+            class="direction-badge direction-badge--sell"
+          >
+            {{ selectedMonthData.worstTrade.action }}
+          </span>
+          <span class="trade-symbol">{{ selectedMonthData.worstTrade.symbol }}</span>
+          <v-spacer />
+          <span class="trade-pips text-error font-mono">{{ formatPips(selectedMonthData.worstTrade.pips) }}</span>
+          <span class="trade-meta font-mono">{{ formatDate(selectedMonthData.worstTrade.date) }}, {{ selectedMonthData.worstTrade.interval }}</span>
+        </div>
+
+        <div class="inner-divider mb-4" />
+
+        <!-- Symbol Breakdown -->
+        <div class="subsection-label mb-3">SYMBOL BREAKDOWN</div>
+        <div
+          v-for="sym in sortedSymbols"
+          :key="sym.symbol"
+          class="d-flex align-center ga-2 mb-3"
+        >
+          <span class="breakdown-name">{{ sym.symbol }}</span>
+          <span class="breakdown-wl font-mono">{{ sym.wins }}W {{ sym.losses }}L</span>
+          <div class="flex-grow-1 bar-track">
+            <div
+              class="bar-fill rounded"
+              :class="sym.totalPips >= 0 ? 'bar-positive' : 'bar-negative'"
+              :style="{ width: symbolBarWidth(sym.totalPips) + '%' }"
+            />
+          </div>
+          <span
+            class="breakdown-pips font-mono"
+            :class="plColorClass(sym.totalPips)"
+          >
+            {{ formatPips(sym.totalPips) }}
+          </span>
+        </div>
+
+        <div class="inner-divider mb-4" />
+
+        <!-- Timeframe Breakdown -->
+        <div class="subsection-label mb-3">TIMEFRAME BREAKDOWN</div>
+        <div
+          v-for="tf in sortedIntervals"
+          :key="tf.interval"
+          class="d-flex align-center ga-2 mb-3"
+        >
+          <span class="breakdown-name">{{ tf.interval }}</span>
+          <span class="breakdown-wl font-mono">{{ tf.wins }}W {{ tf.losses }}L</span>
+          <div class="flex-grow-1 bar-track">
+            <div
+              class="bar-fill rounded"
+              :class="tf.totalPips >= 0 ? 'bar-positive' : 'bar-negative'"
+              :style="{ width: intervalBarWidth(tf.totalPips) + '%' }"
+            />
+          </div>
+          <span
+            class="breakdown-pips font-mono"
+            :class="plColorClass(tf.totalPips)"
+          >
+            {{ formatPips(tf.totalPips) }}
+          </span>
+        </div>
+
+      </div>
+
+      <!-- Zone E: Compact Month List (other months) -->
+      <div v-if="otherMonths.length > 0">
+        <div class="subsection-label mb-3">ALL MONTHS</div>
+
+        <div
+          v-for="month in otherMonths"
+          :key="month.month"
+          class="dark-card pa-3 mb-2 cursor-pointer month-row"
+          :class="{ 'month-row--active': selectedMonthData?.month === month.month }"
+          @click="selectMonth(month.month)"
+        >
+          <div class="d-flex align-center justify-space-between mb-1">
+            <span class="text-body-2 font-weight-bold">{{ month.label }}</span>
+            <span
+              class="text-body-2 font-weight-bold font-mono"
+              :class="plColorClass(month.totalPips)"
+            >
+              {{ formatPips(month.totalPips) }} pips
+            </span>
+          </div>
+          <div class="d-flex align-center ga-2">
+            <span class="text-caption text-medium-emphasis font-mono">{{ month.totalTrades }} trades</span>
+            <span class="text-caption text-label-muted">|</span>
+            <span class="text-caption font-mono" :class="winRateColorClass(month.winRate)">{{ month.winRate }}% WR</span>
+            <span class="text-caption text-label-muted">|</span>
+            <span class="text-caption font-mono" :class="pfColorClass(month.profitFactor)">PF {{ month.profitFactor.toFixed(2) }}</span>
+            <v-spacer />
+            <span class="text-caption text-label-muted font-mono" style="font-size: 10px;">
+              cum: {{ formatPips(month.cumulativePips) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
     </template>
 
     <!-- Footer -->
@@ -590,5 +479,199 @@ function retry() {
         KOB-Trade v2.0
       </div>
     </div>
+
   </v-container>
 </template>
+
+<style scoped>
+
+/* ── Dark card (main container) ── */
+.dark-card {
+  background: rgb(17 22 32);
+  border: 1px solid rgb(51 65 85 / 0.7);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgb(0 0 0 / 0.25);
+}
+
+/* ── Labels ── */
+.section-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+}
+
+.subsection-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+}
+
+.oldest-label {
+  font-size: 0.6rem;
+  color: rgb(71 85 105);
+  font-weight: 500;
+}
+
+/* ── Cumulative ── */
+.cumulative-number {
+  font-size: 2.2rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.unit-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: rgb(100 116 139);
+}
+
+/* ── Bar chart ── */
+.month-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  min-width: 28px;
+}
+
+.bar-track {
+  height: 14px;
+  display: flex;
+  align-items: center;
+}
+
+.bar-fill {
+  height: 100%;
+  min-width: 4px;
+  transition: width 0.3s ease, opacity 0.2s ease;
+}
+
+.bar-positive {
+  background: rgb(16 185 129);
+}
+
+.bar-negative {
+  background: rgb(239 68 68);
+}
+
+.bar-value {
+  font-size: 0.68rem;
+  font-weight: 700;
+  min-width: 56px;
+  text-align: right;
+}
+
+.row-dimmed {
+  opacity: 0.6;
+}
+
+/* ── Month detail ── */
+.month-detail-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: rgb(248 250 252);
+}
+
+.month-detail-pips {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* ── Stats mini grid ── */
+.stat-mini-cell {
+  background: rgb(23 30 45);
+  border: 1px solid rgb(51 65 85 / 0.5);
+  border-radius: 12px;
+}
+
+.stat-mini-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgb(226 232 240);
+  line-height: 1.2;
+}
+
+.stat-mini-label {
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: rgb(100 116 139);
+}
+
+/* ── Best/Worst trade ── */
+.direction-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 5px;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+
+.direction-badge--buy {
+  background: rgb(16 185 129 / 0.1);
+  color: rgb(52 211 153);
+  border: 1px solid rgb(16 185 129 / 0.2);
+}
+
+.direction-badge--sell {
+  background: rgb(239 68 68 / 0.1);
+  color: rgb(252 165 165);
+  border: 1px solid rgb(239 68 68 / 0.2);
+}
+
+.trade-symbol {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgb(226 232 240);
+}
+
+.trade-pips {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.trade-meta {
+  font-size: 0.62rem;
+  color: rgb(100 116 139);
+  letter-spacing: -0.01em;
+}
+
+/* ── Inner divider ── */
+.inner-divider {
+  height: 1px;
+  background: rgb(30 41 59 / 0.8);
+}
+
+/* ── Breakdown rows ── */
+.breakdown-name {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgb(203 213 225);
+  min-width: 56px;
+}
+
+.breakdown-wl {
+  font-size: 0.62rem;
+  color: rgb(100 116 139);
+  min-width: 44px;
+}
+
+.breakdown-pips {
+  font-size: 0.72rem;
+  font-weight: 700;
+  min-width: 44px;
+  text-align: right;
+}
+
+/* ── Month row (Zone E) ── */
+.month-row {
+  transition: border-color 0.2s ease;
+}
+
+.month-row--active {
+  border-color: rgb(74 222 128 / 0.4) !important;
+}
+</style>
