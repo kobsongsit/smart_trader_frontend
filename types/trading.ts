@@ -43,6 +43,17 @@ export interface Position {
   duration: string | null
 }
 
+/**
+ * Price summary item from GET /api/strategy/price-summary
+ */
+export interface PriceSummaryItem {
+  symbol: string
+  price: string | null
+  candleTime: string | null
+  ageMinutes: number | null
+  indicatorTime: string | null
+}
+
 // ============================================================
 // Trade History
 // ============================================================
