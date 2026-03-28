@@ -10,6 +10,17 @@ const { data: priceSummary, loading: priceLoading, showTooltip, fetchAndShow: fe
 
 const isRefreshing = ref(false)
 
+// ─── Tooltip anchor position ───────────────────────────────────
+const flashIconRef = ref<HTMLElement | null>(null)
+const tooltipStyle = computed(() => {
+  if (!flashIconRef.value) return {}
+  const rect = flashIconRef.value.getBoundingClientRect()
+  return {
+    top: `${rect.bottom + 8}px`,
+    left: `${rect.left}px`,
+  }
+})
+
 async function handleRefresh() {
   isRefreshing.value = true
   await Promise.all([fetchPortfolio(), fetchPositions()])
@@ -30,12 +41,14 @@ function formatTime(isoString: string | null): string {
 
     <!-- ── Header ── -->
     <div class="d-flex align-center ga-3 mb-5 mt-1">
-      <div class="page-header-icon position-relative" style="cursor: pointer" @click="fetchPriceSummary">
+      <div ref="flashIconRef" class="page-header-icon" style="cursor: pointer" @click="fetchPriceSummary">
         <v-icon icon="mdi-flash" size="22" color="#4ADE80" :class="{ 'flash-spin': priceLoading }" />
+      </div>
 
-        <!-- Price Summary Tooltip -->
+      <!-- Price Summary Tooltip — Teleport to body เพื่อหนี stacking context -->
+      <Teleport to="body">
         <Transition name="tooltip-fade">
-          <div v-if="showTooltip" class="price-tooltip" @click.stop>
+          <div v-if="showTooltip" class="price-tooltip" :style="tooltipStyle" @click.stop>
             <div class="price-tooltip__header">
               <v-icon icon="mdi-access-point" size="12" color="#4ade80" class="mr-1" />
               Price Summary
@@ -57,7 +70,7 @@ function formatTime(isoString: string | null): string {
             </div>
           </div>
         </Transition>
-      </div>
+      </Teleport>
 
       <div class="flex-grow-1">
         <div class="text-h5 font-weight-bold">Smart Trader</div>
@@ -103,10 +116,8 @@ function formatTime(isoString: string | null): string {
 
 /* ─── Price Summary Tooltip — Frosted Glass ─── */
 .price-tooltip {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 100;
+  position: fixed;
+  z-index: 2000;
   min-width: 280px;
   background: rgba(6, 10, 19, 0.85);
   backdrop-filter: blur(24px) saturate(1.4);

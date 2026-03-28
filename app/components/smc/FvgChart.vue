@@ -92,7 +92,7 @@ const fibHint = ref('')
 let fibPriceLines: IPriceLine[] = []
 
 // ─── Fullscreen symbol/interval controls ─────────────────────
-const INTERVALS = ['15m', '1h', '4h', '1d'] as const
+const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d', '1mn'] as const
 
 // ─── Layer Toggles ────────────────────────────────────────────
 const showFvgMarkers = ref(true)

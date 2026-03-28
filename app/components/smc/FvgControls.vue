@@ -25,9 +25,13 @@ const emit = defineEmits<{
 
 // ─── Interval options ─────────────────────────────────────────
 const intervalOptions = [
-  { title: '5m', value: '5m' },
+  { title: '1m',  value: '1m'  },
+  { title: '5m',  value: '5m'  },
   { title: '15m', value: '15m' },
-  { title: '1h', value: '1h' },
+  { title: '1h',  value: '1h'  },
+  { title: '4h',  value: '4h'  },
+  { title: '1d',  value: '1d'  },
+  { title: '1mn', value: '1mn' },
 ]
 
 // ─── Symbol options (เฉพาะ active) ───────────────────────────
