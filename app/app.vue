@@ -17,13 +17,17 @@ function isActive(path: string): boolean {
   <NuxtRouteAnnouncer />
   <v-app>
 
-    <!-- Main content — enough padding so content clears the bottom nav -->
-    <!-- inline style แทน pb-28 เพราะ Vuetify spacing util รองรับแค่ 0-16 -->
+    <!-- ── Background Mesh (ambient gradient orbs) ── -->
+    <div class="app-bg-mesh">
+      <div class="bg-orb-3" />
+    </div>
+
+    <!-- Main content -->
     <v-main style="padding-bottom: 130px">
       <NuxtPage />
     </v-main>
 
-    <!-- ── Custom Bottom Navigation ── -->
+    <!-- ── Frosted Glass Bottom Navigation ── -->
     <nav class="bottom-nav">
 
       <!-- Nav items -->
@@ -35,6 +39,10 @@ function isActive(path: string): boolean {
 
           <!-- Nav button -->
           <NuxtLink :to="item.to" class="nav-btn" :class="{ 'nav-btn--active': isActive(item.to) }">
+
+            <!-- Glow dot behind active icon -->
+            <span v-if="isActive(item.to)" class="nav-glow" />
+
             <v-icon
               :icon="item.icon"
               size="22"
@@ -55,16 +63,19 @@ function isActive(path: string): boolean {
 </template>
 
 <style scoped>
-/* ── Bottom nav container ── */
+/* ── Frosted Glass Bottom Nav ── */
 .bottom-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  background: #1A2234;
-  border-top: 1px solid rgb(51 65 85 / 0.7);
+  background: rgba(6, 10, 19, 0.7);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   padding: 12px 24px 8px;
+  box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.4);
 }
 
 /* ── Nav items row ── */
@@ -78,35 +89,48 @@ function isActive(path: string): boolean {
 .nav-divider {
   width: 1px;
   height: 32px;
-  background: rgb(30 41 59);
+  background: rgba(255, 255, 255, 0.04);
   flex-shrink: 0;
 }
 
 /* ── Nav button ── */
 .nav-btn {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 5px;
   flex: 1;
   text-decoration: none;
-  color: rgb(100 116 139);
-  transition: color 0.2s ease;
+  color: rgba(148, 163, 184, 0.6);
+  transition: color 0.25s ease;
   padding: 4px 0;
 }
 
 .nav-btn:hover {
-  color: rgb(203 213 225);
+  color: rgba(226, 232, 240, 0.8);
 }
 
 /* Active state */
 .nav-btn--active {
-  color: rgb(52 211 153) !important;
+  color: rgb(74, 222, 128) !important;
+}
+
+/* ── Glow dot behind active icon ── */
+.nav-glow {
+  position: absolute;
+  top: -2px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(74, 222, 128, 0.2) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 /* ── Icon (bold stroke when active) ── */
 .nav-btn--active .nav-icon {
   font-variation-settings: 'wght' 700;
+  filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.4));
 }
 
 /* ── Label ── */
@@ -121,7 +145,7 @@ function isActive(path: string): boolean {
 .home-indicator {
   width: 33%;
   height: 4px;
-  background: rgb(100 116 139);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 9999px;
   margin: 16px auto 2px;
 }

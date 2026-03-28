@@ -58,7 +58,7 @@ function nextMonth() {
 }
 
 // ============================================================
-// Computed date range (month → from/to)
+// Computed date range (month -> from/to)
 // ============================================================
 
 const fromDate = computed(() =>
@@ -164,18 +164,18 @@ function formatPips(pips: number): string {
 }
 
 function formatTime(ts: number | null): string {
-  if (!ts) return '—'
+  if (!ts) return '---'
   return dayjs.unix(ts).format('D MMM HH:mm')
 }
 
 function formatPrice(price: number | null): string {
-  if (price === null) return '—'
+  if (price === null) return '---'
   return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 5 })
 }
 
-/** คำนวณ duration จาก UNIX timestamps */
+/** Duration from UNIX timestamps */
 function calcDuration(entryTs: number, exitTs: number | null): string {
-  if (!exitTs) return '—'
+  if (!exitTs) return '---'
   const diff = exitTs - entryTs
   const totalMinutes = Math.floor(diff / 60)
   const hours   = Math.floor(totalMinutes / 60)
@@ -223,7 +223,7 @@ function exitReasonLabel(reason: string | null): string {
     case 'SL':               return 'SL'
     case 'OPPOSITE_SIGNAL':  return 'SIGNAL EXIT'
     case 'MANUAL':           return 'MANUAL'
-    default:                 return reason ?? '—'
+    default:                 return reason ?? '---'
   }
 }
 
@@ -240,7 +240,7 @@ function retry() { applyFilters() }
     <!-- ── Zone A: Page Header ── -->
     <div class="d-flex align-center ga-3 mb-5 mt-1">
       <div class="page-header-icon">
-        <v-icon icon="mdi-history" size="22" color="#050505" />
+        <v-icon icon="mdi-history" size="22" color="#4ADE80" />
       </div>
       <div class="flex-grow-1">
         <div class="text-h5 font-weight-bold">Trade History</div>
@@ -258,7 +258,7 @@ function retry() { applyFilters() }
 
     <div class="my-4" />
 
-    <!-- ── Zone B: Filters ── -->
+    <!-- ── Zone B: Filters — Glass Card ── -->
     <div class="dark-card pa-4 mb-4">
 
       <!-- Symbol filter -->
@@ -486,7 +486,7 @@ function retry() { applyFilters() }
             </span>
           </div>
 
-          <!-- Row 2: Entry → Exit -->
+          <!-- Row 2: Entry -> Exit -->
           <div class="d-flex align-center justify-space-between px-1 mb-3">
             <div>
               <div class="price-label mb-1">Entry</div>
@@ -501,13 +501,13 @@ function retry() { applyFilters() }
             </div>
           </div>
 
-          <!-- Row 3: Footer — Exit reason | P&L -->
+          <!-- Row 3: Footer -- Exit reason | P&L -->
           <div class="d-flex align-center justify-space-between pt-2 card-footer">
             <span class="exit-badge" :class="exitBadgeClass(trade.exitReason)">
               {{ exitReasonLabel(trade.exitReason) }}
             </span>
             <span class="pips-hero font-mono" :class="plColorClass(trade.profitPips)">
-              {{ trade.profitPips !== null ? formatPips(trade.profitPips) : '—' }} pips
+              {{ trade.profitPips !== null ? formatPips(trade.profitPips) : '---' }} pips
             </span>
           </div>
 
@@ -528,63 +528,73 @@ function retry() { applyFilters() }
 </template>
 
 <style scoped>
+/* ── Dividers — Glass ── */
 .section-divider {
   height: 1px;
-  background: rgb(30 41 59 / 0.8);
+  background: rgba(255, 255, 255, 0.06);
 }
 
+/* ── Filter Labels ── */
 .filter-label {
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.6);
 }
 
+/* ── Filter Pills — Glass ── */
 .filter-pill {
-  background: rgb(30 41 59 / 0.5);
-  color: rgb(203 213 225);
-  border: 1px solid rgb(51 65 85 / 0.7);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(203, 213, 225, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 9999px;
   padding: 3px 12px;
   font-size: 0.68rem;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.filter-pill:hover { border-color: rgb(74 222 128 / 0.4); color: rgb(226 232 240); }
+.filter-pill:hover {
+  border-color: rgba(74, 222, 128, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(226, 232, 240, 0.95);
+}
 .filter-pill--active {
-  background: rgb(74 222 128) !important;
-  color: #050505 !important;
-  border-color: rgb(74 222 128) !important;
+  background: rgba(74, 222, 128, 0.15) !important;
+  color: #4ADE80 !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.15);
 }
 
+/* ── Month Navigator ── */
 .month-label-text {
   font-size: 0.8rem;
   font-weight: 700;
-  color: rgb(226 232 240);
+  color: rgba(226, 232, 240, 0.9);
   min-width: 90px;
   text-align: center;
 }
 
 .nav-arrow-btn {
-  background: transparent;
-  border: none;
-  color: rgb(203 213 225);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(203, 213, 225, 0.8);
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
-  transition: color 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease;
   display: flex;
   align-items: center;
 }
-.nav-arrow-btn:hover { color: #fff; }
-.nav-arrow-btn--disabled { color: rgb(71 85 105) !important; cursor: not-allowed; }
+.nav-arrow-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+.nav-arrow-btn--disabled { color: rgba(100, 116, 139, 0.3) !important; cursor: not-allowed; background: transparent !important; }
 
+/* ── More Filters ── */
 .more-filters-btn {
   background: transparent;
   border: none;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.5);
   font-size: 0.65rem;
   font-weight: 500;
   cursor: pointer;
@@ -595,11 +605,11 @@ function retry() { applyFilters() }
   border-radius: 6px;
   transition: color 0.15s ease;
 }
-.more-filters-btn:hover { color: rgb(203 213 225); }
+.more-filters-btn:hover { color: rgba(203, 213, 225, 0.8); }
 
 .extra-filter-badge {
-  background: rgb(74 222 128);
-  color: #050505;
+  background: rgba(74, 222, 128, 0.2);
+  color: #4ADE80;
   font-size: 0.55rem;
   font-weight: 700;
   border-radius: 9999px;
@@ -607,10 +617,11 @@ function retry() { applyFilters() }
   line-height: 1.5;
 }
 
+/* ── Sort Button ── */
 .sort-btn {
   background: transparent;
   border: none;
-  color: rgb(203 213 225);
+  color: rgba(203, 213, 225, 0.7);
   font-size: 0.68rem;
   font-weight: 500;
   cursor: pointer;
@@ -622,33 +633,31 @@ function retry() { applyFilters() }
 }
 .sort-btn:hover { color: #fff; }
 
+/* ── Stat Cells — Tier 3 Glass ── */
 .stat-cell {
-  background: rgb(23 30 45);
-  border: 1px solid rgb(51 65 85 / 0.5);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px;
+  transition: background 0.2s ease;
+}
+.stat-cell:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 .stat-value {
   font-size: 1.1rem;
   font-weight: 700;
-  color: rgb(226 232 240);
+  color: rgba(226, 232, 240, 0.95);
   line-height: 1.2;
 }
 .stat-label {
   font-size: 0.6rem;
   font-weight: 500;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.5);
   letter-spacing: 0.04em;
   margin-top: 2px;
 }
 
-.dark-card {
-  background: rgb(17 22 32);
-  border: 1px solid rgb(51 65 85 / 0.7);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 2px 16px rgb(0 0 0 / 0.25);
-}
-
+/* ── Direction Badge — Glass ── */
 .direction-badge {
   font-size: 0.58rem;
   font-weight: 700;
@@ -658,27 +667,28 @@ function retry() { applyFilters() }
   line-height: 1.5;
 }
 .direction-badge--buy {
-  background: rgb(16 185 129 / 0.1);
+  background: rgba(16, 185, 129, 0.1);
   color: rgb(52 211 153);
-  border: 1px solid rgb(16 185 129 / 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 .direction-badge--sell {
-  background: rgb(239 68 68 / 0.1);
+  background: rgba(239, 68, 68, 0.1);
   color: rgb(252 165 165);
-  border: 1px solid rgb(239 68 68 / 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
+/* ── Trade Card Content ── */
 .trade-symbol {
   font-size: 0.875rem;
   font-weight: 700;
-  color: rgb(248 250 252);
+  color: rgba(248, 250, 252, 0.95);
 }
 
 .trade-strategy {
   font-size: 0.6rem;
   font-weight: 600;
-  color: rgb(100 116 139);
-  background: rgb(30 41 59 / 0.6);
+  color: rgba(148, 163, 184, 0.5);
+  background: rgba(255, 255, 255, 0.04);
   padding: 1px 5px;
   border-radius: 4px;
 }
@@ -686,35 +696,38 @@ function retry() { applyFilters() }
 .trade-tf {
   font-size: 0.68rem;
   font-weight: 600;
-  color: rgb(148 163 184);
+  color: rgba(148, 163, 184, 0.7);
 }
 .trade-duration {
   font-size: 0.68rem;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.5);
 }
 
+/* ── Price Display ── */
 .price-label {
   font-size: 0.65rem;
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.5);
 }
 .price-value {
   font-size: 0.8rem;
   font-weight: 600;
-  color: rgb(226 232 240);
+  color: rgba(226, 232, 240, 0.95);
 }
 .price-date {
   font-size: 0.6rem;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.4);
   margin-top: 2px;
 }
 
+/* ── Card Footer ── */
 .card-footer {
-  border-top: 1px solid rgb(51 65 85 / 0.7);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+/* ── Exit Badges — Glass ── */
 .exit-badge {
   font-size: 0.58rem;
   font-weight: 700;
@@ -723,12 +736,13 @@ function retry() { applyFilters() }
   border-radius: 5px;
   line-height: 1.6;
 }
-.exit-badge--tp     { background: rgb(5 46 22 / 0.5);    color: rgb(52 211 153);  }
-.exit-badge--sl     { background: rgb(69 10 10 / 0.5);   color: rgb(252 165 165); }
-.exit-badge--signal { background: rgb(30 58 138 / 0.4);  color: rgb(147 197 253); }
-.exit-badge--manual { background: rgb(92 45 5 / 0.4);    color: rgb(251 191 36);  }
-.exit-badge--default{ background: rgb(51 65 85 / 0.3);   color: rgb(148 163 184); }
+.exit-badge--tp     { background: rgba(16, 185, 129, 0.1);  color: rgb(52 211 153);  border: 1px solid rgba(16, 185, 129, 0.15); }
+.exit-badge--sl     { background: rgba(239, 68, 68, 0.1);   color: rgb(252 165 165); border: 1px solid rgba(239, 68, 68, 0.15); }
+.exit-badge--signal { background: rgba(59, 130, 246, 0.1);  color: rgb(147 197 253); border: 1px solid rgba(59, 130, 246, 0.15); }
+.exit-badge--manual { background: rgba(251, 140, 0, 0.1);   color: rgb(251 191 36);  border: 1px solid rgba(251, 140, 0, 0.15); }
+.exit-badge--default{ background: rgba(255, 255, 255, 0.04); color: rgba(148, 163, 184, 0.7); }
 
+/* ── Pips Hero ── */
 .pips-hero {
   font-size: 1rem;
   font-weight: 700;

@@ -17,7 +17,7 @@ async function handleRefresh() {
 }
 
 /**
- * Format candle time to HH:mm local time (using dayjs — never use raw Date)
+ * Format candle time to HH:mm local time (using dayjs -- never use raw Date)
  */
 function formatTime(isoString: string | null): string {
   if (!isoString) return '--:--'
@@ -31,7 +31,7 @@ function formatTime(isoString: string | null): string {
     <!-- ── Header ── -->
     <div class="d-flex align-center ga-3 mb-5 mt-1">
       <div class="page-header-icon position-relative" style="cursor: pointer" @click="fetchPriceSummary">
-        <v-icon icon="mdi-flash" size="22" color="#050505" :class="{ 'flash-spin': priceLoading }" />
+        <v-icon icon="mdi-flash" size="22" color="#4ADE80" :class="{ 'flash-spin': priceLoading }" />
 
         <!-- Price Summary Tooltip -->
         <Transition name="tooltip-fade">
@@ -101,21 +101,23 @@ function formatTime(isoString: string | null): string {
   50% { opacity: 0.3; }
 }
 
-/* ─── Price Summary Tooltip ─── */
+/* ─── Price Summary Tooltip — Frosted Glass ─── */
 .price-tooltip {
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
   z-index: 100;
   min-width: 280px;
-  background: rgba(15, 23, 42, 0.95);
-  border: 1px solid rgba(74, 222, 128, 0.3);
+  background: rgba(6, 10, 19, 0.85);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid rgba(74, 222, 128, 0.15);
   border-radius: 12px;
   padding: 10px 12px;
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.6),
-    0 0 24px rgba(74, 222, 128, 0.08);
-  backdrop-filter: blur(12px);
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(74, 222, 128, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .price-tooltip__header {
@@ -146,20 +148,20 @@ function formatTime(isoString: string | null): string {
 }
 
 .price-tooltip__symbol {
-  color: rgb(148 163 184);
+  color: rgba(148, 163, 184, 0.7);
   width: 64px;
   flex-shrink: 0;
   font-size: 11px;
 }
 
 .price-tooltip__price {
-  color: #e2e8f0;
+  color: rgba(226, 232, 240, 0.95);
   flex: 1;
   text-align: right;
 }
 
 .price-tooltip__time {
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.5);
   font-size: 11px;
   width: 40px;
   text-align: right;

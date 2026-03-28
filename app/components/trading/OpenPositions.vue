@@ -221,7 +221,7 @@ function retry() {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgb(226 232 240);
+  color: rgba(226, 232, 240, 0.9);
 }
 
 /* ── Animated Ping Dot ── */
@@ -250,6 +250,7 @@ function retry() {
   width: 10px;
   height: 10px;
   background: rgb(16 185 129);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
 }
 
 @keyframes ping {
@@ -259,31 +260,39 @@ function retry() {
   }
 }
 
-/* ── Count Badge ── */
+/* ── Count Badge — Glass ── */
 .count-badge {
-  background: rgb(59 130 246 / 0.12);
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.15);
   color: rgb(96 165 250);
   padding: 1px 8px;
   border-radius: 6px;
   font-size: 0.7rem;
 }
 
-/* ── Position Card ── */
+/* ── Position Card — Tier 1 Glass ── */
 .position-card {
   position: relative;
-  background: rgb(17 24 39 / 0.85);
-  border: 1px solid rgb(51 65 85 / 0.6);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
   overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .position-card:hover {
-  border-color: rgb(51 65 85 / 0.9);
-  box-shadow: 0 4px 20px rgb(0 0 0 / 0.4);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-/* Left accent bar */
+/* Left accent bar — glowing */
 .position-card::before {
   content: '';
   position: absolute;
@@ -295,13 +304,15 @@ function retry() {
 
 .position-card--buy::before {
   background: rgb(16 185 129);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
 }
 
 .position-card--sell::before {
   background: rgb(239 68 68);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
 }
 
-/* ── Direction Badge ── */
+/* ── Direction Badge — Glass ── */
 .direction-badge {
   font-size: 0.6rem;
   letter-spacing: 0.08em;
@@ -311,55 +322,56 @@ function retry() {
 }
 
 .direction-badge--buy {
-  background: rgb(16 185 129 / 0.1);
+  background: rgba(16, 185, 129, 0.1);
   color: rgb(52 211 153);
-  border: 1px solid rgb(16 185 129 / 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .direction-badge--sell {
-  background: rgb(239 68 68 / 0.1);
+  background: rgba(239, 68, 68, 0.1);
   color: rgb(252 165 165);
-  border: 1px solid rgb(239 68 68 / 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-/* ── Time & TF badges ── */
+/* ── Time & TF badges — Glass ── */
 .time-badge {
   display: flex;
   align-items: center;
   font-size: 0.68rem;
-  color: rgb(148 163 184);
-  background: rgb(30 41 59 / 0.6);
+  color: rgba(148, 163, 184, 0.7);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   padding: 2px 6px;
   border-radius: 6px;
 }
 
 .tf-badge {
   font-size: 0.68rem;
-  color: rgb(203 213 225);
-  background: rgb(30 41 59 / 0.8);
-  border: 1px solid rgb(51 65 85 / 0.5);
+  color: rgba(203, 213, 225, 0.8);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   padding: 2px 6px;
   border-radius: 6px;
 }
 
-/* ── Price Box ── */
+/* ── Price Box — Deep Glass ── */
 .price-box {
-  background: rgb(11 15 25 / 0.8);
-  border: 1px solid rgb(51 65 85 / 0.5);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .price-divider {
   width: 1px;
-  background: rgb(51 65 85 / 0.7);
+  background: rgba(255, 255, 255, 0.06);
   margin: 6px 0;
 }
 
 .price-label {
   font-size: 0.65rem;
   font-weight: 500;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.6);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -367,14 +379,14 @@ function retry() {
 .price-value {
   font-size: 0.8rem;
   font-weight: 600;
-  color: rgb(226 232 240);
+  color: rgba(226, 232, 240, 0.95);
 }
 
 /* ── SL type badge ── */
 .sl-type-badge {
   font-size: 0.55rem;
-  color: rgb(71 85 105);
-  background: rgb(30 41 59 / 0.6);
+  color: rgba(100, 116, 139, 0.6);
+  background: rgba(255, 255, 255, 0.04);
   padding: 1px 4px;
   border-radius: 3px;
   font-family: 'JetBrains Mono', monospace;

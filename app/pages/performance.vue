@@ -176,7 +176,7 @@ async function handleRefresh() {
     <!-- ── Zone A: Page Header ── -->
     <div class="d-flex align-center ga-3 mb-5 mt-1">
       <div class="page-header-icon">
-        <v-icon icon="mdi-chart-bar" size="22" color="#050505" />
+        <v-icon icon="mdi-chart-bar" size="22" color="#4ADE80" />
       </div>
 
       <div class="flex-grow-1">
@@ -271,7 +271,7 @@ async function handleRefresh() {
       <div class="dark-card pa-4 mb-3">
         <div class="d-flex align-center justify-space-between mb-3">
           <div class="section-label">MONTHLY P&L</div>
-          <div class="oldest-label">oldest → newest</div>
+          <div class="oldest-label">oldest -> newest</div>
         </div>
 
         <div
@@ -485,22 +485,13 @@ async function handleRefresh() {
 
 <style scoped>
 
-/* ── Dark card (main container) ── */
-.dark-card {
-  background: rgb(17 22 32);
-  border: 1px solid rgb(51 65 85 / 0.7);
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 2px 16px rgb(0 0 0 / 0.25);
-}
-
 /* ── Labels ── */
 .section-label {
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.6);
 }
 
 .subsection-label {
@@ -508,12 +499,12 @@ async function handleRefresh() {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.6);
 }
 
 .oldest-label {
   font-size: 0.6rem;
-  color: rgb(71 85 105);
+  color: rgba(100, 116, 139, 0.4);
   font-weight: 500;
 }
 
@@ -527,7 +518,7 @@ async function handleRefresh() {
 .unit-label {
   font-size: 0.72rem;
   font-weight: 500;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.6);
 }
 
 /* ── Bar chart ── */
@@ -550,11 +541,13 @@ async function handleRefresh() {
 }
 
 .bar-positive {
-  background: rgb(16 185 129);
+  background: rgba(16, 185, 129, 0.8);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
 }
 
 .bar-negative {
-  background: rgb(239 68 68);
+  background: rgba(239, 68, 68, 0.8);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
 }
 
 .bar-value {
@@ -565,14 +558,15 @@ async function handleRefresh() {
 }
 
 .row-dimmed {
-  opacity: 0.6;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
 }
 
 /* ── Month detail ── */
 .month-detail-title {
   font-size: 1rem;
   font-weight: 700;
-  color: rgb(248 250 252);
+  color: rgba(248, 250, 252, 0.95);
 }
 
 .month-detail-pips {
@@ -580,24 +574,29 @@ async function handleRefresh() {
   font-weight: 700;
 }
 
-/* ── Stats mini grid ── */
+/* ── Stats mini grid — Tier 3 Glass ── */
 .stat-mini-cell {
-  background: rgb(23 30 45);
-  border: 1px solid rgb(51 65 85 / 0.5);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px;
+  transition: background 0.2s ease;
+}
+
+.stat-mini-cell:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .stat-mini-value {
   font-size: 1.1rem;
   font-weight: 700;
-  color: rgb(226 232 240);
+  color: rgba(226, 232, 240, 0.95);
   line-height: 1.2;
 }
 
 .stat-mini-label {
   font-size: 0.6rem;
   font-weight: 500;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.5);
 }
 
 /* ── Best/Worst trade ── */
@@ -611,21 +610,21 @@ async function handleRefresh() {
 }
 
 .direction-badge--buy {
-  background: rgb(16 185 129 / 0.1);
+  background: rgba(16, 185, 129, 0.1);
   color: rgb(52 211 153);
-  border: 1px solid rgb(16 185 129 / 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .direction-badge--sell {
-  background: rgb(239 68 68 / 0.1);
+  background: rgba(239, 68, 68, 0.1);
   color: rgb(252 165 165);
-  border: 1px solid rgb(239 68 68 / 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .trade-symbol {
   font-size: 0.75rem;
   font-weight: 700;
-  color: rgb(226 232 240);
+  color: rgba(226, 232, 240, 0.9);
 }
 
 .trade-pips {
@@ -635,27 +634,27 @@ async function handleRefresh() {
 
 .trade-meta {
   font-size: 0.62rem;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.5);
   letter-spacing: -0.01em;
 }
 
-/* ── Inner divider ── */
+/* ── Inner divider — Glass ── */
 .inner-divider {
   height: 1px;
-  background: rgb(30 41 59 / 0.8);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* ── Breakdown rows ── */
 .breakdown-name {
   font-size: 0.72rem;
   font-weight: 700;
-  color: rgb(203 213 225);
+  color: rgba(203, 213, 225, 0.8);
   min-width: 56px;
 }
 
 .breakdown-wl {
   font-size: 0.62rem;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.5);
   min-width: 44px;
 }
 
@@ -666,12 +665,15 @@ async function handleRefresh() {
   text-align: right;
 }
 
-/* ── Month row (Zone E) ── */
+/* ── Month row (Zone E) — Glass ── */
 .month-row {
-  transition: border-color 0.2s ease;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .month-row--active {
-  border-color: rgb(74 222 128 / 0.4) !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.3),
+    0 0 12px rgba(74, 222, 128, 0.08) !important;
 }
 </style>

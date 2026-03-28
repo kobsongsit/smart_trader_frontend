@@ -64,8 +64,8 @@ export default defineNuxtConfig({
               info: '#2196F3',
               success: '#4CAF50',
               warning: '#FB8C00',
-              background: '#121212',
-              surface: '#1E1E1E'
+              background: '#060A13',
+              surface: '#0A0F1C'
             }
           },
           light: {

@@ -1,23 +1,24 @@
 # Design System -- Smart Trader Frontend
 
 > **Owner:** Espresso (Design Guardian)
-> **Last Updated:** 2026-03-15
-> **Version:** 1.0.0
+> **Last Updated:** 2026-03-28
+> **Version:** 2.0.0 -- Glassmorphism Dark Theme
 
 ---
 
 ## 1. Design Philosophy & Principles
 
 ### Core Philosophy
-Smart Trader is a **mobile-first dark trading dashboard** -- designed for traders who glance at their phone to check market status. Every pixel serves a purpose: data clarity, fast scanning, and visual hierarchy that lets you read the most important number in under 1 second.
+Smart Trader is a **mobile-first glassmorphism dark trading dashboard** -- designed for traders who glance at their phone to check market status. Every pixel serves a purpose: data clarity, fast scanning, and visual hierarchy that lets you read the most important number in under 1 second.
 
 ### Design Principles
-1. **Data Density with Clarity** -- Pack information tight but never sacrifice readability
+1. **True Glassmorphism** -- Semi-transparent surfaces with backdrop-filter blur over ambient gradient mesh background. Glass creates depth and hierarchy.
 2. **Numbers First** -- Financial data gets monospace font, high contrast, large size
 3. **Color = Meaning** -- Green is bullish/profit, Red is bearish/loss, Grey is neutral. No decorative colors.
 4. **Mobile-First** -- 375px viewport is the primary design target. Desktop is a bonus.
-5. **Glass Morphism Dark** -- Semi-transparent cards with subtle borders create depth without distraction
+5. **Layered Depth** -- 3-tier glass system creates clear visual hierarchy without solid backgrounds
 6. **Consistency Over Creativity** -- Every component follows the system. No one-off designs.
+7. **Ambient Light** -- Subtle glow effects on interactive and semantic elements reinforce meaning
 
 ### Target Users
 - Thai retail traders checking signals on mobile
@@ -35,8 +36,8 @@ Smart Trader is a **mobile-first dark trading dashboard** -- designed for trader
 | **primary** | `#4ADE80` | `color="primary"` | Primary CTA, active states, bullish indicators, profit |
 | **secondary** | `#1E88E5` | `color="secondary"` | Links, informational highlights |
 | **accent** | `#FFD54F` | `color="accent"` | Star ratings, watchlist, special highlights |
-| **background** | `#121212` | `bg-color="background"` | App background |
-| **surface** | `#1E1E1E` | `bg-color="surface"` | Bottom nav, standard card bg |
+| **background** | `#060A13` | `bg-color="background"` | App background (deep space navy) |
+| **surface** | `#0A0F1C` | `bg-color="surface"` | Bottom nav base, standard surfaces |
 
 ### 2.2 Semantic Colors
 
@@ -47,52 +48,55 @@ Smart Trader is a **mobile-first dark trading dashboard** -- designed for trader
 | **warning** | `#FB8C00` | `color="warning"` | Caution states, moderate consensus, WAIT signal |
 | **info** | `#2196F3` | `color="info"` | Informational chips, secondary stats, strong consensus |
 
-### 2.3 Surface Colors (Blue-Tinted Dark Scale)
+### 2.3 Glass Surface System (replaces Solid Surfaces)
 
-All surfaces use a **blue-tinted dark** tone for cohesive depth. Neutral grays (`rgb(24 24 27)`) are NOT used.
+All surfaces use **semi-transparent white** over the ambient gradient background. No solid opaque backgrounds.
 
-| Level | Name | Value | Usage |
-|-------|------|-------|-------|
-| 0 | Deepest | `rgb(11 15 25)` | Price boxes, inner recessed areas |
-| 1 | Card base | `rgb(17 22 32)` | Outer cards (`.dark-card`, `.portfolio-card`, `.position-card`), trade cards, month rows |
-| 2 | Inner surface | `rgb(23 30 45)` | Stat cells, hero cards, filter pills, nested inner cards |
-| 3 | Subtle surface | `rgb(30 41 59 / 0.6-0.8)` | Badges, time chips, toolbar buttons |
+| Tier | Name | Background | Backdrop-Filter | Border | Usage |
+|------|------|-----------|-----------------|--------|-------|
+| BG | Ambient Mesh | `#060A13` + gradient orbs | -- | -- | Full-page background |
+| 1 | Glass Card | `rgba(255,255,255,0.03)` | `blur(20px) saturate(1.2)` | `1px solid rgba(255,255,255,0.08)` | Outer cards (portfolio, trade cards, filter cards) |
+| 2 | Glass Inner | `rgba(255,255,255,0.04)` | `blur(12px)` | `1px solid rgba(255,255,255,0.06)` | Hero cards, nested panels |
+| 3 | Glass Surface | `rgba(255,255,255,0.03)` | none (performance) | `1px solid rgba(255,255,255,0.05)` | Stat cells, badges, small surfaces |
 
-**Card Borders & Shadows:**
+**Inset highlight:** All Tier 1 & 2 have `inset 0 1px 0 rgba(255,255,255,0.04)` for top-edge light catch.
 
-| Property | Value | Usage |
-|----------|-------|-------|
-| Card border | `1px solid rgb(51 65 85 / 0.7)` | All Level 1 cards |
-| Inner border | `1px solid rgb(51 65 85 / 0.5)` | Level 2 surfaces (stat cells, hero card) |
-| Card shadow | `0 2px 16px rgb(0 0 0 / 0.25)` | Standard cards (`.dark-card`) |
-| Portfolio shadow | `0 4px 24px rgb(0 0 0 / 0.35)` | Portfolio overview (heavier) |
+**Card Shadows:**
 
-**Glass Morphism (legacy, used in empty/error states):**
+| Level | Value | Usage |
+|-------|-------|-------|
+| Standard | `0 4px 24px rgba(0,0,0,0.3)` | Tier 1 cards |
+| Heavy | `0 8px 32px rgba(0,0,0,0.35)` | Portfolio card |
+| Hover | `0 8px 32px rgba(0,0,0,0.4), 0 0 24px rgba(74,222,128,0.06)` | Card hover state |
+
+### 2.4 Ambient Background Mesh
+
+Three gradient orbs floating behind glass surfaces:
+
+| Orb | Color | Size | Position | Animation |
+|-----|-------|------|----------|-----------|
+| Primary | `rgba(74,222,128,0.08)` emerald | 600px | Top-left | 25s drift |
+| Secondary | `rgba(30,136,229,0.06)` blue | 500px | Bottom-right | 30s drift |
+| Tertiary | `rgba(139,92,246,0.04)` violet | 450px | Center | 35s drift |
+
+### 2.5 Text Colors
 
 | Name | Value | Usage |
 |------|-------|-------|
-| Glass card bg | `rgba(30, 30, 30, 0.4)` | `.glass-card` -- empty state cards |
-| Glass card border | `rgba(255, 255, 255, 0.06)` | `.glass-card` border |
-| Glass card hover border | `rgba(0, 220, 130, 0.12)` | `.glass-card:hover` border |
-| Glass sheet bg | `rgba(255, 255, 255, 0.04)` | `.glass-sheet` -- inner nested surfaces |
+| Primary text | `rgba(226,232,240,0.95)` | Main content, numbers, titles |
+| Label muted | `rgba(148,163,184,0.7)` | Section headers, subtitles |
+| Secondary | `rgba(148,163,184,0.5)` | Timestamps, metadata, stat labels |
+| Tertiary | `rgba(148,163,184,0.4)` | Dates, least-important info |
+| Disabled | `rgba(100,116,139,0.3)` | Non-interactive elements |
 
-### 2.4 Text Colors
-
-| Name | Vuetify Class / CSS | Usage |
-|------|---------------------|-------|
-| Primary text | (default white) | Main content, numbers, titles |
-| Label muted | `.text-label-muted` = `rgb(100, 116, 139)` | Section headers, subtitles, secondary info |
-| Medium emphasis | `.text-medium-emphasis` (Vuetify built-in) | Timestamps, metadata, tertiary info |
-| Disabled | Vuetify disabled state | Non-interactive elements |
-
-### 2.5 Color Mapping Rules (Trading Specific)
+### 2.6 Color Mapping Rules (Trading Specific)
 
 | Concept | Color | Notes |
 |---------|-------|-------|
 | Profit / Bullish / UP / BUY | `success` (green) | Always green for positive |
 | Loss / Bearish / DOWN / SELL | `error` (red) | Always red for negative |
 | Neutral / WAIT / Sideways | `grey` or `warning` | Grey for neutral, warning for caution |
-| Active/Live indicator | `success` (small dot) | WebSocket connected status |
+| Active/Live indicator | `success` (small dot + glow) | WebSocket connected status |
 | Offline indicator | `grey` | WebSocket disconnected |
 
 **Rule:** No decorative colors outside this palette. Every color must carry semantic meaning.
@@ -148,18 +152,18 @@ Applied to: prices, percentages, scores, pips, R:R ratios, confidence numbers.
 | Page horizontal padding (mobile) | 12px | `pa-3` | `v-container.page-container` |
 | Page horizontal padding (sm+) | 16px | `pa-sm-4` | `v-container` responsive |
 | Card internal padding | 12-16px | `v-card-text` default or `pa-4` | All cards |
-| Section gap (between cards) | 12px | `mb-3` | SymbolCard stack |
+| Section gap (between cards) | 12px | `mb-3` | Card stack |
 | Row internal gap | 12px | `mb-3` | Within card sections |
 | Chip gap | 4px | `ga-1` | Chip groups |
 | Item gap | 8px | `ga-2` | Flex item groups |
 | General gap | 12px | `ga-3` | Header layout |
-| Divider margin | 16px bottom | `mb-4` on `v-divider` | Section separators |
+| Divider margin | 16px bottom | `mb-4` on divider | Section separators |
 | Page container max-width | 800px | `.page-container` | All pages |
 | Page container top padding | 16px (1rem) | `.page-container` | All pages |
 
 ### 4.3 Grid System
 - `v-container fluid` with `.page-container` (max-width: 800px, centered)
-- `v-row dense` for tight grid layouts (price boxes in SignalResult)
+- `v-row dense` for tight grid layouts
 - `v-col` with `cols` prop for column layouts
 - No sidebar -- single column mobile layout with bottom navigation
 
@@ -170,13 +174,15 @@ Applied to: prices, percentages, scores, pips, R:R ratios, confidence numbers.
 ### 5.1 App Shell
 ```
 +---------------------------+
+| [Background Mesh]         |  <- Fixed, z-index: 0, gradient orbs
 |                           |
-|     <NuxtPage />          |  <- v-main with pb-14
+|     <NuxtPage />          |  <- v-main with pb-130px, z-index: 1
 |     (max-width: 800px)    |
 |     (centered)            |
 |                           |
 +---------------------------+
-| [Markets] [Calendar] [Analysis] |  <- v-bottom-navigation, grow, color=primary, bg=#1E1E1E
+| [Frosted Glass Nav]       |  <- Fixed bottom, backdrop-filter blur(24px)
+| [Dashboard][History][Perf]|
 +---------------------------+
 ```
 
@@ -184,29 +190,30 @@ Applied to: prices, percentages, scores, pips, R:R ratios, confidence numbers.
 ```
 v-container.fluid.page-container.pa-3.pa-sm-4
   +-- Header row (d-flex align-center ga-3 mb-5 mt-1)
-  |   +-- .page-header-icon (44×44 solid #4ade80, rounded-12px, green glow)
-  |   |   +-- v-icon size="22" color="#050505"
+  |   +-- .page-header-icon (44x44 glass with green glow, rounded-12px)
+  |   |   +-- v-icon size="22" color="#4ADE80"
   |   +-- .flex-grow-1
   |   |   +-- Title (text-h5 font-weight-bold)
   |   |   +-- Subtitle (text-caption text-label-muted mt-1)
-  |   +-- .refresh-btn (global CSS)
-  +-- .page-header-divider.mb-5
+  |   +-- .refresh-btn (glass button)
+  +-- .page-header-divider.mb-5 (gradient line)
   +-- Content (component slot)
   +-- Footer (text-center, disclaimer text)
 ```
 
-**Header Pattern (ทุกหน้าต้องใช้ pattern นี้เหมือนกัน):**
-- Icon box: `.page-header-icon` — solid `#4ade80` bg, dark icon `color="#050505"`, icon size `22`
-- Title: `text-h5 font-weight-bold` — Title Case (ไม่ใช่ UPPERCASE)
-- Subtitle: `text-caption text-label-muted mt-1`
-- Refresh: `.refresh-btn` + `.refresh-btn--spinning`
-- Divider: `.page-header-divider mb-5`
-- Spacing: `mb-5 mt-1` on header row
+**Header Icon (Glassmorphism):**
+- Background: `rgba(74,222,128,0.15)` (green-tinted glass)
+- Border: `1px solid rgba(74,222,128,0.2)`
+- Glow: `0 0 20px rgba(74,222,128,0.15), 0 0 40px rgba(74,222,128,0.05)`
+- Icon color: `#4ADE80` (not dark on solid -- green on glass)
+
+**Header Divider (Gradient):**
+- Linear gradient: transparent -> green -> transparent
 
 ### 5.3 Card Stack Pattern (Primary mobile layout)
 - Cards stacked vertically with `mb-3` gap
-- Each card: `v-card elevation="0" rounded="lg" class="glass-card"`
-- Card content via `v-card-text`
+- Each card: `.dark-card` class (Tier 1 glass)
+- Card content via padding classes
 
 ### 5.4 Responsive Behavior
 - **Mobile (< 600px):** Single column, `pa-3`, full-width cards
@@ -219,84 +226,67 @@ v-container.fluid.page-container.pa-3.pa-sm-4
 
 ### 6.1 Cards
 
-| Variant | Classes | Usage |
-|---------|---------|-------|
-| Glass Card | `v-card elevation="0" rounded="lg" class="glass-card"` | Primary card (SymbolCard, all content cards) |
-| Glass Sheet (inner) | `v-sheet rounded="xl" class="glass-card pa-4"` | SignalResult wrapper |
-| Inner Sheet | `v-sheet rounded="lg" class="glass-sheet pa-3"` | Nested content within cards |
-| Entry Box | `v-sheet rounded="lg" class="pa-3"` + custom border | Price level boxes (entry, TP, SL) |
+| Variant | Classes/CSS | Usage |
+|---------|-------------|-------|
+| Dark Card (Tier 1) | `.dark-card` | Primary card (trade cards, filter cards, stat cards) |
+| Portfolio Card (Tier 1+) | `.portfolio-card` | Portfolio overview (heavier shadow, 24px radius) |
+| Hero Card (Tier 2) | `.hero-card` | Inner featured content (Total Pips hero) |
+| Glass Card (Vuetify) | `v-card.glass-card` | Legacy/Vuetify-wrapped cards |
+| Glass Sheet (Tier 3) | `.glass-sheet` | Inner nested surfaces |
+| Stat Cell (Tier 3) | `.stat-cell` | Individual stat display in grid |
+| Stat Mini Cell (Tier 3) | `.stat-mini-cell` | Compact stat in Performance |
 
-### 6.2 Chips
+### 6.2 Chips & Badges
 
-| Variant | Props | Usage |
+| Variant | Style | Usage |
 |---------|-------|-------|
-| Status chip (small) | `size="x-small" variant="tonal" rounded="lg" class="font-weight-bold"` | Type badge, trend status |
-| Data chip | `size="small" variant="tonal" class="font-mono font-weight-bold"` | R:R ratio, profit %, loss % |
-| Price change | `size="x-small" variant="tonal" :color="dynamic" class="font-mono font-weight-bold text-caption"` | +0.52%, -1.20% |
-| Trend badge | `v-chip :color="dynamic" :size="small" variant="flat" class="font-weight-bold"` | UP, DOWN, NEUTRAL |
+| Direction badge (BUY) | Green tonal: `rgba(16,185,129,0.1)` bg + green text + green border | BUY trades |
+| Direction badge (SELL) | Red tonal: `rgba(239,68,68,0.1)` bg + red text + red border | SELL trades |
+| Exit badge (TP) | Green tonal | Take Profit exit |
+| Exit badge (SL) | Red tonal | Stop Loss exit |
+| Exit badge (Signal) | Blue tonal | Signal Exit |
+| Exit badge (Manual) | Orange tonal | Manual exit |
+| Filter pill | Glass: `rgba(255,255,255,0.04)` bg | Inactive filter |
+| Filter pill (active) | Green glass: `rgba(74,222,128,0.15)` bg + green border + glow | Active filter |
+| Count badge | Blue glass: `rgba(59,130,246,0.1)` + border | Position count |
+| Extra filter badge | Green glass | Active filter count indicator |
 
 ### 6.3 Buttons
 
-| Variant | Props | Usage |
+| Variant | Style | Usage |
 |---------|-------|-------|
-| FAB | `v-btn icon color="primary" size="large" elevation="8" position="fixed"` | Create symbol (bottom-right) |
-| Icon button | `v-btn icon variant="text" size="small/x-small"` | Refresh, edit, navigation |
-| Strategy button | `v-btn :color="dynamic" variant="elevated" size="large" rounded="lg" class="font-weight-black text-h6 px-6"` | BUY/SELL signal display |
+| Refresh button | Glass: `rgba(255,255,255,0.04)` bg + border | Page header refresh |
+| Nav arrow button | Glass + hover | Month navigator arrows |
+| Sort button | Transparent + hover | Sort toggle |
+| More filters button | Transparent text | Expand/collapse filters |
 | Text action | `v-btn variant="text" size="small"` | Retry, inline actions |
-| Bottom nav btn | `v-btn to="..." :active="..."` | Navigation items |
+| Bottom nav btn | `NuxtLink` with glass nav | Navigation items |
 
 ### 6.4 Progress Indicators
 
 | Variant | Props | Usage |
 |---------|-------|-------|
-| Linear progress | `v-progress-linear :color="dynamic" rounded height="6" bg-color="#2A2A2A"` | Strength bars, Win rate bar |
-| SL Distance Bar | `v-progress-linear :color="dynamic 3-tier" rounded height="6" bg-color="#2A2A2A"` | Risk proximity indicator in Open Positions. Color: <50% green, 50-74% amber, 75%+ red |
-| Circular progress | `v-progress-circular :color="dynamic" :size="70" :width="6"` | Confidence display |
+| Win Rate bar | `v-progress-linear color="success" bg-color="rgba(255,255,255,0.04)" height="6"` + glow | Win rate display |
+| Bar chart fill (positive) | `rgba(16,185,129,0.8)` + green glow shadow | Monthly P&L bars |
+| Bar chart fill (negative) | `rgba(239,68,68,0.8)` + red glow shadow | Monthly P&L bars (loss) |
 | Loading spinner | `v-progress-circular indeterminate color="primary"` | Loading states |
-| Small spinner | `v-progress-circular indeterminate color="primary" size="20" width="2"` | Inline loading |
 
-### 6.5 Alerts
-
-| Variant | Props | Usage |
-|---------|-------|-------|
-| Error alert | `v-alert type="error" variant="tonal"` | API error messages |
-| Warning sheet | `v-sheet rounded="lg"` + custom warning bg/border | Signal warnings |
-
-### 6.6 Skeleton Loaders
-
-| Variant | Usage |
-|---------|-------|
-| `v-skeleton-loader type="button"` | Button placeholder |
-| `v-skeleton-loader type="text"` | Text line placeholder |
-| `v-skeleton-loader type="paragraph"` | Multi-line text |
-| `v-skeleton-loader type="chip"` | Chip placeholder |
-| `v-skeleton-loader type="avatar"` | Avatar/circle placeholder |
-| `v-skeleton-loader type="text@2"` | Two text lines |
-
-### 6.7 Avatars
-
-| Variant | Props | Usage |
-|---------|-------|-------|
-| Symbol avatar | `v-avatar :color="dynamic" variant="tonal" size="46" rounded="lg"` + border | Symbol first letter |
-| Header avatar | `v-avatar color="primary" size="40" rounded="lg"` | Page header icon |
-
-### 6.8 Navigation
+### 6.5 Navigation
 
 | Component | Details |
 |-----------|---------|
-| Bottom Navigation | `v-bottom-navigation grow color="primary" bg-color="#1E1E1E"` with 3 items |
-| Items | Dashboard (mdi-view-dashboard-outline), History (mdi-history), Performance (mdi-chart-line-variant) |
-| Routes | `/` (Dashboard), `/history` (Trade History), `/performance` (Monthly Performance) |
-| Label style | `text-uppercase text-caption` |
+| Bottom Navigation | Frosted glass: `rgba(6,10,19,0.7)` + `blur(24px)` |
+| Active state | Green color + glow dot behind icon + drop-shadow on icon |
+| Dividers | `rgba(255,255,255,0.04)` vertical lines |
+| Home indicator | `rgba(255,255,255,0.1)` pill |
 
-### 6.9 Empty / Error / Loading States
+### 6.6 Empty / Error / Loading States
 
 | State | Pattern |
 |-------|---------|
-| **Loading (initial)** | `v-progress-circular indeterminate color="primary"` centered + "Loading..." text |
-| **Error** | `v-alert type="error" variant="tonal"` with retry button in #append slot |
-| **Empty** | Large mdi icon (size 48) + descriptive text, centered, `text-medium-emphasis` |
-| **Skeleton (progressive)** | Partial card with avatar + name + `v-skeleton-loader type="text@2"` |
+| **Loading** | Skeleton loaders inside glass cards |
+| **Error** | `v-alert type="error" variant="tonal"` with retry button |
+| **Empty** | Large mdi icon (size 48) + descriptive text, centered |
 
 ---
 
@@ -304,11 +294,15 @@ v-container.fluid.page-container.pa-3.pa-sm-4
 
 | State | Behavior |
 |-------|----------|
-| **Hover (card)** | Border color shift to `rgba(0, 220, 130, 0.12)`, enhanced shadow |
-| **Active/Pressed** | Default Vuetify ripple effect |
+| **Hover (glass card)** | Border brightens to `rgba(255,255,255,0.12)`, shadow deepens |
+| **Hover (stat cell)** | Background brightens to `rgba(255,255,255,0.05)` |
+| **Hover (filter pill)** | Border to green, background brightens |
+| **Active filter** | Green glass bg + green border + outer glow |
+| **Active month row** | Green border + green glow shadow |
+| **Active nav item** | Green text + glow dot + icon drop-shadow |
 | **Focus** | Default Vuetify focus ring |
-| **Disabled** | Vuetify default (reduced opacity) |
-| **Transition** | `box-shadow 0.25s ease, border-color 0.25s ease` on glass-card |
+| **Disabled** | Reduced opacity (0.3) |
+| **Transition** | 200-300ms ease on border-color, box-shadow, background |
 
 ---
 
@@ -316,39 +310,43 @@ v-container.fluid.page-container.pa-3.pa-sm-4
 
 | Level | Value | Usage |
 |-------|-------|-------|
-| No elevation | `elevation="0"` | Vuetify cards with custom shadow |
-| Standard card | `0 2px 16px rgb(0 0 0 / 0.25)` | `.dark-card` (all content cards) |
-| Portfolio card | `0 4px 24px rgb(0 0 0 / 0.35)` | `.portfolio-card` (heavier depth) |
-| Glass shadow | `0 2px 12px rgba(0, 0, 0, 0.4)` | `.glass-card` (legacy/empty states) |
-| Glass hover | `0 4px 20px rgba(0, 0, 0, 0.5), 0 0 32px rgba(0, 220, 130, 0.04)` | `.glass-card:hover` |
-| Green glow | `0 0 16px rgba(74, 222, 128, 0.25)` | `.page-header-icon` |
-| Win rate glow | `0 0 10px rgba(52, 211, 153, 0.45)` | Progress bar determinate |
+| Tier 1 card | `0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)` | Standard glass cards |
+| Portfolio card | `0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)` | Portfolio overview |
+| Hover | `+ 0 0 24px rgba(74,222,128,0.06)` added | Card hover glow |
+| Bottom nav | `0 -4px 32px rgba(0,0,0,0.4)` | Frosted nav shadow |
+| Header icon | `0 0 20px rgba(74,222,128,0.15), 0 0 40px rgba(74,222,128,0.05)` | Green glow |
+| Bar fill glow | `0 0 8px rgba(color,0.3)` | Chart bars (green/red) |
+| Active accent | `0 0 12px rgba(74,222,128,0.08)` | Selected month, active states |
 
 ---
 
 ## 9. Border & Border Radius
 
-### 9.1 Border Radius Scale (actual production values)
+### 9.1 Border Radius Scale
 
-| Value | Token | Usage |
-|-------|-------|-------|
-| `4px` | badge-sm | Direction badges, small badges, progress bars |
-| `5-6px` | badge-md | Exit badges, nav arrow buttons, filter toggle |
-| `8px` | radius-sm | Price boxes, glass-card (Vuetify `rounded="lg"`) |
-| `12px` | radius-md | Stat cells, page-header-icon, position cards, stat-mini-cell |
-| `16px` | radius-lg | Dark cards (`.dark-card`), hero cards, inner content cards |
-| `24px` | radius-xl | Portfolio overview outer card |
-| `9999px` | pill | Filter pills, extra-filter badge |
+| Value | Usage |
+|-------|-------|
+| `3-4px` | Direction badges, small badges, sl-type badge |
+| `5px` | Exit badges |
+| `6px` | Time badge, TF badge, nav-arrow-btn, count badge |
+| `8px` | Price box, refresh button |
+| `12px` | Stat cells, page-header-icon, position cards |
+| `16px` | Dark cards, hero card |
+| `24px` | Portfolio card |
+| `9999px` | Filter pills, extra-filter badge, home indicator |
 
-### 9.2 Border Styles
+### 9.2 Border Styles (Glassmorphism)
 
-| Border Style | Usage |
-|-------------|-------|
-| `1px solid rgb(51 65 85 / 0.7)` | Level 1 cards (dark-card, portfolio-card, position-card) |
-| `1px solid rgb(51 65 85 / 0.5)` | Level 2 surfaces (stat cells, hero card, price box) |
-| `1px solid rgba(255,255,255,0.06)` | Glass card/sheet border (legacy) |
-| `1px solid rgb(16 185 129 / 0.2)` | BUY direction badge border (tonal) |
-| `1px solid rgb(239 68 68 / 0.2)` | SELL direction badge border (tonal) |
+| Style | Usage |
+|-------|-------|
+| `1px solid rgba(255,255,255,0.08)` | Tier 1 cards, primary borders |
+| `1px solid rgba(255,255,255,0.06)` | Tier 2 inner cards, secondary borders |
+| `1px solid rgba(255,255,255,0.05)` | Tier 3 surfaces, stat cells |
+| `1px solid rgba(255,255,255,0.04)` | Subtle elements (nav dividers, time badges) |
+| `1px solid rgba(74,222,128,0.2)` | Header icon, active green border |
+| `1px solid rgba(74,222,128,0.3)` | Active filter pill, active month row |
+| `1px solid rgba(16,185,129,0.2)` | BUY direction badge |
+| `1px solid rgba(239,68,68,0.2)` | SELL direction badge |
 
 ---
 
@@ -364,8 +362,8 @@ v-container.fluid.page-container.pa-3.pa-sm-4
 
 ### Touch Targets
 - Minimum interactive size: Vuetify defaults (48px for buttons)
-- FAB: `size="large"` (56px)
-- Bottom nav items: full-width with `grow`
+- Bottom nav items: full-width with flex: 1
+- Filter pills: adequate padding for touch
 
 ---
 
@@ -376,6 +374,7 @@ v-container.fluid.page-container.pa-3.pa-sm-4
 - `NuxtRouteAnnouncer` for route change announcements
 - Color alone never conveys meaning -- always paired with text/icons
 - Semantic heading hierarchy maintained
+- Text on glass maintains sufficient contrast (white text on dark semi-transparent)
 
 ---
 
@@ -383,11 +382,11 @@ v-container.fluid.page-container.pa-3.pa-sm-4
 
 | Layer | Z-Index | Usage |
 |-------|---------|-------|
-| Base content | 0 | Page content |
-| Bottom navigation | Vuetify default | `v-bottom-navigation` |
-| FAB | Vuetify default | Fixed position button |
-| Tooltips | Vuetify default | `v-tooltip` |
-| Dialogs | Vuetify default | (not yet used) |
+| Background mesh | 0 | `.app-bg-mesh` (fixed, full viewport) |
+| Page content | 1 | `.page-container` (relative) |
+| Bottom navigation | 1000 | `.bottom-nav` (fixed) |
+| Tooltips | 100 | Price tooltip |
+| Vuetify overlays | Vuetify default | Dialogs, menus |
 
 ---
 
@@ -395,34 +394,51 @@ v-container.fluid.page-container.pa-3.pa-sm-4
 
 | Type | Duration | Easing | Usage |
 |------|----------|--------|-------|
-| Card hover | 250ms | ease | Glass card border/shadow transition |
-| Score count-up | 600ms | ease-out cubic | Strength score animation |
-| Loading appear | instant | -- | Skeleton to content swap |
+| Card hover | 250-300ms | ease | Glass card border/shadow transition |
+| Stat cell hover | 200ms | ease | Background brightness shift |
+| Filter pill | 200ms | ease | Background, border, shadow transition |
+| Orb drift 1 | 25s | ease-in-out infinite | Primary emerald orb |
+| Orb drift 2 | 30s | ease-in-out infinite | Secondary blue orb |
+| Orb drift 3 | 35s | ease-in-out infinite | Tertiary violet orb |
+| Refresh spin | 700ms | linear infinite | Spinning refresh icon |
+| Flash pulse | 600ms | ease-in-out infinite | Loading flash icon |
+| Ping dot | 1.5s | cubic-bezier(0,0,0.2,1) infinite | Live status indicator |
+| Tooltip fade | 150-200ms | ease | Price tooltip enter/leave |
 
 ---
 
 ## 14. Dark Mode Policy
 
 - **Dark mode is the default and only supported theme**
+- Background: Deep space navy `#060A13` (not neutral black)
+- All surfaces are semi-transparent glass over ambient gradient mesh
 - Light theme colors are defined in config but not used
-- All design decisions are made for dark backgrounds
-- Glass morphism effects depend on dark mode
+- Glass effects depend on dark background + gradient mesh
 
 ---
 
 ## 15. Custom CSS Classes
 
-| Class | What It Does | Usage | File |
-|-------|-------------|-------|------|
-| `.glass-card` | Semi-transparent card with border + shadow + hover effect | All content cards | `global.css` |
-| `.glass-sheet` | Very subtle inner surface | Nested content areas | `global.css` |
-| `.font-mono` | JetBrains Mono with tight letter-spacing | All numbers | `global.css` |
-| `.page-container` | Max-width 800px, centered, top padding | Every page wrapper | `global.css` |
-| `.text-label-muted` | Muted slate text color | Section labels, subtitles | `global.css` |
-| `.page-header-icon` | Solid green 44×44 icon box with glow | Every page header icon | `global.css` |
-| `.page-header-divider` | 1px divider below page header | Every page, below header | `global.css` |
-| `.refresh-btn` | Transparent icon button with hover/spin states | Every page header refresh | `global.css` |
-| `.border-primary` | Green border for selected state | Selected month card in Performance | `global.css` |
+| Class | What It Does | Tier | File |
+|-------|-------------|------|------|
+| `.app-bg-mesh` | Fixed background with gradient orbs | BG | `global.css` |
+| `.bg-orb-3` | Third ambient orb (violet) | BG | `global.css` |
+| `.glass-card` | Tier 1 glass with blur + border + shadow + hover | 1 | `global.css` |
+| `.glass-inner` | Tier 2 inner glass with blur | 2 | `global.css` |
+| `.glass-surface` | Tier 3 surface (no blur) | 3 | `global.css` |
+| `.glass-sheet` | Legacy alias for Tier 3 | 3 | `global.css` |
+| `.dark-card` | Tier 1 glass card (rounded-16px) | 1 | `global.css` |
+| `.font-mono` | JetBrains Mono with tight letter-spacing | -- | `global.css` |
+| `.page-container` | Max-width 800px, centered, top padding | -- | `global.css` |
+| `.text-label-muted` | Muted text `rgba(148,163,184,0.7)` | -- | `global.css` |
+| `.page-header-icon` | Glass icon box with green glow | -- | `global.css` |
+| `.page-header-divider` | Gradient divider (transparent-green-transparent) | -- | `global.css` |
+| `.refresh-btn` | Glass refresh button with hover/spin states | -- | `global.css` |
+| `.border-primary` | Green border for selected state | -- | `global.css` |
+| `.cursor-pointer` | Cursor pointer utility | -- | `global.css` |
+| `.glow-success` | Green glow utility | -- | `global.css` |
+| `.glow-error` | Red glow utility | -- | `global.css` |
+| `.glow-info` | Blue glow utility | -- | `global.css` |
 
 ---
 
@@ -432,47 +448,21 @@ v-container.fluid.page-container.pa-3.pa-sm-4
 - Material Design Icons (`@mdi/font`)
 - Used via Vuetify `v-icon` component
 
-### Common Icons (used in production)
+### Icon Color on Glassmorphism
+- Header icons: `#4ADE80` (green on glass -- NOT dark on solid)
+- General icons: inherit or semantic color
+- Muted icons: `text-label-muted` or `text-medium-emphasis`
 
-| Icon | MDI Name | Usage |
-|------|----------|-------|
-| Flash | `mdi-flash` | App logo/header |
-| Sync | `mdi-sync` | Refresh action |
-| Plus | `mdi-plus` | Create/add |
-| Pencil | `mdi-pencil` | Edit |
-| Chevron right | `mdi-chevron-right` | Navigate forward |
-| Trending up | `mdi-trending-up` | Uptrend |
-| Trending down | `mdi-trending-down` | Downtrend |
-| Trending neutral | `mdi-trending-neutral` | Sideways/neutral |
-| Circle (filled) | `mdi-circle` | Live status dot |
-| Circle (outline) | `mdi-circle-outline` | Offline status dot |
-| Clock outline | `mdi-clock-outline` | Timestamps |
-| Alert circle | `mdi-alert-circle-outline` | Warnings |
-| Shield check | `mdi-shield-check` | Footer trust indicator |
-| Chart box outline | `mdi-chart-box-outline` | Empty state |
-| View grid | `mdi-view-grid-outline` | Markets nav |
-| Calendar | `mdi-calendar-blank` | Calendar nav |
-| Chart line | `mdi-chart-line-variant` | Performance nav |
-| History | `mdi-history` | History nav |
-| Dashboard | `mdi-view-dashboard-outline` | Dashboard nav |
-| Chart bar | `mdi-chart-bar` | Performance page header |
-| File search | `mdi-file-search-outline` | Empty state (filtered results) |
-| Chevron left | `mdi-chevron-left` | Month navigator prev |
-| Arrow right | `mdi-arrow-right` | Price flow (entry -> exit/current) |
+### Common Icons (same as v1 -- no changes)
+(Full icon list maintained from v1.0.0)
 
 ### Icon Sizes (from production code)
 | Size | Pixels | Usage |
 |------|--------|-------|
-| 10 | 10px | Status dots |
-| 12 | 12px | Inline with caption text |
-| 14 | 14px | Inline with small labels |
-| 16 | 16px | Small action icons |
-| 18 | 18px | Warning icons |
-| 20 | 20px | Default inline |
-| 22 | 22px | Header avatar icon |
-| 24 | 24px | Strategy button icon |
-| 26 | 26px | Refresh icon |
-| 28 | 28px | FAB icon |
+| 10-12 | 10-12px | Status dots, inline caption |
+| 14-16 | 14-16px | Small action icons, inline labels |
+| 18-22 | 18-22px | Header icons, nav icons, warning icons |
+| 24-28 | 24-28px | Strategy button, FAB |
 | 48 | 48px | Empty state icon |
 
 ---
@@ -481,26 +471,22 @@ v-container.fluid.page-container.pa-3.pa-sm-4
 
 | Date | Decision | Rationale | Alternatives Considered |
 |------|----------|-----------|------------------------|
-| 2026-03-15 | Glass morphism dark theme | Trading apps need dark mode. Glass effect adds depth without clutter. | Solid dark cards, Gradient backgrounds |
+| 2026-03-28 | **Glassmorphism Dark Theme v2.0** | Full redesign from solid dark to true glassmorphism. Semi-transparent surfaces with backdrop-filter blur over ambient gradient mesh. Creates premium, modern aesthetic with layered depth. | Enhanced solid dark (incremental), Neumorphism (too heavy), Material You (too Google) |
+| 2026-03-28 | Background `#060A13` (deep space navy) with gradient orbs | Glass effect requires visible background variation. Orbs provide subtle color shifts that make glass surfaces visible. Static would feel dead; animated orbs add life without distraction. | Solid black (glass invisible), Noise texture (too busy), Static gradient (too flat) |
+| 2026-03-28 | 3-tier glass system (Card/Inner/Surface) | Hierarchy needs visual distinction. Tier 1 has full blur (heavy). Tier 3 has no blur (perf). Inner tier is middle ground for nested panels. | 2-tier (not enough depth), 4-tier (too complex), Single tier (flat) |
+| 2026-03-28 | `rgba(255,255,255,0.03-0.05)` backgrounds (not higher) | Higher opacity (0.1+) looks milky/muddy on dark. 0.03-0.05 is barely visible but catches light from inset highlight. Subtlety is key. | 0.08-0.1 (too milky), 0.01 (invisible), Colored tint (clashes with semantic colors) |
+| 2026-03-28 | Header icon: green glass (not solid green) | Solid green icon box felt out of place on glass UI. Green-tinted glass with glow integrates naturally. Icon color changed from dark to green for readability on glass. | Keep solid (inconsistent), White icon (no brand color), No icon box (loses hierarchy) |
+| 2026-03-28 | Divider: gradient line (not solid) | Solid 1px line looks harsh on glass. Gradient (transparent->green->transparent) is softer and echoes the primary color subtly. | Solid white/grey (harsh), No divider (loses structure), Dotted (too playful) |
+| 2026-03-28 | Filter pill active: green glass with glow (not solid green bg) | Solid green felt too aggressive on glass UI. Green-tinted glass with outer glow is consistent with the glass language while maintaining clear active state. | Solid green (too heavy), Border only (too subtle), Underline (too minimal) |
+| 2026-03-28 | Bottom nav: frosted glass with glow dot | Solid nav looked like a separate element from the glass UI. Frosted glass integrates it. Glow dot behind active icon adds premium touch. | Solid dark (disconnected), Fully transparent (no boundary), Tab indicator line (too minimal) |
+| 2026-03-28 | Bar chart fills: semi-transparent with glow | Solid bars looked flat on glass. Semi-transparent (0.8 opacity) with colored box-shadow glow integrates with the glass aesthetic. | Solid bars (flat), Gradient bars (too busy), Outlined bars (too thin) |
+| 2026-03-28 | Text opacity hierarchy (0.95/0.7/0.5/0.4) | Pure white (#fff) is too harsh on glass. Slightly reduced opacity creates softer reading experience while maintaining WCAG contrast on dark glass. | Pure white (harsh), Fixed grey values (less flexible), HSL hierarchy (more complex) |
+| 2026-03-28 | Scrollbar: thin glass style (4px, transparent track) | Default scrollbar breaks immersion. Thin glass scrollbar is consistent with the UI language. | Default (breaks aesthetic), Hidden (accessibility issue), Custom thick (too prominent) |
 | 2026-03-15 | JetBrains Mono for numbers | Monospace alignment for financial data. JetBrains Mono is modern + readable at small sizes. | Fira Code, Source Code Pro |
 | 2026-03-15 | Noto Sans Thai as default | Full Thai character support. Clean, modern. | Sarabun, IBM Plex Thai |
-| 2026-03-15 | 800px max-width | Mobile-first single column. 800px prevents over-stretching on desktop while staying comfortable on tablet. | 600px (too narrow for tablet), 100% (too wide on desktop) |
+| 2026-03-15 | 800px max-width | Mobile-first single column. 800px prevents over-stretching on desktop while staying comfortable on tablet. | 600px, 100% |
 | 2026-03-15 | Bottom navigation (3 items) | Mobile-native pattern. Thumb-reachable. Clear navigation. | Hamburger menu, Top tabs |
-| 2026-03-15 | elevation="0" + glass-card CSS | Vuetify elevation doesn't support rgba backgrounds well. Custom CSS gives better glass effect. | Vuetify elevation levels |
-| 2026-03-15 | Card-per-position (not table) for Open Positions | Table unusable on 375px with 6+ columns. Card enables proper visual hierarchy and SL distance bar. | v-data-table, Compact rows |
-| 2026-03-15 | SL Distance Bar with 3-tier color (green/amber/red) | Universal traffic light system for risk proximity. Thresholds at 50% and 75% match common trading risk management levels. | Binary green/red, 5-tier gradient |
-| 2026-03-15 | text-h5 for position P&L (not text-h4) | text-h4 reserved for page-level hero (Portfolio Total Pips). Card-level hero uses text-h5 to maintain hierarchy. | text-h4 (breaks hierarchy), text-h6 (too small) |
-| 2026-03-15 | Empty state "Bot is scanning" (not "Waiting") | Lungo directive: don't induce FOMO. "Scanning" sounds active, "Waiting" sounds passive. mdi-radar icon reinforces. | "No positions yet", "Waiting for signal" |
-| 2026-03-15 | Card-per-trade for Trade History (not table) | Consistent with Open Positions pattern. Card-per-item enables proper hierarchy with P&L as hero on 375px. | v-data-table, Compact rows |
-| 2026-03-15 | Load More button (not infinite scroll) for Trade History | User control over data loading. Prevents perf issues. Shows progress ("12 of 42"). | Infinite scroll, Full pagination |
-| 2026-03-15 | Chip group filters (not dropdowns) for Trade History | All options visible at once -- no extra tap. Few options (4-5 symbols, 3 TFs). Mobile-friendly. | v-select dropdown, Bottom sheet |
-| 2026-03-15 | Exit reason chips with semantic colors | TP=success, SL=error, Signal Exit=info, Manual=warning. Instant identification of trade outcome. | Text only, Icon only |
-| 2026-03-15 | CSS bars for Monthly Performance chart (not chart library) | 6-12 bars max. CSS is lighter, fully themeable, no dependency. | lightweight-charts, Chart.js |
-| 2026-03-15 | Cumulative P&L as Performance page hero (text-h4) | Most important number: "how much total?" Same prominence as Portfolio Overview's Total Pips. | Monthly as hero, No hero |
-| 2026-03-15 | Month selection interaction (tap bar or card) | Simple state change, no modal/navigation. Detail updates reactively. | Modal popup, Separate page per month |
-| 2026-03-15 | Symbol breakdown sorted by pips (not alpha) | Trader asks "what's making me money?" Sort by profit answers directly. | Alphabetical, By trade count |
-| 2026-03-15 | Bottom navigation updated: Dashboard/History/Performance | Three distinct views: overview, trade log, monthly trends. Clear separation of concerns. | Tabs within Dashboard, Drawer menu |
-| 2026-03-17 | Unified page header pattern across all pages | Dashboard/History/Performance had 3 different header styles (solid vs tonal icon, text-h5 vs custom 1rem uppercase, different spacing). Unified to: solid green icon box + text-h5 title + text-caption subtitle + divider. CSS moved to global.css to prevent duplication. | Keep per-page custom headers (rejected: inconsistency is technical debt) |
-| 2026-03-17 | Blue-tinted dark surface scale across all pages | History/Performance used neutral dark `rgb(24 24 27)` while Dashboard used blue-tinted `rgb(17 22 32)`. Unified to 4-level blue-tinted scale: L0 `rgb(11 15 25)`, L1 `rgb(17 22 32)`, L2 `rgb(23 30 45)`, L3 `rgb(30 41 59)`. Blue tint adds depth and premium feel vs flat neutral gray. | Neutral gray (rejected: feels flat), Pure dark (rejected: no depth) |
-| 2026-03-17 | Tonal direction badges (not solid) across all pages | History/Performance used solid BUY/SELL badges (opaque green/red bg). Dashboard OpenPositions used tonal (transparent bg + colored border). Unified to tonal everywhere — subtler, works better on blue-tinted cards, consistent with position card left accent bar pattern. | Solid badges (rejected: too heavy on dark cards, inconsistent with Dashboard) |
-| 2026-03-17 | Standardized stat-cell across pages | Portfolio stat-cell (bg: L2, radius: 12px, value: 1.1rem) and History stat-cell (bg: neutral, radius: 10px, value: 1rem) were different. Unified to Portfolio's values. Same component = same style. | Keep per-page variants (rejected: same component must look same) |
+| 2026-03-15 | Card-per-position (not table) | Table unusable on 375px. Card enables proper visual hierarchy. | v-data-table |
+| 2026-03-15 | Card-per-trade for Trade History | Consistent with Open Positions. Card-per-item enables proper hierarchy. | v-data-table |
+| 2026-03-15 | CSS bars for Monthly Performance chart | 6-12 bars max. CSS is lighter, fully themeable, no dependency. | Chart.js |
+| 2026-03-17 | Unified page header pattern | All pages share same header structure. | Per-page custom headers |

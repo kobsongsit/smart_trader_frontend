@@ -27,7 +27,7 @@ function formatPips(pips: number): string {
 
 /**
  * Format delta value with label
- * "+127 today" / "-42 today" / "— today" (if null/undefined)
+ * "+127 today" / "-42 today" / "--- today" (if null/undefined)
  */
 function formatDelta(value: number | null | undefined, label: string): string {
   if (value == null) return `\u2014 ${label}`
@@ -36,7 +36,7 @@ function formatDelta(value: number | null | undefined, label: string): string {
 }
 
 /**
- * Format max drawdown — always negative
+ * Format max drawdown -- always negative
  */
 function formatMaxDrawdown(dd: number): string {
   return dd.toLocaleString('en-US')
@@ -213,14 +213,14 @@ function retry() {
         <v-progress-linear
           :model-value="portfolio.winRate"
           color="success"
-          bg-color="#0B0F19"
+          bg-color="rgba(255,255,255,0.04)"
           rounded
           height="6"
           class="winrate-bar"
         />
       </div>
 
-      <!-- Zone C: Stats Grid 3×2 -->
+      <!-- Zone C: Stats Grid 3x2 -->
       <v-row dense>
 
         <!-- Wins -->
@@ -294,52 +294,61 @@ function retry() {
 </template>
 
 <style scoped>
-/* ── Outer portfolio card ── */
+/* ── Outer portfolio card — Tier 1 Glass ── */
 .portfolio-card {
-  background: rgb(17 22 32);
-  border: 1px solid rgb(51 65 85 / 0.7);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(24px) saturate(1.3);
+  -webkit-backdrop-filter: blur(24px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 4px 24px rgb(0 0 0 / 0.35);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-/* ── Section Header: icon box ── */
+/* ── Section Header: icon box — glass with glow ── */
 .portfolio-icon-box {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(16 185 129 / 0.1);
+  background: rgba(74, 222, 128, 0.08);
+  border: 1px solid rgba(74, 222, 128, 0.15);
   border-radius: 10px;
   width: 38px;
   height: 38px;
   flex-shrink: 0;
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.1);
 }
 
 .portfolio-title {
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: rgb(226 232 240);
+  color: rgba(226, 232, 240, 0.9);
 }
 
 .portfolio-since {
   font-size: 0.68rem;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.6);
   margin-top: 1px;
 }
 
-/* ── Hero Card (inner) ── */
+/* ── Hero Card — Tier 2 Glass (inner) ── */
 .hero-card {
-  background: rgb(23 30 45);
-  border: 1px solid rgb(51 65 85 / 0.5);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .hero-label {
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.12em;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.6);
   text-transform: uppercase;
 }
 
@@ -352,7 +361,7 @@ function retry() {
 .hero-unit {
   font-size: 0.8rem;
   font-weight: 500;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.6);
 }
 
 /* ── Delta line ── */
@@ -363,7 +372,7 @@ function retry() {
 }
 
 .delta-divider {
-  color: rgb(51 65 85);
+  color: rgba(255, 255, 255, 0.1);
   margin: 0 6px;
 }
 
@@ -372,7 +381,7 @@ function retry() {
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.1em;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.6);
 }
 
 .winrate-value {
@@ -382,27 +391,33 @@ function retry() {
 
 /* Win Rate bar glow */
 .winrate-bar :deep(.v-progress-linear__determinate) {
-  box-shadow: 0 0 10px rgba(52, 211, 153, 0.45);
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.5);
 }
 
-/* ── Stats Grid cells ── */
+/* ── Stats Grid — Tier 3 Glass Surface ── */
 .stat-cell {
-  background: rgb(23 30 45);
-  border: 1px solid rgb(51 65 85 / 0.5);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.stat-cell:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .stat-value {
   font-size: 1.1rem;
   font-weight: 700;
-  color: rgb(226 232 240);
+  color: rgba(226, 232, 240, 0.95);
   line-height: 1.2;
 }
 
 .stat-label {
   font-size: 0.6rem;
   font-weight: 500;
-  color: rgb(100 116 139);
+  color: rgba(148, 163, 184, 0.5);
   letter-spacing: 0.04em;
 }
 </style>
