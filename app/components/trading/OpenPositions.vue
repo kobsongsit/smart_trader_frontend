@@ -55,51 +55,46 @@ function retry() {
   <!-- Loading State -->
   <div v-if="loading" id="open-positions-section">
     <!-- Section header skeleton -->
-    <div class="d-flex align-center ga-3 mb-3">
-      <v-skeleton-loader type="avatar" width="40" height="40" />
+    <div class="d-flex align-center ga-3 mb-4">
+      <v-skeleton-loader type="avatar" width="12" height="12" />
       <v-skeleton-loader type="text" width="160" class="flex-grow-1" />
       <v-skeleton-loader type="chip" width="80" />
     </div>
 
-    <!-- Position card skeletons (show 2 placeholder cards) -->
-    <v-card
+    <!-- Position card skeletons -->
+    <div
       v-for="i in 2"
       :key="i"
-      elevation="0"
-      rounded="lg"
-      class="glass-card mb-3"
+      class="position-card mb-3"
     >
-      <v-card-text class="pa-4">
+      <div class="pa-3">
         <!-- Row 1: Header skeleton -->
         <div class="d-flex align-center ga-2 mb-3">
-          <v-skeleton-loader type="chip" width="50" />
-          <v-skeleton-loader type="text" width="100" />
+          <v-skeleton-loader type="chip" width="44" />
+          <v-skeleton-loader type="text" width="90" />
           <v-spacer />
           <v-skeleton-loader type="text" width="60" />
         </div>
-
         <!-- Row 2: Entry & SL skeleton -->
-        <v-sheet rounded="lg" class="glass-sheet pa-3">
+        <div class="price-box pa-3">
           <div class="d-flex justify-space-between">
             <v-skeleton-loader type="text@2" width="80" />
             <v-skeleton-loader type="text@2" width="80" />
           </div>
-        </v-sheet>
-      </v-card-text>
-    </v-card>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Error State -->
   <div v-else-if="error" id="open-positions-section">
-    <div class="d-flex align-center ga-3 mb-3">
-      <v-avatar color="primary" variant="tonal" size="40" rounded="lg">
-        <v-icon icon="mdi-chart-timeline-variant-shimmer" size="22" />
-      </v-avatar>
-      <div class="flex-grow-1">
-        <div class="text-subtitle-1 font-weight-bold">OPEN POSITIONS</div>
+    <div class="section-header d-flex align-center ga-3 mb-4">
+      <div class="ping-dot-wrap">
+        <span class="ping-ring" />
+        <span class="ping-dot" />
       </div>
+      <span class="section-title">OPEN POSITIONS</span>
     </div>
-
     <v-card elevation="0" rounded="lg" class="glass-card">
       <v-card-text class="pa-4">
         <v-alert type="error" variant="tonal" class="mb-0">
@@ -114,18 +109,23 @@ function retry() {
 
   <!-- Data State -->
   <div v-else id="open-positions-section">
-    <!-- Section Header -->
-    <div class="d-flex align-center ga-3 mb-3">
-      <v-avatar color="primary" variant="tonal" size="40" rounded="lg">
-        <v-icon icon="mdi-chart-timeline-variant-shimmer" size="22" />
-      </v-avatar>
-      <div class="flex-grow-1">
-        <div class="text-subtitle-1 font-weight-bold">OPEN POSITIONS</div>
+
+    <!-- ── Section Header ── -->
+    <div class="d-flex align-center ga-3 mb-4">
+      <!-- Animated ping dot -->
+      <div class="ping-dot-wrap">
+        <span class="ping-ring" />
+        <span class="ping-dot" />
       </div>
+
+      <!-- Title -->
+      <span class="section-title flex-grow-1">OPEN POSITIONS</span>
+
+      <!-- Badges (only when positions exist) -->
       <div v-if="positions.length > 0" class="d-flex align-center ga-2">
-        <v-chip size="x-small" variant="tonal" color="info" class="font-mono font-weight-bold">
+        <span class="count-badge font-mono font-weight-bold">
           {{ positions.length }}
-        </v-chip>
+        </span>
         <span
           class="text-caption font-weight-bold font-mono"
           :class="totalPlColorClass"
@@ -137,85 +137,252 @@ function retry() {
 
     <!-- Empty State -->
     <v-card v-if="positions.length === 0" elevation="0" rounded="lg" class="glass-card">
-      <v-card-text class="pa-4 text-center">
+      <v-card-text class="pa-6 text-center">
         <v-icon
           icon="mdi-radar"
           size="48"
           class="text-medium-emphasis mb-2"
         />
-        <div class="text-body-2 text-medium-emphasis">
-          No open positions
-        </div>
-        <div class="text-caption text-label-muted mt-1">
-          Bot is scanning for optimal setups
-        </div>
+        <div class="text-body-2 text-medium-emphasis">No open positions</div>
+        <div class="text-caption text-label-muted mt-1">Bot is scanning for optimal setups</div>
       </v-card-text>
     </v-card>
 
-    <!-- Position Cards -->
-    <v-card
+    <!-- ── Position Cards ── -->
+    <div
       v-for="position in positions"
       :key="position.symbol + position.entryTime"
-      elevation="0"
-      rounded="lg"
-      class="glass-card mb-3"
+      class="position-card mb-3"
+      :class="position.action === 'BUY' ? 'position-card--buy' : 'position-card--sell'"
     >
-      <v-card-text class="pa-4">
+      <div class="pa-3 pl-4">
+
         <!-- Row 1: Header -->
         <div class="d-flex align-center ga-2 mb-3">
-          <!-- Direction chip -->
-          <v-chip
-            :color="position.action === 'BUY' ? 'success' : 'error'"
-            size="x-small"
-            variant="flat"
-            class="font-weight-black"
+          <!-- Direction badge -->
+          <span
+            class="direction-badge font-weight-black"
+            :class="position.action === 'BUY' ? 'direction-badge--buy' : 'direction-badge--sell'"
           >
             {{ position.action }}
-          </v-chip>
+          </span>
 
           <!-- Symbol -->
-          <span class="text-subtitle-1 font-weight-bold">{{ position.symbol }}</span>
+          <span class="text-subtitle-2 font-weight-bold text-slate-100">
+            {{ position.symbol }}
+          </span>
 
           <v-spacer />
 
-          <!-- Timeframe -->
-          <span class="text-caption text-label-muted font-weight-medium">
-            {{ position.interval }}
+          <!-- Duration -->
+          <span v-if="position.duration" class="time-badge font-mono">
+            <v-icon icon="mdi-clock-outline" size="11" class="mr-1 text-label-muted" />
+            {{ position.duration }}
           </span>
 
-          <!-- Duration (shown if available) -->
-          <span
-            v-if="position.duration"
-            class="text-caption text-medium-emphasis font-mono"
-          >
-            <v-icon icon="mdi-clock-outline" size="12" class="mr-1" />{{ position.duration }}
-          </span>
+          <!-- Timeframe -->
+          <span class="tf-badge font-weight-medium font-mono">{{ position.interval }}</span>
         </div>
 
         <!-- Row 2: Entry & SL -->
-        <div class="glass-sheet rounded-lg pa-3">
-          <div class="d-flex justify-space-between">
-            <!-- Entry Price -->
-            <div>
-              <div class="text-caption text-label-muted font-weight-medium mb-1">Entry</div>
-              <div class="text-body-2 font-weight-bold font-mono">
-                {{ position.entryPrice }}
-              </div>
+        <div class="price-box">
+          <div class="d-flex">
+
+            <!-- Entry -->
+            <div class="flex-1 pa-2 px-3">
+              <div class="price-label mb-1">Entry</div>
+              <div class="price-value font-mono">{{ position.entryPrice }}</div>
             </div>
 
-            <!-- SL Price -->
-            <div class="text-right">
-              <div class="text-caption text-label-muted font-weight-medium mb-1">
-                SL
-                <span class="text-medium-emphasis ml-1">({{ position.slLabel }})</span>
+            <!-- Vertical divider -->
+            <div class="price-divider" />
+
+            <!-- SL -->
+            <div class="flex-1 pa-2 px-3">
+              <div class="price-label mb-1 d-flex align-center justify-space-between">
+                <span>SL</span>
+                <span class="sl-type-badge">{{ position.slLabel }}</span>
               </div>
-              <div class="text-body-2 font-weight-bold font-mono text-error">
-                {{ position.slPrice }}
-              </div>
+              <div class="price-value font-mono text-error">{{ position.slPrice }}</div>
             </div>
+
           </div>
         </div>
-      </v-card-text>
-    </v-card>
+      </div>
+    </div>
+
   </div>
 </template>
+
+<style scoped>
+/* ── Section Header ── */
+.section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(226 232 240);
+}
+
+/* ── Animated Ping Dot ── */
+.ping-dot-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.ping-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgb(52 211 153 / 0.7);
+  animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.ping-dot {
+  position: relative;
+  display: inline-flex;
+  border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  background: rgb(16 185 129);
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* ── Count Badge ── */
+.count-badge {
+  background: rgb(59 130 246 / 0.12);
+  color: rgb(96 165 250);
+  padding: 1px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+}
+
+/* ── Position Card ── */
+.position-card {
+  position: relative;
+  background: rgb(17 24 39 / 0.85);
+  border: 1px solid rgb(51 65 85 / 0.6);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.position-card:hover {
+  border-color: rgb(51 65 85 / 0.9);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 0.4);
+}
+
+/* Left accent bar */
+.position-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+}
+
+.position-card--buy::before {
+  background: rgb(16 185 129);
+}
+
+.position-card--sell::before {
+  background: rgb(239 68 68);
+}
+
+/* ── Direction Badge ── */
+.direction-badge {
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
+.direction-badge--buy {
+  background: rgb(16 185 129 / 0.1);
+  color: rgb(52 211 153);
+  border: 1px solid rgb(16 185 129 / 0.2);
+}
+
+.direction-badge--sell {
+  background: rgb(239 68 68 / 0.1);
+  color: rgb(252 165 165);
+  border: 1px solid rgb(239 68 68 / 0.2);
+}
+
+/* ── Time & TF badges ── */
+.time-badge {
+  display: flex;
+  align-items: center;
+  font-size: 0.68rem;
+  color: rgb(148 163 184);
+  background: rgb(30 41 59 / 0.6);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.tf-badge {
+  font-size: 0.68rem;
+  color: rgb(203 213 225);
+  background: rgb(30 41 59 / 0.8);
+  border: 1px solid rgb(51 65 85 / 0.5);
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+/* ── Price Box ── */
+.price-box {
+  background: rgb(11 15 25 / 0.8);
+  border: 1px solid rgb(51 65 85 / 0.5);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.price-divider {
+  width: 1px;
+  background: rgb(51 65 85 / 0.7);
+  margin: 6px 0;
+}
+
+.price-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: rgb(100 116 139);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.price-value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgb(226 232 240);
+}
+
+/* ── SL type badge ── */
+.sl-type-badge {
+  font-size: 0.55rem;
+  color: rgb(71 85 105);
+  background: rgb(30 41 59 / 0.6);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0;
+}
+
+/* ── Flex utils ── */
+.flex-1 {
+  flex: 1;
+}
+</style>

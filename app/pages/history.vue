@@ -1,77 +1,75 @@
 <script setup lang="ts">
 import dayjs from 'dayjs'
-import type { TradeHistoryData, ClosedTrade, TradeHistorySummary } from '../../types/trading'
+import type { ChartTrade } from '../../types/trading'
 
 // ============================================================
 // Composable
 // ============================================================
 
-const { data, loading, error, filters, fetchHistory, loadMore, reset } = useTradeHistory()
+const { allTrades, loading, error, fetchTrades } = useTradesList()
 
 // ============================================================
 // Filter Options
 // ============================================================
 
-const symbolOptions = ['All', 'USD-JPY', 'EUR-USD', 'GBP-JPY', 'XAU-USD']
+const symbolOptions = ['XAU-USD', 'USD-JPY', 'EUR-USD', 'GBP-JPY']
 const resultOptions = ['All', 'Win', 'Loss']
-const tfOptions = ['All', '15m', '1h', '4h']
-const exitOptions = ['All', 'TP', 'SL', 'Signal', 'Manual']
+const tfOptions     = ['All', '15m', '1h', '4h']
+const exitOptions   = ['All', 'TP', 'SL', 'Signal', 'Manual']
 
-// Exit reason mapping: display label -> API value
 const exitReasonMap: Record<string, string> = {
-  'All': '',
-  'TP': 'TP',
-  'SL': 'SL',
-  'Signal': 'OPPOSITE_SIGNAL',
-  'Manual': 'MANUAL',
+  'All': '', 'TP': 'TP', 'SL': 'SL', 'Signal': 'OPPOSITE_SIGNAL', 'Manual': 'MANUAL',
 }
 
 // ============================================================
 // Local filter state (UI)
 // ============================================================
 
-const selectedSymbol = ref('All')
+const selectedSymbol = ref('XAU-USD')
 const selectedResult = ref('All')
-const selectedTF = ref('All')
-const selectedExit = ref('All')
+const selectedTF     = ref('All')
+const selectedExit   = ref('All')
+const selectedSort   = ref('newest')
 const showMoreFilters = ref(false)
-const selectedSort = ref('newest')
 
 // Month navigator
-const selectedMonthNum = ref(dayjs().month()) // 0-11
-const selectedYearNum = ref(dayjs().year())
+const selectedMonthNum = ref(dayjs().month())   // 0-11
+const selectedYearNum  = ref(dayjs().year())
 
-const currentMonthLabel = computed(() => {
-  return dayjs().month(selectedMonthNum.value).year(selectedYearNum.value).format('MMM YYYY')
-})
+const currentMonthLabel = computed(() =>
+  dayjs().month(selectedMonthNum.value).year(selectedYearNum.value).format('MMM YYYY')
+)
 
-const isCurrentMonth = computed(() => {
-  return selectedMonthNum.value === dayjs().month() && selectedYearNum.value === dayjs().year()
-})
+const isCurrentMonth = computed(() =>
+  selectedMonthNum.value === dayjs().month() && selectedYearNum.value === dayjs().year()
+)
 
 function prevMonth() {
-  if (selectedMonthNum.value === 0) {
-    selectedMonthNum.value = 11
-    selectedYearNum.value--
-  } else {
-    selectedMonthNum.value--
-  }
+  if (selectedMonthNum.value === 0) { selectedMonthNum.value = 11; selectedYearNum.value-- }
+  else selectedMonthNum.value--
   applyFilters()
 }
 
 function nextMonth() {
   if (isCurrentMonth.value) return
-  if (selectedMonthNum.value === 11) {
-    selectedMonthNum.value = 0
-    selectedYearNum.value++
-  } else {
-    selectedMonthNum.value++
-  }
+  if (selectedMonthNum.value === 11) { selectedMonthNum.value = 0; selectedYearNum.value++ }
+  else selectedMonthNum.value++
   applyFilters()
 }
 
 // ============================================================
-// Active extra filter count (for badge)
+// Computed date range (month → from/to)
+// ============================================================
+
+const fromDate = computed(() =>
+  dayjs().month(selectedMonthNum.value).year(selectedYearNum.value).startOf('month').format('YYYY-MM-DD')
+)
+const toDate = computed(() =>
+  dayjs().month(selectedMonthNum.value).year(selectedYearNum.value).endOf('month').format('YYYY-MM-DD')
+)
+
+// ============================================================
+// Active extra filter count (badge)
 // ============================================================
 
 const activeExtraFilterCount = computed(() => {
@@ -83,53 +81,77 @@ const activeExtraFilterCount = computed(() => {
 })
 
 // ============================================================
-// Filter Actions
+// API fetch
 // ============================================================
 
-function selectSymbol(sym: string) {
-  selectedSymbol.value = sym
-  applyFilters()
-}
-
-function selectResult(r: string) {
-  selectedResult.value = r
-  applyFilters()
-}
-
-function selectTF(tf: string) {
-  selectedTF.value = tf
-  applyFilters()
-}
-
-function selectExit(ex: string) {
-  selectedExit.value = ex
-  applyFilters()
-}
-
-function selectSort(sort: string) {
-  selectedSort.value = sort
-  applyFilters()
-}
-
 function applyFilters() {
-  fetchHistory({
-    symbol: selectedSymbol.value === 'All' ? '' : selectedSymbol.value,
-    interval: selectedTF.value === 'All' ? '' : selectedTF.value,
-    month: String(selectedMonthNum.value + 1),
-    year: String(selectedYearNum.value),
-    result: selectedResult.value === 'All' ? '' : selectedResult.value.toLowerCase(),
-    exitReason: exitReasonMap[selectedExit.value] || '',
-    sort: selectedSort.value,
-    page: 1,
+  fetchTrades({
+    symbol: selectedSymbol.value,
+    interval: selectedTF.value !== 'All' ? selectedTF.value : undefined,
+    from: fromDate.value,
+    to: toDate.value,
   })
 }
 
+onMounted(() => applyFilters())
+
 // ============================================================
-// Fetch on mount
+// Client-side filtering + sort
 // ============================================================
 
-onMounted(() => {
-  applyFilters()
+const filteredTrades = computed<ChartTrade[]>(() => {
+  let list = [...allTrades.value]
+
+  // Result filter
+  if (selectedResult.value === 'Win')  list = list.filter(t => (t.profitPips ?? 0) > 0)
+  if (selectedResult.value === 'Loss') list = list.filter(t => (t.profitPips ?? 0) < 0)
+
+  // Exit reason filter
+  const exitVal = exitReasonMap[selectedExit.value]
+  if (exitVal) list = list.filter(t => t.exitReason === exitVal)
+
+  // Sort
+  list.sort((a, b) =>
+    selectedSort.value === 'newest'
+      ? b.entryTimestamp - a.entryTimestamp
+      : a.entryTimestamp - b.entryTimestamp
+  )
+
+  return list
+})
+
+// ============================================================
+// Summary stats (computed client-side)
+// ============================================================
+
+const summary = computed(() => {
+  const trades = filteredTrades.value
+  if (!trades.length) return null
+
+  const wins   = trades.filter(t => (t.profitPips ?? 0) > 0)
+  const losses = trades.filter(t => (t.profitPips ?? 0) < 0)
+
+  const totalPips = trades.reduce((s, t) => s + (t.profitPips ?? 0), 0)
+  const winPips   = wins.reduce((s, t) => s + (t.profitPips ?? 0), 0)
+  const lossPips  = losses.reduce((s, t) => s + (t.profitPips ?? 0), 0)
+
+  const winRate      = trades.length > 0 ? Math.round((wins.length / trades.length) * 100) : 0
+  const avgWinPips   = wins.length   > 0 ? Math.round(winPips / wins.length) : 0
+  const avgLossPips  = losses.length > 0 ? Math.round(Math.abs(lossPips / losses.length)) : 0
+  const profitFactor = Math.abs(lossPips) > 0
+    ? parseFloat((winPips / Math.abs(lossPips)).toFixed(2))
+    : winPips > 0 ? 99 : 0
+
+  return {
+    totalTrades: trades.length,
+    wins: wins.length,
+    losses: losses.length,
+    winRate,
+    totalPips,
+    avgWinPips,
+    avgLossPips,
+    profitFactor,
+  }
 })
 
 // ============================================================
@@ -141,15 +163,38 @@ function formatPips(pips: number): string {
   return `${prefix}${pips.toLocaleString('en-US')}`
 }
 
-function formatTime(timeStr: string): string {
-  return dayjs(timeStr).format('D MMM HH:mm')
+function formatTime(ts: number | null): string {
+  if (!ts) return '—'
+  return dayjs.unix(ts).format('D MMM HH:mm')
+}
+
+function formatPrice(price: number | null): string {
+  if (price === null) return '—'
+  return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 5 })
+}
+
+/** คำนวณ duration จาก UNIX timestamps */
+function calcDuration(entryTs: number, exitTs: number | null): string {
+  if (!exitTs) return '—'
+  const diff = exitTs - entryTs
+  const totalMinutes = Math.floor(diff / 60)
+  const hours   = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  if (hours >= 24) {
+    const days  = Math.floor(hours / 24)
+    const remH  = hours % 24
+    return remH > 0 ? `${days}d ${remH}h` : `${days}d`
+  }
+  if (hours > 0) return `${hours}h ${minutes}m`
+  return `${minutes}m`
 }
 
 // ============================================================
-// Color logic
+// Color helpers
 // ============================================================
 
-function plColorClass(pips: number): string {
+function plColorClass(pips: number | null): string {
+  if (!pips) return 'text-medium-emphasis'
   if (pips > 0) return 'text-success'
   if (pips < 0) return 'text-error'
   return 'text-medium-emphasis'
@@ -162,60 +207,31 @@ function pfColorClass(pf: number): string {
   return 'text-error'
 }
 
-function exitReasonColor(reason: string): string {
+function exitBadgeClass(reason: string | null): string {
   switch (reason) {
-    case 'TP': return 'success'
-    case 'SL': return 'error'
-    case 'OPPOSITE_SIGNAL': return 'info'
-    case 'MANUAL': return 'warning'
-    default: return 'grey'
+    case 'TP':               return 'exit-badge--tp'
+    case 'SL':               return 'exit-badge--sl'
+    case 'OPPOSITE_SIGNAL':  return 'exit-badge--signal'
+    case 'MANUAL':           return 'exit-badge--manual'
+    default:                 return 'exit-badge--default'
   }
 }
 
-function exitReasonLabel(reason: string): string {
+function exitReasonLabel(reason: string | null): string {
   switch (reason) {
-    case 'TP': return 'TP'
-    case 'SL': return 'SL'
-    case 'OPPOSITE_SIGNAL': return 'SIGNAL EXIT'
-    case 'MANUAL': return 'MANUAL'
-    default: return reason
-  }
-}
-
-/** CSS class for exit reason badge */
-function exitBadgeClass(reason: string): string {
-  switch (reason) {
-    case 'TP': return 'exit-badge--tp'
-    case 'SL': return 'exit-badge--sl'
-    case 'OPPOSITE_SIGNAL': return 'exit-badge--signal'
-    case 'MANUAL': return 'exit-badge--manual'
-    default: return 'exit-badge--default'
+    case 'TP':               return 'TP'
+    case 'SL':               return 'SL'
+    case 'OPPOSITE_SIGNAL':  return 'SIGNAL EXIT'
+    case 'MANUAL':           return 'MANUAL'
+    default:                 return reason ?? '—'
   }
 }
 
 // ============================================================
-// Computed
+// Actions
 // ============================================================
 
-const summary = computed(() => data.value?.summary ?? null)
-const trades = computed(() => data.value?.trades ?? [])
-const pagination = computed(() => data.value?.pagination ?? null)
-
-// ============================================================
-// Retry / Load More
-// ============================================================
-
-function retry() {
-  applyFilters()
-}
-
-async function handleRefresh() {
-  await applyFilters()
-}
-
-async function handleLoadMore() {
-  await loadMore()
-}
+function retry() { applyFilters() }
 </script>
 
 <template>
@@ -226,18 +242,21 @@ async function handleLoadMore() {
       <div class="page-header-icon">
         <v-icon icon="mdi-history" size="22" color="#050505" />
       </div>
-
       <div class="flex-grow-1">
         <div class="text-h5 font-weight-bold">Trade History</div>
         <div class="text-caption text-label-muted mt-1">Closed trades log</div>
       </div>
-
-      <button class="refresh-btn" :class="{ 'refresh-btn--spinning': loading }" @click="handleRefresh">
+      <button class="refresh-btn" :class="{ 'refresh-btn--spinning': loading }" @click="retry">
         <v-icon icon="mdi-refresh" size="20" />
       </button>
     </div>
 
     <div class="page-header-divider mb-5" />
+
+    <!-- ── SMC FVG Chart ── -->
+    <SmcFvgSection />
+
+    <div class="my-4" />
 
     <!-- ── Zone B: Filters ── -->
     <div class="dark-card pa-4 mb-4">
@@ -251,10 +270,8 @@ async function handleLoadMore() {
             :key="sym"
             class="filter-pill"
             :class="{ 'filter-pill--active': selectedSymbol === sym }"
-            @click="selectSymbol(sym)"
-          >
-            {{ sym }}
-          </button>
+            @click="selectedSymbol = sym; applyFilters()"
+          >{{ sym }}</button>
         </div>
       </div>
 
@@ -279,10 +296,7 @@ async function handleLoadMore() {
 
           <!-- More Filters toggle -->
           <button class="more-filters-btn" @click="showMoreFilters = !showMoreFilters">
-            <v-icon
-              :icon="showMoreFilters ? 'mdi-chevron-up' : 'mdi-chevron-down'"
-              size="14"
-            />
+            <v-icon :icon="showMoreFilters ? 'mdi-chevron-up' : 'mdi-chevron-down'" size="14" />
             {{ showMoreFilters ? 'Less Filters' : 'More Filters' }}
             <span v-if="!showMoreFilters && activeExtraFilterCount > 0" class="extra-filter-badge">
               {{ activeExtraFilterCount }}
@@ -301,14 +315,11 @@ async function handleLoadMore() {
             <div class="filter-label mb-2">RESULT</div>
             <div class="d-flex flex-wrap ga-2">
               <button
-                v-for="r in resultOptions"
-                :key="r"
+                v-for="r in resultOptions" :key="r"
                 class="filter-pill"
                 :class="{ 'filter-pill--active': selectedResult === r }"
-                @click="selectResult(r)"
-              >
-                {{ r }}
-              </button>
+                @click="selectedResult = r"
+              >{{ r }}</button>
             </div>
           </div>
 
@@ -317,14 +328,11 @@ async function handleLoadMore() {
             <div class="filter-label mb-2">TIMEFRAME</div>
             <div class="d-flex flex-wrap ga-2">
               <button
-                v-for="tf in tfOptions"
-                :key="tf"
+                v-for="tf in tfOptions" :key="tf"
                 class="filter-pill"
                 :class="{ 'filter-pill--active': selectedTF === tf }"
-                @click="selectTF(tf)"
-              >
-                {{ tf }}
-              </button>
+                @click="selectedTF = tf; applyFilters()"
+              >{{ tf }}</button>
             </div>
           </div>
 
@@ -333,23 +341,23 @@ async function handleLoadMore() {
             <div class="filter-label mb-2">EXIT</div>
             <div class="d-flex flex-wrap ga-2">
               <button
-                v-for="ex in exitOptions"
-                :key="ex"
+                v-for="ex in exitOptions" :key="ex"
                 class="filter-pill"
                 :class="{ 'filter-pill--active': selectedExit === ex }"
-                @click="selectExit(ex)"
-              >
-                {{ ex }}
-              </button>
+                @click="selectedExit = ex"
+              >{{ ex }}</button>
             </div>
           </div>
         </div>
       </v-expand-transition>
 
-      <!-- Sort toggle (inside card) -->
+      <!-- Sort -->
       <div class="section-divider mt-3 mb-3" />
-      <div class="d-flex justify-end">
-        <button class="sort-btn" @click="selectSort(selectedSort === 'newest' ? 'oldest' : 'newest')">
+      <div class="d-flex align-center justify-space-between">
+        <span class="filter-label">
+          {{ filteredTrades.length }} trades
+        </span>
+        <button class="sort-btn" @click="selectedSort = selectedSort === 'newest' ? 'oldest' : 'newest'">
           {{ selectedSort === 'newest' ? 'Latest First' : 'Oldest First' }}
           <v-icon icon="mdi-chevron-down" size="15" class="ml-1" />
         </button>
@@ -357,19 +365,16 @@ async function handleLoadMore() {
     </div>
 
     <!-- ── Loading State ── -->
-    <template v-if="loading && !data">
-      <!-- Summary grid skeleton -->
+    <template v-if="loading">
       <v-row dense class="mb-3">
-        <v-col v-for="i in 6" :key="'skel-stat-' + i" cols="4">
+        <v-col v-for="i in 6" :key="'sk-' + i" cols="4">
           <div class="stat-cell d-flex flex-column align-center pa-2">
             <v-skeleton-loader type="text" width="36" class="mb-1" />
             <v-skeleton-loader type="text" width="44" />
           </div>
         </v-col>
       </v-row>
-
-      <!-- Trade card skeletons -->
-      <div v-for="i in 3" :key="'skel-card-' + i" class="dark-card pa-3 mb-3">
+      <div v-for="i in 3" :key="'skc-' + i" class="dark-card pa-3 mb-3">
         <div class="d-flex align-center ga-2 mb-3">
           <v-skeleton-loader type="chip" width="44" />
           <v-skeleton-loader type="text" width="90" />
@@ -391,7 +396,7 @@ async function handleLoadMore() {
     <template v-else-if="error">
       <div class="dark-card pa-4">
         <v-alert type="error" variant="tonal" class="mb-0">
-          Failed to load trade history
+          Failed to load trades
           <template #append>
             <v-btn variant="text" size="small" @click="retry">Retry</v-btn>
           </template>
@@ -400,9 +405,9 @@ async function handleLoadMore() {
     </template>
 
     <!-- ── Data State ── -->
-    <template v-else-if="data">
+    <template v-else>
 
-      <!-- Zone C: Summary Stats 3×2 Grid -->
+      <!-- Zone C: Summary Stats -->
       <v-row v-if="summary" dense class="mb-4">
         <v-col cols="4">
           <div class="stat-cell d-flex flex-column align-center pa-2">
@@ -449,7 +454,7 @@ async function handleLoadMore() {
       </v-row>
 
       <!-- Empty State -->
-      <div v-if="trades.length === 0 && !loading" class="dark-card pa-6 text-center">
+      <div v-if="filteredTrades.length === 0" class="dark-card pa-6 text-center">
         <v-icon icon="mdi-file-search-outline" size="48" class="text-medium-emphasis mb-2" />
         <div class="text-body-2 text-medium-emphasis">No trades found</div>
         <div class="text-caption text-label-muted mt-1">
@@ -459,44 +464,40 @@ async function handleLoadMore() {
 
       <!-- Zone D: Trade Cards -->
       <div
-        v-for="trade in trades"
+        v-for="trade in filteredTrades"
         :key="trade.id"
         class="dark-card mb-3"
       >
         <div class="pa-3">
 
-          <!-- Row 1: Direction + Symbol | Interval + Duration -->
+          <!-- Row 1: Direction + Symbol | Strategy | Interval + Duration -->
           <div class="d-flex align-center ga-2 mb-3">
             <span
               class="direction-badge"
               :class="trade.action === 'BUY' ? 'direction-badge--buy' : 'direction-badge--sell'"
-            >
-              {{ trade.action }}
-            </span>
-            <span class="trade-symbol">{{ trade.symbol }}</span>
+            >{{ trade.action }}</span>
+            <span class="trade-symbol">{{ trade.symbolName }}</span>
+            <span class="trade-strategy font-mono">{{ trade.strategyName }}</span>
             <v-spacer />
             <span class="trade-tf font-mono">{{ trade.interval }}</span>
             <v-icon icon="mdi-clock-outline" size="11" class="text-label-muted ml-1" />
-            <span class="trade-duration font-mono">{{ trade.duration }}</span>
+            <span class="trade-duration font-mono">
+              {{ calcDuration(trade.entryTimestamp, trade.exitTimestamp) }}
+            </span>
           </div>
 
           <!-- Row 2: Entry → Exit -->
           <div class="d-flex align-center justify-space-between px-1 mb-3">
-            <!-- Entry -->
             <div>
               <div class="price-label mb-1">Entry</div>
-              <div class="price-value font-mono">{{ trade.entryPrice }}</div>
-              <div class="price-date font-mono">{{ formatTime(trade.entryTime) }}</div>
+              <div class="price-value font-mono">{{ formatPrice(trade.entryPrice) }}</div>
+              <div class="price-date font-mono">{{ formatTime(trade.entryTimestamp) }}</div>
             </div>
-
-            <!-- Arrow -->
             <v-icon icon="mdi-arrow-right" size="14" class="text-label-muted mt-1" />
-
-            <!-- Exit -->
             <div class="text-right">
               <div class="price-label mb-1">Exit</div>
-              <div class="price-value font-mono">{{ trade.exitPrice }}</div>
-              <div class="price-date font-mono">{{ formatTime(trade.exitTime) }}</div>
+              <div class="price-value font-mono">{{ formatPrice(trade.exitPrice) }}</div>
+              <div class="price-date font-mono">{{ formatTime(trade.exitTimestamp) }}</div>
             </div>
           </div>
 
@@ -505,33 +506,11 @@ async function handleLoadMore() {
             <span class="exit-badge" :class="exitBadgeClass(trade.exitReason)">
               {{ exitReasonLabel(trade.exitReason) }}
             </span>
-            <span
-              class="pips-hero font-mono"
-              :class="plColorClass(trade.profitPips)"
-            >
-              {{ formatPips(trade.profitPips) }} pips
+            <span class="pips-hero font-mono" :class="plColorClass(trade.profitPips)">
+              {{ trade.profitPips !== null ? formatPips(trade.profitPips) : '—' }} pips
             </span>
           </div>
 
-        </div>
-      </div>
-
-      <!-- Zone E: Load More -->
-      <div
-        v-if="pagination && pagination.hasMore"
-        class="text-center mt-2 mb-4"
-      >
-        <v-btn
-          variant="outlined"
-          color="primary"
-          size="small"
-          :loading="loading"
-          @click="handleLoadMore"
-        >
-          Load More
-        </v-btn>
-        <div class="text-caption text-medium-emphasis mt-1 font-mono">
-          {{ trades.length }} of {{ pagination.total }} shown
         </div>
       </div>
 
@@ -549,13 +528,11 @@ async function handleLoadMore() {
 </template>
 
 <style scoped>
-/* ── Page Header ── */
 .section-divider {
   height: 1px;
   background: rgb(30 41 59 / 0.8);
 }
 
-/* ── Filter section ── */
 .filter-label {
   font-size: 0.6rem;
   font-weight: 700;
@@ -564,7 +541,6 @@ async function handleLoadMore() {
   color: rgb(100 116 139);
 }
 
-/* Filter pill buttons */
 .filter-pill {
   background: rgb(30 41 59 / 0.5);
   color: rgb(203 213 225);
@@ -576,19 +552,13 @@ async function handleLoadMore() {
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
-
-.filter-pill:hover {
-  border-color: rgb(74 222 128 / 0.4);
-  color: rgb(226 232 240);
-}
-
+.filter-pill:hover { border-color: rgb(74 222 128 / 0.4); color: rgb(226 232 240); }
 .filter-pill--active {
   background: rgb(74 222 128) !important;
   color: #050505 !important;
   border-color: rgb(74 222 128) !important;
 }
 
-/* Month navigator */
 .month-label-text {
   font-size: 0.8rem;
   font-weight: 700;
@@ -608,17 +578,9 @@ async function handleLoadMore() {
   display: flex;
   align-items: center;
 }
+.nav-arrow-btn:hover { color: #fff; }
+.nav-arrow-btn--disabled { color: rgb(71 85 105) !important; cursor: not-allowed; }
 
-.nav-arrow-btn:hover {
-  color: #fff;
-}
-
-.nav-arrow-btn--disabled {
-  color: rgb(71 85 105) !important;
-  cursor: not-allowed;
-}
-
-/* More filters button */
 .more-filters-btn {
   background: transparent;
   border: none;
@@ -633,10 +595,7 @@ async function handleLoadMore() {
   border-radius: 6px;
   transition: color 0.15s ease;
 }
-
-.more-filters-btn:hover {
-  color: rgb(203 213 225);
-}
+.more-filters-btn:hover { color: rgb(203 213 225); }
 
 .extra-filter-badge {
   background: rgb(74 222 128);
@@ -648,7 +607,6 @@ async function handleLoadMore() {
   line-height: 1.5;
 }
 
-/* Sort button */
 .sort-btn {
   background: transparent;
   border: none;
@@ -662,25 +620,19 @@ async function handleLoadMore() {
   border-radius: 6px;
   transition: color 0.15s ease;
 }
+.sort-btn:hover { color: #fff; }
 
-.sort-btn:hover {
-  color: #fff;
-}
-
-/* ── Summary stats grid ── */
 .stat-cell {
   background: rgb(23 30 45);
   border: 1px solid rgb(51 65 85 / 0.5);
   border-radius: 12px;
 }
-
 .stat-value {
   font-size: 1.1rem;
   font-weight: 700;
   color: rgb(226 232 240);
   line-height: 1.2;
 }
-
 .stat-label {
   font-size: 0.6rem;
   font-weight: 500;
@@ -689,7 +641,6 @@ async function handleLoadMore() {
   margin-top: 2px;
 }
 
-/* ── Dark card (trade cards) ── */
 .dark-card {
   background: rgb(17 22 32);
   border: 1px solid rgb(51 65 85 / 0.7);
@@ -698,7 +649,6 @@ async function handleLoadMore() {
   box-shadow: 0 2px 16px rgb(0 0 0 / 0.25);
 }
 
-/* ── Trade card internals ── */
 .direction-badge {
   font-size: 0.58rem;
   font-weight: 700;
@@ -707,13 +657,11 @@ async function handleLoadMore() {
   border-radius: 4px;
   line-height: 1.5;
 }
-
 .direction-badge--buy {
   background: rgb(16 185 129 / 0.1);
   color: rgb(52 211 153);
   border: 1px solid rgb(16 185 129 / 0.2);
 }
-
 .direction-badge--sell {
   background: rgb(239 68 68 / 0.1);
   color: rgb(252 165 165);
@@ -726,18 +674,25 @@ async function handleLoadMore() {
   color: rgb(248 250 252);
 }
 
+.trade-strategy {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: rgb(100 116 139);
+  background: rgb(30 41 59 / 0.6);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
 .trade-tf {
   font-size: 0.68rem;
   font-weight: 600;
   color: rgb(148 163 184);
 }
-
 .trade-duration {
   font-size: 0.68rem;
   color: rgb(100 116 139);
 }
 
-/* Prices */
 .price-label {
   font-size: 0.65rem;
   font-weight: 500;
@@ -745,25 +700,21 @@ async function handleLoadMore() {
   text-transform: uppercase;
   color: rgb(100 116 139);
 }
-
 .price-value {
   font-size: 0.8rem;
   font-weight: 600;
   color: rgb(226 232 240);
 }
-
 .price-date {
   font-size: 0.6rem;
   color: rgb(100 116 139);
   margin-top: 2px;
 }
 
-/* Footer row */
 .card-footer {
   border-top: 1px solid rgb(51 65 85 / 0.7);
 }
 
-/* Exit reason badges */
 .exit-badge {
   font-size: 0.58rem;
   font-weight: 700;
@@ -772,33 +723,12 @@ async function handleLoadMore() {
   border-radius: 5px;
   line-height: 1.6;
 }
+.exit-badge--tp     { background: rgb(5 46 22 / 0.5);    color: rgb(52 211 153);  }
+.exit-badge--sl     { background: rgb(69 10 10 / 0.5);   color: rgb(252 165 165); }
+.exit-badge--signal { background: rgb(30 58 138 / 0.4);  color: rgb(147 197 253); }
+.exit-badge--manual { background: rgb(92 45 5 / 0.4);    color: rgb(251 191 36);  }
+.exit-badge--default{ background: rgb(51 65 85 / 0.3);   color: rgb(148 163 184); }
 
-.exit-badge--tp {
-  background: rgb(5 46 22 / 0.5);
-  color: rgb(52 211 153);
-}
-
-.exit-badge--sl {
-  background: rgb(69 10 10 / 0.5);
-  color: rgb(252 165 165);
-}
-
-.exit-badge--signal {
-  background: rgb(30 58 138 / 0.4);
-  color: rgb(147 197 253);
-}
-
-.exit-badge--manual {
-  background: rgb(92 45 5 / 0.4);
-  color: rgb(251 191 36);
-}
-
-.exit-badge--default {
-  background: rgb(51 65 85 / 0.3);
-  color: rgb(148 163 184);
-}
-
-/* P&L hero in footer */
 .pips-hero {
   font-size: 1rem;
   font-weight: 700;

@@ -1,4 +1,14 @@
 /**
+ * Format number ด้วย locale string (ใช้ใน IndicatorDetailPanel)
+ */
+export function formatNumber(value: number, decimals = 2): string {
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
+}
+
+/**
  * Generic API response wrapper
  */
 export interface ApiResponse<T> {
@@ -231,4 +241,156 @@ export interface IndicatorAtData {
 export interface IndicatorAtResponse {
   success: boolean
   data: IndicatorAtData
+}
+
+// ============================================================================
+// SMC — Symbol List
+// ============================================================================
+
+export interface SymbolItem {
+  id: number
+  symbol: string
+  name: string
+  type: string
+  isActive: boolean
+}
+
+// ============================================================================
+// SMC — FVG (Fair Value Gap) Types
+// ============================================================================
+
+/** Raw candle data จาก API /api/smc/fvg */
+export interface FvgCandle {
+  timestamp: string   // ISO string เช่น "2026-03-01T22:00:00.000Z"
+  open: number
+  high: number
+  low: number
+  close: number
+  volume: number
+}
+
+/** FVG Zone ที่ detect ได้ */
+export interface FvgZone {
+  timestamp: string   // ISO string — เวลาของแท่ง 2 (ใช้กำหนด x position บน chart)
+  type: 'BULLISH' | 'BEARISH'
+  top: number         // ขอบบน zone
+  bottom: number      // ขอบล่าง zone
+  candle2Body: number // body size แท่ง Imbalance
+  atrAtTime: number   // ATR(14) ณ ขณะนั้น
+  gapSize: number     // top - bottom
+  bodyRatio: number   // candle2Body / atrAtTime
+  gapRatio: number    // gapSize / atrAtTime
+}
+
+/** Stats จาก detection */
+export interface FvgStats {
+  total: number
+  bullish: number
+  bearish: number
+  avgGapSize: number
+  avgBodyRatio: number
+}
+
+/** Full response data จาก GET /api/smc/fvg */
+export interface FvgData {
+  symbol: string
+  symbolId: number
+  interval: string
+  from: string
+  to: string
+  config: {
+    minBodyRatio: number
+    minGapRatio: number
+  }
+  candles: FvgCandle[]
+  fvgZones: FvgZone[]
+  stats: FvgStats
+}
+
+// ============================================================================
+// Chart Trades — GET /api/strategy/trades
+// ============================================================================
+
+export interface ChartTrade {
+  id: number
+  symbolId: number
+  symbolName: string
+  interval: string
+  strategyName: string
+  action: 'BUY' | 'SELL'
+  status: 'OPEN' | 'CLOSED'
+  entryPrice: number
+  entryTime: string
+  entryTimestamp: number          // UNIX seconds — ใช้กับ LW Charts ได้ตรง
+  exitPrice: number | null
+  exitTime: string | null
+  exitTimestamp: number | null    // UNIX seconds
+  exitReason: 'SL' | 'TP' | 'OPPOSITE_SIGNAL' | 'MANUAL' | null
+  slPrice: number | null
+  tpPrice: number | null
+  profitPips: number | null
+  profitPercent: number | null
+  entryIndicators: Record<string, number> | null
+}
+
+/** Query params สำหรับเรียก /api/smc/fvg */
+export interface FvgParams {
+  symbol: string
+  interval: string
+  from: string
+  to: string
+  minBodyRatio: number
+  minGapRatio: number
+}
+
+// ============================================================================
+// Backtest — GET /api/strategy/backtest
+// ============================================================================
+
+/**
+ * Single backtest trade
+ * ต่างจาก ChartTrade: ไม่มี symbolId, status เป็น CLOSED เสมอ,
+ * exitPrice/exitTimestamp ไม่เป็น null, profitPercent เป็น null เสมอ
+ */
+export interface BacktestTrade {
+  id: number
+  symbolName: string
+  interval: string
+  strategyName: string
+  action: 'BUY' | 'SELL'
+  status: 'CLOSED'
+  entryPrice: number
+  entryTime: string
+  entryTimestamp: number          // UNIX seconds — ใช้กับ LW Charts
+  exitPrice: number               // ไม่เป็น null ใน backtest
+  exitTime: string
+  exitTimestamp: number           // UNIX seconds
+  exitReason: 'SL' | 'TP' | 'OPPOSITE_SIGNAL' | 'MANUAL'
+  slPrice: number | null
+  tpPrice: number | null
+  profitPips: number | null
+  profitPercent: null             // เป็น null เสมอใน backtest
+}
+
+/** Summary stats จาก backtest */
+export interface BacktestSummary {
+  totalTrades: number
+  wins: number
+  losses: number
+  winRate: number
+  totalPips: number
+  profitFactor: number
+  avgWinPips: number
+  avgLossPips: number
+}
+
+/** Full response จาก GET /api/strategy/backtest */
+export interface BacktestData {
+  symbol: string
+  interval: string
+  from: string
+  to: string
+  mode: 'production' | 'original'
+  summary: BacktestSummary
+  trades: BacktestTrade[]
 }

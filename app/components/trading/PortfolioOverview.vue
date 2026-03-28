@@ -48,10 +48,10 @@ function formatMaxDrawdown(dd: number): string {
 
 const portfolio = computed(() => data.value)
 
-/** Total Pips color: positive = primary (green), negative = error (red), zero = grey */
+/** Total Pips color class */
 const pipsColorClass = computed(() => {
   if (!portfolio.value) return 'text-medium-emphasis'
-  if (portfolio.value.totalPips > 0) return 'text-primary'
+  if (portfolio.value.totalPips > 0) return 'text-success'
   if (portfolio.value.totalPips < 0) return 'text-error'
   return 'text-medium-emphasis'
 })
@@ -73,7 +73,7 @@ const weekPipsColorClass = computed(() =>
 )
 
 /**
- * Profit Factor color thresholds (P1: adjusted per Lungo's review)
+ * Profit Factor color thresholds
  * >= 2.0 success, >= 1.5 primary, >= 1.2 warning, < 1.2 error
  */
 const pfColorClass = computed(() => {
@@ -109,7 +109,6 @@ const streakText = computed(() => {
   return `${portfolio.value.streak}${portfolio.value.streakType}`
 })
 
-
 // ============================================================
 // Retry
 // ============================================================
@@ -120,181 +119,290 @@ function retry() {
 </script>
 
 <template>
-  <!-- Loading State -->
-  <v-card v-if="loading" elevation="0" rounded="lg" class="glass-card">
-    <v-card-text class="pa-4">
+
+  <!-- ── Loading State ── -->
+  <div v-if="loading" class="portfolio-card">
+    <div class="pa-4">
       <!-- Header skeleton -->
       <div class="d-flex align-center ga-3 mb-4">
         <v-skeleton-loader type="avatar" width="40" height="40" />
-        <div>
+        <div class="flex-grow-1">
           <v-skeleton-loader type="text" width="180" class="mb-1" />
           <v-skeleton-loader type="text" width="100" />
         </div>
       </div>
 
       <!-- Hero skeleton -->
-      <v-sheet rounded="lg" class="glass-sheet pa-4 mb-4">
+      <div class="hero-card pa-4 mb-4">
         <v-skeleton-loader type="text" width="80" class="mb-2" />
-        <v-skeleton-loader type="heading" width="200" class="mb-3" />
+        <v-skeleton-loader type="heading" width="160" class="mb-2" />
+        <v-skeleton-loader type="text" width="120" class="mb-4" />
         <v-skeleton-loader type="text" width="100%" />
-      </v-sheet>
+      </div>
 
-      <!-- Stats grid skeleton — Row 1 -->
-      <v-row dense class="mb-3">
-        <v-col v-for="i in 3" :key="i" cols="4">
-          <v-sheet rounded="lg" class="glass-sheet pa-3 text-center">
-            <v-skeleton-loader type="text" width="40" class="mx-auto mb-1" />
-            <v-skeleton-loader type="text" width="50" class="mx-auto" />
-          </v-sheet>
-        </v-col>
-      </v-row>
-
-      <!-- Stats grid skeleton — Row 2 -->
+      <!-- Stats grid skeleton -->
       <v-row dense>
-        <v-col v-for="i in 3" :key="i" cols="4">
-          <v-sheet rounded="lg" class="glass-sheet pa-3">
-            <v-skeleton-loader type="text" width="60" class="mb-1" />
+        <v-col v-for="i in 6" :key="i" cols="4">
+          <div class="stat-cell d-flex flex-column align-center pa-3">
+            <v-skeleton-loader type="text" width="36" class="mb-1" />
             <v-skeleton-loader type="text" width="50" />
-          </v-sheet>
+          </div>
         </v-col>
       </v-row>
-    </v-card-text>
-  </v-card>
+    </div>
+  </div>
 
-  <!-- Error State -->
-  <v-card v-else-if="error" elevation="0" rounded="lg" class="glass-card">
-    <v-card-text class="pa-4">
-      <v-alert type="error" variant="tonal" class="mb-0">
-        Failed to load portfolio data
-        <template #append>
-          <v-btn variant="text" size="small" @click="retry">Retry</v-btn>
-        </template>
-      </v-alert>
-    </v-card-text>
-  </v-card>
+  <!-- ── Error State ── -->
+  <div v-else-if="error" class="portfolio-card pa-4">
+    <v-alert type="error" variant="tonal" class="mb-0">
+      Failed to load portfolio data
+      <template #append>
+        <v-btn variant="text" size="small" @click="retry">Retry</v-btn>
+      </template>
+    </v-alert>
+  </div>
 
-  <!-- Empty State -->
-  <v-card v-else-if="!portfolio" elevation="0" rounded="lg" class="glass-card">
-    <v-card-text class="pa-4 text-center">
-      <v-icon icon="mdi-chart-box-plus-outline" size="48" class="text-medium-emphasis mb-2" />
-      <div class="text-body-2 text-medium-emphasis">No trading data yet</div>
-      <div class="text-caption text-label-muted mt-1">Start trading to see your portfolio stats</div>
-    </v-card-text>
-  </v-card>
+  <!-- ── Empty State ── -->
+  <div v-else-if="!portfolio" class="portfolio-card pa-6 text-center">
+    <v-icon icon="mdi-chart-box-plus-outline" size="48" class="text-medium-emphasis mb-2" />
+    <div class="text-body-2 text-medium-emphasis">No trading data yet</div>
+    <div class="text-caption text-label-muted mt-1">Start trading to see your portfolio stats</div>
+  </div>
 
-  <!-- Data State -->
-  <v-card v-else elevation="0" rounded="lg" class="glass-card">
-    <v-card-text class="pa-4">
+  <!-- ── Data State ── -->
+  <div v-else class="portfolio-card">
+    <div class="pa-4">
 
-      <!-- Zone A: Header -->
+      <!-- Zone A: Section Header -->
       <div class="d-flex align-center ga-3 mb-4">
-        <v-avatar color="primary" variant="tonal" size="40" rounded="lg">
-          <v-icon icon="mdi-trophy" size="22" />
-        </v-avatar>
+        <div class="portfolio-icon-box">
+          <v-icon icon="mdi-trophy" size="18" color="success" />
+        </div>
         <div>
-          <div class="text-subtitle-1 font-weight-bold">PORTFOLIO OVERVIEW</div>
-          <div class="text-caption text-label-muted">Since {{ portfolio.since }}</div>
+          <div class="portfolio-title">PORTFOLIO OVERVIEW</div>
+          <div class="portfolio-since">Since {{ portfolio.since }}</div>
         </div>
       </div>
 
-      <!-- Zone B: Hero Stat (Total Pips + Win Rate) -->
-      <div class="glass-sheet rounded-lg pa-4 mb-4">
-        <!-- TOTAL PIPS label -->
-        <div class="text-caption font-weight-bold text-label-muted text-uppercase mb-1">
-          TOTAL PIPS
-        </div>
+      <!-- Zone B: Hero Stats Card -->
+      <div class="hero-card pa-4 mb-4">
 
-        <!-- Hero number -->
+        <!-- TOTAL PIPS label -->
+        <div class="hero-label mb-1">TOTAL PIPS</div>
+
+        <!-- Hero number (large) -->
         <div class="d-flex align-end ga-2 mb-1">
-          <span class="text-h4 font-weight-black font-mono" :class="pipsColorClass">
+          <span class="hero-number font-mono" :class="pipsColorClass">
             {{ formatPips(portfolio.totalPips) }}
           </span>
-          <span class="text-caption font-weight-medium text-label-muted pb-1">pips</span>
+          <span class="hero-unit pb-1">pips</span>
         </div>
 
-        <!-- Today/Week Delta (P1) -->
-        <div class="text-caption font-mono mb-3">
+        <!-- Today / Week delta -->
+        <div class="delta-line mb-5">
           <span :class="todayPipsColorClass">{{ formatDelta(portfolio.todayPips, 'today') }}</span>
-          <span class="text-label-muted mx-1">|</span>
+          <span class="delta-divider">|</span>
           <span :class="weekPipsColorClass">{{ formatDelta(portfolio.weekPips, 'week') }}</span>
         </div>
 
-        <!-- Win Rate Bar -->
-        <div class="d-flex align-center justify-space-between mb-1">
-          <span class="text-caption font-weight-medium text-label-muted">WIN RATE</span>
-          <span class="text-caption font-weight-bold font-mono text-primary">{{ portfolio.winRate }}%</span>
+        <!-- Win Rate bar -->
+        <div class="d-flex align-center justify-space-between mb-2">
+          <span class="winrate-label">WIN RATE</span>
+          <span class="winrate-value font-mono text-success">{{ portfolio.winRate }}%</span>
         </div>
         <v-progress-linear
           :model-value="portfolio.winRate"
-          color="primary"
-          bg-color="#2A2A2A"
+          color="success"
+          bg-color="#0B0F19"
           rounded
           height="6"
+          class="winrate-bar"
         />
       </div>
 
-      <!-- Zone C: Detail Grid -->
+      <!-- Zone C: Stats Grid 3×2 -->
+      <v-row dense>
 
-      <!-- Row 1: Wins / Losses / Total -->
-      <v-row dense class="mb-3">
+        <!-- Wins -->
         <v-col cols="4">
-          <div class="glass-sheet rounded-lg pa-3 text-center">
-            <div class="text-h6 font-weight-bold font-mono text-success">{{ portfolio.wins }}</div>
-            <div class="text-caption text-label-muted font-weight-medium">Wins</div>
+          <div class="stat-cell d-flex flex-column align-center pa-3">
+            <div class="stat-value text-success mb-1 font-mono">{{ portfolio.wins }}</div>
+            <div class="stat-label">Wins</div>
           </div>
         </v-col>
-        <v-col cols="4">
-          <div class="glass-sheet rounded-lg pa-3 text-center">
-            <div class="text-h6 font-weight-bold font-mono text-error">{{ portfolio.losses }}</div>
-            <div class="text-caption text-label-muted font-weight-medium">Losses</div>
-          </div>
-        </v-col>
-        <v-col cols="4">
-          <div class="glass-sheet rounded-lg pa-3 text-center">
-            <div class="text-h6 font-weight-bold font-mono">{{ portfolio.totalTrades }}</div>
-            <div class="text-caption text-label-muted font-weight-medium">Total</div>
-          </div>
-        </v-col>
-      </v-row>
 
-      <!-- Row 2: Profit Factor / Max DD / Streak -->
-      <v-row dense class="mb-3">
+        <!-- Losses -->
         <v-col cols="4">
-          <div class="glass-sheet rounded-lg pa-3">
-            <div class="text-caption text-label-muted font-weight-medium mb-1">Profit Factor</div>
-            <div class="d-flex align-center ga-1">
-              <v-icon icon="mdi-scale-balance" size="16" color="info" />
-              <span class="text-h6 font-weight-bold font-mono" :class="pfColorClass">
+          <div class="stat-cell d-flex flex-column align-center pa-3">
+            <div class="stat-value text-error mb-1 font-mono">{{ portfolio.losses }}</div>
+            <div class="stat-label">Losses</div>
+          </div>
+        </v-col>
+
+        <!-- Total -->
+        <v-col cols="4">
+          <div class="stat-cell d-flex flex-column align-center pa-3">
+            <div class="stat-value mb-1 font-mono">{{ portfolio.totalTrades }}</div>
+            <div class="stat-label">Total</div>
+          </div>
+        </v-col>
+
+        <!-- Profit Factor -->
+        <v-col cols="4">
+          <div class="stat-cell d-flex flex-column align-center pa-3">
+            <div class="d-flex align-center ga-1 mb-1">
+              <v-icon icon="mdi-scale-balance" size="13" color="info" />
+              <span class="stat-value font-mono" :class="pfColorClass">
                 {{ portfolio.profitFactor.toFixed(2) }}
               </span>
             </div>
+            <div class="stat-label">Profit Factor</div>
           </div>
         </v-col>
+
+        <!-- Max DD -->
         <v-col cols="4">
-          <div class="glass-sheet rounded-lg pa-3">
-            <div class="text-caption text-label-muted font-weight-medium mb-1">Max DD</div>
-            <div class="d-flex align-center ga-1">
-              <v-icon icon="mdi-trending-down" size="16" color="error" />
-              <span class="text-h6 font-weight-bold font-mono text-error">
+          <div class="stat-cell d-flex flex-column align-center pa-3">
+            <div class="d-flex align-center ga-1 mb-1">
+              <v-icon icon="mdi-trending-down" size="13" color="error" />
+              <span class="stat-value text-error font-mono">
                 {{ formatMaxDrawdown(portfolio.maxDrawdown) }}
               </span>
             </div>
+            <div class="stat-label">Max DD</div>
           </div>
         </v-col>
+
+        <!-- Streak -->
         <v-col cols="4">
-          <div class="glass-sheet rounded-lg pa-3">
-            <div class="text-caption text-label-muted font-weight-medium mb-1">Streak</div>
-            <div class="d-flex align-center ga-1">
-              <v-icon :icon="streakIcon" size="16" :color="streakColor" />
-              <span class="text-h6 font-weight-bold font-mono" :class="streakColorClass">
+          <div class="stat-cell d-flex flex-column align-center pa-3">
+            <div class="d-flex align-center ga-1 mb-1">
+              <v-icon :icon="streakIcon" size="13" :color="streakColor" />
+              <span class="stat-value font-mono" :class="streakColorClass">
                 {{ streakText }}
               </span>
             </div>
+            <div class="stat-label">Streak</div>
           </div>
         </v-col>
+
       </v-row>
 
+    </div>
+  </div>
 
-    </v-card-text>
-  </v-card>
 </template>
+
+<style scoped>
+/* ── Outer portfolio card ── */
+.portfolio-card {
+  background: rgb(17 22 32);
+  border: 1px solid rgb(51 65 85 / 0.7);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgb(0 0 0 / 0.35);
+}
+
+/* ── Section Header: icon box ── */
+.portfolio-icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(16 185 129 / 0.1);
+  border-radius: 10px;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+}
+
+.portfolio-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgb(226 232 240);
+}
+
+.portfolio-since {
+  font-size: 0.68rem;
+  color: rgb(100 116 139);
+  margin-top: 1px;
+}
+
+/* ── Hero Card (inner) ── */
+.hero-card {
+  background: rgb(23 30 45);
+  border: 1px solid rgb(51 65 85 / 0.5);
+  border-radius: 16px;
+}
+
+.hero-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: rgb(100 116 139);
+  text-transform: uppercase;
+}
+
+.hero-number {
+  font-size: 2.6rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.hero-unit {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgb(100 116 139);
+}
+
+/* ── Delta line ── */
+.delta-line {
+  font-size: 0.68rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+}
+
+.delta-divider {
+  color: rgb(51 65 85);
+  margin: 0 6px;
+}
+
+/* ── Win Rate ── */
+.winrate-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgb(100 116 139);
+}
+
+.winrate-value {
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+/* Win Rate bar glow */
+.winrate-bar :deep(.v-progress-linear__determinate) {
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.45);
+}
+
+/* ── Stats Grid cells ── */
+.stat-cell {
+  background: rgb(23 30 45);
+  border: 1px solid rgb(51 65 85 / 0.5);
+  border-radius: 12px;
+}
+
+.stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgb(226 232 240);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: rgb(100 116 139);
+  letter-spacing: 0.04em;
+}
+</style>
