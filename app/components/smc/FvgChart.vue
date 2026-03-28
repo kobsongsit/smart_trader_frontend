@@ -68,10 +68,13 @@ function toggleFullscreen() {
   isFullscreen.value = !isFullscreen.value
   // lock/unlock body scroll
   document.body.style.overflow = isFullscreen.value ? 'hidden' : ''
-  // re-apply chart size after DOM update
+  // re-apply chart size after DOM update (ต้อง update ทั้ง width และ height)
   nextTick(() => {
     if (chart && chartContainer.value) {
-      chart.applyOptions({ width: chartContainer.value.clientWidth })
+      chart.applyOptions({
+        width: chartContainer.value.clientWidth,
+        height: chartContainer.value.clientHeight,
+      })
     }
   })
 }
@@ -271,7 +274,10 @@ function initChart() {
   // ─── Resize observer ───
   resizeObserver = new ResizeObserver(() => {
     if (chart && chartContainer.value) {
-      chart.applyOptions({ width: chartContainer.value.clientWidth })
+      chart.applyOptions({
+        width: chartContainer.value.clientWidth,
+        height: chartContainer.value.clientHeight,
+      })
     }
   })
   resizeObserver.observe(chartContainer.value)
@@ -941,7 +947,7 @@ onUnmounted(() => {
 /* ─── Chart canvas ─── */
 .fvg-chart-canvas {
   width: 100%;
-  height: 80dvh;
+  height: 250px;
 }
 
 /* ─── Fullscreen: chart fills all space below toolbar ─── */
