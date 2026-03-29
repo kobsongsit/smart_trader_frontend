@@ -150,3 +150,10 @@ function isActive(path: string): boolean {
   margin: 16px auto 2px;
 }
 </style>
+
+<style>
+/* ── Hide bottom nav when chart is fullscreen ── */
+body.chart-fullscreen .bottom-nav {
+  display: none !important;
+}
+</style>

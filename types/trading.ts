@@ -95,7 +95,7 @@ export interface ClosedTrade {
   entryTime: string
   exitPrice: string
   exitTime: string
-  exitReason: 'TP' | 'SL' | 'OPPOSITE_SIGNAL' | 'MANUAL'
+  exitReason: 'TP' | 'TP2' | 'SL' | 'OPPOSITE_SIGNAL' | 'MANUAL' | 'TRAIL_STOP'
   profitPips: number
   duration: string
 }
@@ -325,7 +325,7 @@ export interface ChartTrade {
   exitPrice: number | null
   exitTime: string | null
   exitTimestamp: number | null    // UNIX seconds
-  exitReason: 'SL' | 'TP' | 'OPPOSITE_SIGNAL' | 'MANUAL' | null
+  exitReason: 'SL' | 'TP' | 'TP2' | 'OPPOSITE_SIGNAL' | 'MANUAL' | 'TRAIL_STOP' | null
   slPrice: number | null
   tpPrice: number | null
   profitPips: number | null
@@ -365,11 +365,21 @@ export interface BacktestTrade {
   exitPrice: number               // ไม่เป็น null ใน backtest
   exitTime: string
   exitTimestamp: number           // UNIX seconds
-  exitReason: 'SL' | 'TP' | 'OPPOSITE_SIGNAL' | 'MANUAL'
+  exitReason: 'SL' | 'TP' | 'TP2' | 'OPPOSITE_SIGNAL' | 'MANUAL' | 'TRAIL_STOP'
   slPrice: number | null
   tpPrice: number | null
   profitPips: number | null
   profitPercent: null             // เป็น null เสมอใน backtest
+  // Multi-TP fields (มีเมื่อ tpMode = 'multi')
+  tpMode?: 'fixed' | 'atr' | 'rr' | 'multi'
+  tp2Price?: number | null
+  tp1Hit?: boolean | null
+  tp1HitTime?: string | null
+  tp1HitPrice?: number | null
+  breakEvenActive?: boolean | null
+  trailStopPrice?: number | null
+  half1Pips?: number | null
+  half2Pips?: number | null
 }
 
 /** Summary stats จาก backtest */
@@ -382,6 +392,23 @@ export interface BacktestSummary {
   profitFactor: number
   avgWinPips: number
   avgLossPips: number
+  // Multi-TP fields (optional — มีเมื่อ tpMode = 'multi')
+  tp2Hits?: number
+  trailStopHits?: number
+  tp1Reached?: number
+  breakEvenHits?: number
+  avgRR?: number
+}
+
+/** Strategy override params สำหรับ backtest */
+export interface StrategyOverrides {
+  tpMode?: 'fixed' | 'atr' | 'rr' | 'multi'
+  tpAtrMult?: number
+  tpRrMult?: number
+  tp1RrMult?: number
+  tp2RrMult?: number
+  trailAtrMult?: number
+  breakEvenAfterTp1?: boolean
 }
 
 /** Full response จาก GET /api/strategy/backtest */

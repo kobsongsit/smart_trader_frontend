@@ -6,90 +6,99 @@ import type { SymbolItem, ApiResponse } from '../../../types/trading'
 
 dayjs.extend(utc)
 
+// ─── Props & Emits ────────────────────────────────────────────
+const props = defineProps<{
+  symbol: string
+  interval: string
+  from: string
+  to: string
+}>()
+
+const emit = defineEmits<{
+  'update:symbol': [value: string]
+  'update:interval': [value: string]
+  'update:from': [value: string]
+}>()
+
 // ─── Composables ──────────────────────────────────────────────
-const { data: fvgData, loading: fvgLoading, error: fvgError, fetchFvg } = useFvg()
-const { trades, fetchTrades } = useChartTrades()
-const { backtestData, loading: backtestLoading, fetchBacktest } = useBacktest()
+const { data: fvgData, loading: fvgLoading, error: fvgError, fetchFvg, clearFvg } = useFvg()
+const { trades, fetchTrades, clearTrades } = useChartTrades()
+const { backtestData, loading: backtestLoading, error: backtestError, fetchBacktest, clearBacktest } = useBacktest()
 const config = useRuntimeConfig()
 const baseUrl = config.public.apiBaseUrl
 
-// ─── Symbols ──────────────────────────────────────────────────
+// ─── Symbols (สำหรับ fullscreen selector ใน chart) ───────────
 const symbols = ref<SymbolItem[]>([])
-const symbolsLoading = ref(false)
 
 async function loadSymbols() {
-  symbolsLoading.value = true
   try {
     const { data: res } = await axios.get<ApiResponse<SymbolItem[]>>(`${baseUrl}/api/symbols`)
     if (res.success) symbols.value = res.data
-  } catch {
-    // ถ้าโหลด symbols ไม่ได้ก็ใช้ default ไปก่อน
-  } finally {
-    symbolsLoading.value = false
-  }
+  } catch { /* ใช้ default */ }
 }
 
-// ─── Controls State ───────────────────────────────────────────
-const selectedSymbol = ref('XAU-USD')
-const selectedInterval = ref('15m')
-const fromDate = ref(dayjs().subtract(20, 'day').format('YYYY-MM-DD'))
-const toDate = ref(dayjs().format('YYYY-MM-DD'))
+// ─── Intervals ที่ /api/strategy/trades รองรับ ────────────────
+const TRADES_VALID_INTERVALS = ['15m', '1h', '4h']
+const tradesIntervalSupported = computed(() => TRADES_VALID_INTERVALS.includes(props.interval))
+
+// ─── FVG-specific controls ────────────────────────────────────
 const minBodyRatio = ref(1.0)
 const minGapRatio = ref(0.1)
 
 // ─── Debounced Fetch ──────────────────────────────────────────
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-/**
- * Fetch FVG + live trades — ยิงทุกครั้งที่ date range หรือ filter เปลี่ยน
- */
 function triggerFetch(immediate = false) {
   if (debounceTimer) clearTimeout(debounceTimer)
   const delay = immediate ? 0 : 300
   debounceTimer = setTimeout(() => {
-    Promise.all([
+    const fetches: Promise<unknown>[] = [
       fetchFvg({
-        symbol: selectedSymbol.value,
-        interval: selectedInterval.value,
-        from: fromDate.value,
-        to: toDate.value,
+        symbol: props.symbol,
+        interval: props.interval,
+        from: props.from,
+        to: props.to,
         minBodyRatio: minBodyRatio.value,
         minGapRatio: minGapRatio.value,
       }),
-      fetchTrades({
-        symbol: selectedSymbol.value,
-        interval: selectedInterval.value,
-        from: fromDate.value,
-        to: toDate.value,
-      }),
-    ])
+    ]
+    // trades API รองรับแค่ 15m, 1h, 4h — skip ถ้า interval ไม่ support
+    if (tradesIntervalSupported.value) {
+      fetches.push(fetchTrades({
+        symbol: props.symbol,
+        interval: props.interval,
+        from: props.from,
+        to: props.to,
+      }))
+    } else {
+      clearTrades()
+    }
+    Promise.all(fetches)
   }, delay)
 }
 
-/**
- * Fetch backtest — ยิงเมื่อพี่กดปุ่มเอง
- * ใช้ from/to ของ chart ที่แสดงอยู่ตอนนี้
- */
 function runBacktest() {
+  if (!tradesIntervalSupported.value) return   // backtest ใช้ interval เดียวกับ trades
   fetchBacktest({
-    symbol: selectedSymbol.value,
-    interval: selectedInterval.value,
-    from: fromDate.value,
-    to: toDate.value,
+    symbol: props.symbol,
+    interval: props.interval,
+    from: props.from,
+    to: props.to,
   })
 }
 
-// Watch ทุก control → fetch ใหม่ (slider debounce 300ms)
-// suppressFromDateWatch ป้องกัน watch ยิงซ้ำตอน handleNeedMoreData แก้ fromDate
-let suppressFromDateWatch = false
-
-watch(selectedSymbol, () => triggerFetch(true))
-watch(selectedInterval, () => triggerFetch(true))
-watch(fromDate, () => {
-  if (suppressFromDateWatch) return
+// ─── Watch props ──────────────────────────────────────────────
+watch(() => [props.symbol, props.interval], () => {
+  clearFvg()
+  clearTrades()
+  clearBacktest()
   triggerFetch(true)
 })
-watch(toDate, () => triggerFetch(true))
+
+watch(() => [props.from, props.to], () => {
+  triggerFetch(true)
+})
+
 watch(minBodyRatio, () => triggerFetch())
 watch(minGapRatio, () => triggerFetch())
 
@@ -99,9 +108,9 @@ const isFetchingMore = ref(false)
 async function handleNeedMoreData(leftEdgeTs: number) {
   if (isFetchingMore.value || fvgLoading.value) return
 
+  const from = dayjs(props.from)
+  const to   = dayjs(props.to)
   const leftEdgeDate = dayjs.unix(leftEdgeTs)
-  const from = dayjs(fromDate.value)
-  const to = dayjs(toDate.value)
   const rangeDays = Math.max(to.diff(from, 'day'), 1)
 
   const daysFromLeftToFrom = leftEdgeDate.diff(from, 'day')
@@ -110,51 +119,43 @@ async function handleNeedMoreData(leftEdgeTs: number) {
   let newFromDate: string | null = null
 
   if (daysFromLeftToFrom < 0) {
-    // Condition 2: left edge ล้ำเกินข้อมูลที่โหลด → fetch rangeDays + gap
     const gap = Math.abs(daysFromLeftToFrom)
     newFromDate = from.subtract(rangeDays + gap, 'day').format('YYYY-MM-DD')
   } else if (percentFromLeft < 20) {
-    // Condition 1: left edge อยู่ใน 20% แรก → pre-load อีก 100%
     newFromDate = from.subtract(rangeDays, 'day').format('YYYY-MM-DD')
   }
 
   if (!newFromDate) return
 
   isFetchingMore.value = true
-  suppressFromDateWatch = true
-  fromDate.value = newFromDate
+  emit('update:from', newFromDate)
 
-  // infinite scroll → fetch FVG + trades เท่านั้น
-  // backtest ไม่ต้อง re-fetch เพราะมันไม่ขึ้นกับ date range
-  await Promise.all([
+  const fetches: Promise<unknown>[] = [
     fetchFvg({
-      symbol: selectedSymbol.value,
-      interval: selectedInterval.value,
+      symbol: props.symbol,
+      interval: props.interval,
       from: newFromDate,
-      to: toDate.value,
+      to: props.to,
       minBodyRatio: minBodyRatio.value,
       minGapRatio: minGapRatio.value,
     }),
-    fetchTrades({
-      symbol: selectedSymbol.value,
-      interval: selectedInterval.value,
+  ]
+  if (tradesIntervalSupported.value) {
+    fetches.push(fetchTrades({
+      symbol: props.symbol,
+      interval: props.interval,
       from: newFromDate,
-      to: toDate.value,
-    }),
-  ])
+      to: props.to,
+    }))
+  }
+  await Promise.all(fetches)
 
   isFetchingMore.value = false
-  nextTick(() => { suppressFromDateWatch = false })
 }
 
 // ─── Lifecycle ────────────────────────────────────────────────
 onMounted(async () => {
   await loadSymbols()
-  // Auto-select XAU-USD ถ้ามีในรายการ
-  const hasXauUsd = symbols.value.some(s => s.symbol === 'XAU-USD')
-  if (!hasXauUsd && symbols.value.length) {
-    selectedSymbol.value = symbols.value[0]?.symbol ?? 'XAU-USD'
-  }
   triggerFetch(true)
 })
 
@@ -177,7 +178,6 @@ onUnmounted(() => {
           <div class="fvg-subtitle">Fair Value Gap · Smart Money Concepts</div>
         </div>
         <v-spacer />
-        <!-- Legend -->
         <div class="fvg-legend">
           <span class="legend-dot legend-dot--bull" />
           <span class="legend-txt">Bullish</span>
@@ -187,21 +187,11 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- ─── Controls ─── -->
+    <!-- ─── FVG Sliders ─── -->
     <SmcFvgControls
-      :symbols="symbols"
-      :symbols-loading="symbolsLoading"
-      :symbol="selectedSymbol"
-      :interval="selectedInterval"
-      :from="fromDate"
-      :to="toDate"
       :min-body-ratio="minBodyRatio"
       :min-gap-ratio="minGapRatio"
       :loading="fvgLoading"
-      @update:symbol="selectedSymbol = $event"
-      @update:interval="selectedInterval = $event"
-      @update:from="fromDate = $event"
-      @update:to="toDate = $event"
       @update:min-body-ratio="minBodyRatio = $event"
       @update:min-gap-ratio="minGapRatio = $event"
     />
@@ -223,20 +213,27 @@ onUnmounted(() => {
       :backtest-loading="backtestLoading"
       :appending-data="isFetchingMore"
       :symbols="symbols"
-      :symbol="selectedSymbol"
-      :interval="selectedInterval"
+      :symbol="symbol"
+      :interval="interval"
       @need-more-data="handleNeedMoreData"
       @run-backtest="runBacktest"
-      @update:symbol="selectedSymbol = $event"
-      @update:interval="selectedInterval = $event"
+      @update:symbol="emit('update:symbol', $event)"
+      @update:interval="emit('update:interval', $event)"
+    />
+
+    <!-- ─── Backtest Summary ─── -->
+    <SmcBacktestSummary
+      :data="(backtestData as any) ?? null"
+      :loading="backtestLoading"
+      :error="backtestError"
     />
 
     <!-- ─── Stats Panel ─── -->
     <SmcFvgStatsPanel
       :stats="fvgData?.stats ?? null"
-      :interval="selectedInterval"
-      :from="fromDate"
-      :to="toDate"
+      :interval="interval"
+      :from="from"
+      :to="to"
     />
 
   </div>
@@ -251,7 +248,6 @@ onUnmounted(() => {
   box-shadow: 0 4px 24px rgb(0, 0, 0, 0.35);
 }
 
-/* ─── Header ─── */
 .fvg-header {
   border-bottom: 1px solid rgba(51, 65, 85, 0.5);
 }
@@ -280,7 +276,6 @@ onUnmounted(() => {
   margin-top: 1px;
 }
 
-/* ─── Legend ─── */
 .fvg-legend {
   display: flex;
   align-items: center;
@@ -296,14 +291,8 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-.legend-dot--bull {
-  background: rgba(33, 150, 243, 0.7);
-}
-
-.legend-dot--bear {
-  background: rgba(244, 67, 54, 0.7);
-  margin-left: 8px;
-}
+.legend-dot--bull { background: rgba(33, 150, 243, 0.7); }
+.legend-dot--bear { background: rgba(244, 67, 54, 0.7); margin-left: 8px; }
 
 .legend-txt {
   font-size: 0.62rem;
@@ -311,7 +300,6 @@ onUnmounted(() => {
   color: rgb(100, 116, 139);
 }
 
-/* ─── Error ─── */
 .fvg-error {
   border-bottom: 1px solid rgba(51, 65, 85, 0.5);
 }

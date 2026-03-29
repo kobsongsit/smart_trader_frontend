@@ -5,6 +5,7 @@ import {
   CandlestickSeries,
   LineSeries,
   LineStyle,
+  CrosshairMode,
   type IChartApi,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
@@ -51,6 +52,19 @@ let ema200Series: ISeriesApi<'Line'> | null = null
 let markersPlugin: ISeriesMarkersPluginApi<Time> | null = null
 let resizeObserver: ResizeObserver | null = null
 
+// ─── Crosshair Tooltip ────────────────────────────────────────
+interface CandleTooltip {
+  time: string
+  open: number
+  high: number
+  low: number
+  close: number
+  isUp: boolean
+  x: number
+  y: number
+}
+const tooltip = ref<CandleTooltip | null>(null)
+
 // ─── Scroll Monitor ───────────────────────────────────────────
 let scrollDebounce: ReturnType<typeof setTimeout> | null = null
 
@@ -66,8 +80,8 @@ const isFullscreen = ref(false)
 
 function toggleFullscreen() {
   isFullscreen.value = !isFullscreen.value
-  // lock/unlock body scroll
   document.body.style.overflow = isFullscreen.value ? 'hidden' : ''
+  document.body.classList.toggle('chart-fullscreen', isFullscreen.value)
   // re-apply chart size after DOM update (ต้อง update ทั้ง width และ height)
   nextTick(() => {
     if (chart && chartContainer.value) {
@@ -95,7 +109,7 @@ let fibPriceLines: IPriceLine[] = []
 const INTERVALS = ['1m', '5m', '15m', '1h', '4h', '1d', '1mn'] as const
 
 // ─── Layer Toggles ────────────────────────────────────────────
-const showFvgMarkers = ref(true)
+const showFvgMarkers = ref(false)
 const showLiveTrades = ref(true)
 const showBacktestTrades = ref(false)
 
@@ -104,13 +118,17 @@ let tradePriceLines: IPriceLine[] = []
 
 // Fibonacci levels with label + color
 const FIB_LEVELS = [
-  { ratio: 0,     label: '0%',    color: 'rgba(148, 163, 184, 0.8)' },
-  { ratio: 0.236, label: '23.6%', color: 'rgba(255, 213, 79, 0.85)' },
-  { ratio: 0.382, label: '38.2%', color: 'rgba(102, 187, 106, 0.9)' },
-  { ratio: 0.5,   label: '50%',   color: 'rgba(255, 167, 38, 0.9)'  },
-  { ratio: 0.618, label: '61.8%', color: 'rgba(255, 215, 0, 1)'     },
-  { ratio: 0.786, label: '78.6%', color: 'rgba(171, 71, 188, 0.85)' },
-  { ratio: 1,     label: '100%',  color: 'rgba(148, 163, 184, 0.8)' },
+  { ratio: 0,      label: '0.0',    color: 'rgba(148, 163, 184, 0.85)' },
+  { ratio: 0.236,  label: '23.6',   color: 'rgba(255, 213, 79,  0.85)' },
+  { ratio: 0.382,  label: '38.2',   color: 'rgba(102, 187, 106, 0.90)' },
+  { ratio: 0.5,    label: '50.0',   color: 'rgba(255, 167, 38,  0.90)' },
+  { ratio: 0.618,  label: '61.8',   color: 'rgba(255, 215, 0,   1.00)' },
+  { ratio: 0.786,  label: '78.6',   color: 'rgba(171, 71,  188, 0.85)' },
+  { ratio: 1,      label: '100.0',  color: 'rgba(148, 163, 184, 0.85)' },
+  { ratio: 1.272,  label: '127.2',  color: 'rgba(240, 98,  146, 0.85)' },
+  { ratio: 1.618,  label: '161.8',  color: 'rgba(229, 115, 115, 0.90)' },
+  { ratio: 2.618,  label: '261.8',  color: 'rgba(239, 83,  80,  0.90)' },
+  { ratio: 4.236,  label: '423.6',  color: 'rgba(183, 28,  28,  0.90)' },
 ]
 
 // ============================================================
@@ -178,7 +196,7 @@ function drawFibLevels(p1: number, p2: number) {
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
       axisLabelVisible: true,
-      title: `Fib ${level.label}  ${price.toFixed(2)}`,
+      title: `${level.label}  ${formatMarkerPrice(price)}`,
     })
     fibPriceLines.push(line)
   }
@@ -232,6 +250,7 @@ function initChart() {
       horzLines: { color: 'rgba(51, 65, 85, 0.4)' },
     },
     crosshair: {
+      mode: CrosshairMode.Normal,
       vertLine: { color: 'rgba(74, 222, 128, 0.4)', labelBackgroundColor: '#1A2234' },
       horzLine: { color: 'rgba(74, 222, 128, 0.4)', labelBackgroundColor: '#1A2234' },
     },
@@ -287,11 +306,58 @@ function initChart() {
     if (scrollDebounce) clearTimeout(scrollDebounce)
     scrollDebounce = setTimeout(checkLeftEdge, 300)
   })
+
+  // ─── Crosshair move — floating OHLCV tooltip ───
+  chart.subscribeCrosshairMove((param) => {
+    if (!param.time || !param.point || !candleSeries || !chartContainer.value) {
+      tooltip.value = null
+      return
+    }
+    const bar = param.seriesData.get(candleSeries) as any
+    if (!bar || bar.open === undefined) {
+      tooltip.value = null
+      return
+    }
+
+    tooltip.value = {
+      time: dayjs.unix(param.time as number).utc().format('DD MMM YYYY HH:mm'),
+      open:  bar.open,
+      high:  bar.high,
+      low:   bar.low,
+      close: bar.close,
+      isUp:  bar.close >= bar.open,
+      x: 0,
+      y: 0,
+    }
+  })
+}
+
+/**
+ * Auto-detect decimal precision จาก candle prices
+ * เพื่อให้ price axis แสดงทศนิยมถูกต้องทุก symbol
+ */
+function detectPriceFormat(candles: readonly FvgCandle[]): { precision: number; minMove: number } {
+  const sample = candles[Math.floor(candles.length / 2)]?.close ?? candles[0]?.close
+  if (!sample) return { precision: 2, minMove: 0.01 }
+
+  const str = sample.toString()
+  const dotIndex = str.indexOf('.')
+  if (dotIndex === -1) return { precision: 0, minMove: 1 }
+
+  const decimals = Math.min(str.length - dotIndex - 1, 8)
+  const minMove = parseFloat((Math.pow(10, -decimals)).toFixed(decimals))
+  return { precision: decimals, minMove }
 }
 
 function updateCandles() {
   const series = candleSeries
   if (!series || !props.candles.length) return
+
+  // Apply detected price format ก่อน setData
+  const { precision, minMove } = detectPriceFormat(props.candles)
+  series.applyOptions({
+    priceFormat: { type: 'price', precision, minMove },
+  })
 
   const chartData = props.candles.map(c => ({
     time: dayjs(c.timestamp).unix() as UTCTimestamp,
@@ -328,13 +394,24 @@ function buildFvgMarkers(): SeriesMarker<Time>[] {
   }))
 }
 
+/** Format price ให้แสดงทศนิยมถูกต้องตาม magnitude */
+function formatMarkerPrice(price: number): string {
+  if (price >= 1000) return price.toFixed(2)
+  if (price >= 100)  return price.toFixed(2)
+  if (price >= 10)   return price.toFixed(3)
+  if (price >= 1)    return price.toFixed(4)
+  return price.toFixed(5)
+}
+
 function exitMarkerConfig(reason: string | null): { color: string; text: string } {
   switch (reason) {
-    case 'SL':               return { color: '#ef4444', text: 'SL' }
-    case 'TP':               return { color: '#22c55e', text: 'TP' }
-    case 'OPPOSITE_SIGNAL':  return { color: '#f59e0b', text: 'SIG' }
-    case 'MANUAL':           return { color: '#94a3b8', text: 'MNL' }
-    default:                 return { color: '#94a3b8', text: 'EXIT' }
+    case 'SL':               return { color: '#ef4444', text: 'SL'    }
+    case 'TP':               return { color: '#22c55e', text: 'TP'    }
+    case 'TP2':              return { color: '#06b6d4', text: 'TP2'   }
+    case 'TRAIL_STOP':       return { color: '#a78bfa', text: 'TRAIL' }
+    case 'OPPOSITE_SIGNAL':  return { color: '#f59e0b', text: 'SIG'   }
+    case 'MANUAL':           return { color: '#94a3b8', text: 'MNL'   }
+    default:                 return { color: '#94a3b8', text: 'EXIT'  }
   }
 }
 
@@ -351,11 +428,11 @@ function buildTradeMarkers(): SeriesMarker<Time>[] {
       shape: isBuy ? 'arrowUp' : 'arrowDown',
       color: isBuy ? '#10b981' : '#ef4444',
       size: 2,
-      text: trade.action,
+      text: `${trade.action} ${formatMarkerPrice(trade.entryPrice)}`,
     })
 
     // ── Exit marker (CLOSED only) ──
-    if (trade.status === 'CLOSED' && trade.exitTimestamp !== null) {
+    if (trade.status === 'CLOSED' && trade.exitTimestamp !== null && trade.exitPrice !== null) {
       const cfg = exitMarkerConfig(trade.exitReason)
       markers.push({
         time: trade.exitTimestamp as UTCTimestamp,
@@ -363,7 +440,7 @@ function buildTradeMarkers(): SeriesMarker<Time>[] {
         shape: 'circle',
         color: cfg.color,
         size: 1.5,
-        text: cfg.text,
+        text: `${cfg.text} ${formatMarkerPrice(trade.exitPrice)}`,
       })
     }
   }
@@ -373,11 +450,13 @@ function buildTradeMarkers(): SeriesMarker<Time>[] {
 
 function backtestExitMarkerConfig(reason: string | null): { color: string; text: string } {
   switch (reason) {
-    case 'SL':               return { color: '#ef4444', text: 'BT·SL' }
-    case 'TP':               return { color: '#22c55e', text: 'BT·TP' }
-    case 'OPPOSITE_SIGNAL':  return { color: '#f59e0b', text: 'BT·SIG' }
-    case 'MANUAL':           return { color: '#94a3b8', text: 'BT·MNL' }
-    default:                 return { color: '#94a3b8', text: 'BT·EXIT' }
+    case 'SL':               return { color: '#ef4444', text: 'BT·SL'    }
+    case 'TP':               return { color: '#22c55e', text: 'BT·TP'    }
+    case 'TP2':              return { color: '#06b6d4', text: 'BT·TP2'   }
+    case 'TRAIL_STOP':       return { color: '#a78bfa', text: 'BT·TRAIL' }
+    case 'OPPOSITE_SIGNAL':  return { color: '#f59e0b', text: 'BT·SIG'   }
+    case 'MANUAL':           return { color: '#94a3b8', text: 'BT·MNL'   }
+    default:                 return { color: '#94a3b8', text: 'BT·EXIT'  }
   }
 }
 
@@ -394,7 +473,7 @@ function buildBacktestMarkers(): SeriesMarker<Time>[] {
       shape: isBuy ? 'arrowUp' : 'arrowDown',
       color: isBuy ? '#60a5fa' : '#c084fc',
       size: 2,
-      text: `BT·${trade.action}`,
+      text: `BT·${trade.action} ${formatMarkerPrice(trade.entryPrice)}`,
     })
 
     // ── Exit marker — square shape (แยกจาก live ที่เป็น circle) ──
@@ -405,7 +484,7 @@ function buildBacktestMarkers(): SeriesMarker<Time>[] {
       shape: 'square',
       color: cfg.color,
       size: 1.2,
-      text: cfg.text,
+      text: `${cfg.text} ${formatMarkerPrice(trade.exitPrice)}`,
     })
   }
 
@@ -512,8 +591,9 @@ onUnmounted(() => {
   tradePriceLines = []
   if (scrollDebounce) clearTimeout(scrollDebounce)
   window.removeEventListener('keydown', onKeydown)
-  // cleanup body scroll lock ถ้า unmount ขณะ fullscreen
+  // cleanup body state ถ้า unmount ขณะ fullscreen
   document.body.style.overflow = ''
+  document.body.classList.remove('chart-fullscreen')
 })
 </script>
 
@@ -658,6 +738,30 @@ onUnmounted(() => {
       <div v-if="loading" class="fvg-chart-loading">
         <v-progress-circular indeterminate color="primary" size="32" />
         <span class="mt-2 text-caption text-label-muted">กำลังโหลด...</span>
+      </div>
+    </Transition>
+
+    <!-- ─── OHLCV Crosshair Tooltip ─── -->
+    <Transition name="fade">
+      <div v-if="tooltip" class="ohlcv-tooltip">
+        <div class="ohlcv-values">
+          <span class="ohlcv-item">
+            <span class="ohlcv-label">O</span>
+            <span class="ohlcv-val" :class="tooltip.isUp ? 'val--up' : 'val--down'">{{ formatMarkerPrice(tooltip.open) }}</span>
+          </span>
+          <span class="ohlcv-item">
+            <span class="ohlcv-label">H</span>
+            <span class="ohlcv-val val--up">{{ formatMarkerPrice(tooltip.high) }}</span>
+          </span>
+          <span class="ohlcv-item">
+            <span class="ohlcv-label">L</span>
+            <span class="ohlcv-val val--down">{{ formatMarkerPrice(tooltip.low) }}</span>
+          </span>
+          <span class="ohlcv-item">
+            <span class="ohlcv-label">C</span>
+            <span class="ohlcv-val" :class="tooltip.isUp ? 'val--up' : 'val--down'">{{ formatMarkerPrice(tooltip.close) }}</span>
+          </span>
+        </div>
       </div>
     </Transition>
 
@@ -958,6 +1062,58 @@ onUnmounted(() => {
 .fvg-chart-canvas--picking {
   cursor: crosshair;
 }
+
+/* ─── OHLCV Crosshair Tooltip ─── */
+.ohlcv-tooltip {
+  position: absolute;
+  top: 50px;
+  left: 12px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  pointer-events: none;
+  background: rgba(6, 10, 19, 0.82);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  border-radius: 8px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.ohlcv-time {
+  font-size: 0.6rem;
+  color: rgb(100, 116, 139);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.03em;
+}
+
+.ohlcv-values {
+  display: flex;
+  gap: 10px;
+}
+
+.ohlcv-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ohlcv-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: rgb(71, 85, 105);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.ohlcv-val {
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.val--up   { color: #26a69a; }
+.val--down { color: #ef5350; }
 
 /* ─── Loading overlay ─── */
 .fvg-chart-loading {

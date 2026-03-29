@@ -12,25 +12,33 @@ const { allTrades, loading, error, fetchTrades } = useTradesList()
 // Filter Options
 // ============================================================
 
-const symbolOptions = ['XAU-USD', 'USD-JPY', 'EUR-USD', 'GBP-JPY']
-const resultOptions = ['All', 'Win', 'Loss']
-const tfOptions     = ['All', '15m', '1h', '4h']
-const exitOptions   = ['All', 'TP', 'SL', 'Signal', 'Manual']
+const symbolOptions  = ['XAU-USD', 'USD-JPY', 'EUR-USD', 'GBP-JPY']
+const ALL_INTERVALS  = ['1m', '5m', '15m', '1h', '4h', '1d', '1mn']
+const resultOptions  = ['All', 'Win', 'Loss']
 
-const exitReasonMap: Record<string, string> = {
-  'All': '', 'TP': 'TP', 'SL': 'SL', 'Signal': 'OPPOSITE_SIGNAL', 'Manual': 'MANUAL',
+// Exit reasons ตาม API value (เรียงตาม priority)
+const ALL_EXIT_REASONS = ['TP', 'TP2', 'TRAIL_STOP', 'SL', 'OPPOSITE_SIGNAL', 'MANUAL'] as const
+
+// Label สำหรับแสดงใน UI
+const exitReasonDisplayLabel: Record<string, string> = {
+  'TP': 'TP', 'TP2': 'TP2', 'TRAIL_STOP': 'Trail', 'SL': 'SL', 'OPPOSITE_SIGNAL': 'Signal', 'MANUAL': 'Manual',
 }
 
 // ============================================================
-// Local filter state (UI)
+// Filter state
 // ============================================================
 
-const selectedSymbol = ref('XAU-USD')
-const selectedResult = ref('All')
-const selectedTF     = ref('All')
-const selectedExit   = ref('All')
-const selectedSort   = ref('newest')
-const showMoreFilters = ref(false)
+const selectedSymbol   = ref('XAU-USD')
+
+// listInterval — สำหรับ trade list filter (รองรับแค่ 15m, 1h, 4h)
+const listInterval     = ref('1h')
+
+// chartInterval — สำหรับ FVG chart (รองรับทุก TF รวม 1m, 5m, 1d, 1mn)
+const chartInterval    = ref('1h')
+const selectedResult   = ref('All')
+const selectedExit     = ref<string>('All')   // 'All' หรือ API value เช่น 'SL', 'TP'
+const selectedSort     = ref('newest')
+const showMoreFilters  = ref(false)
 
 // Month navigator
 const selectedMonthNum = ref(dayjs().month())   // 0-11
@@ -44,9 +52,23 @@ const isCurrentMonth = computed(() =>
   selectedMonthNum.value === dayjs().month() && selectedYearNum.value === dayjs().year()
 )
 
+// fromDate/toDate เป็น ref เพื่อให้ FvgSection แก้ไขได้ตอน infinite scroll
+const fromDate = ref(
+  dayjs().month(selectedMonthNum.value).year(selectedYearNum.value).startOf('month').format('YYYY-MM-DD')
+)
+const toDate = ref(
+  dayjs().month(selectedMonthNum.value).year(selectedYearNum.value).endOf('month').format('YYYY-MM-DD')
+)
+
+function setMonthRange() {
+  fromDate.value = dayjs().month(selectedMonthNum.value).year(selectedYearNum.value).startOf('month').format('YYYY-MM-DD')
+  toDate.value   = dayjs().month(selectedMonthNum.value).year(selectedYearNum.value).endOf('month').format('YYYY-MM-DD')
+}
+
 function prevMonth() {
   if (selectedMonthNum.value === 0) { selectedMonthNum.value = 11; selectedYearNum.value-- }
   else selectedMonthNum.value--
+  setMonthRange()
   applyFilters()
 }
 
@@ -54,19 +76,9 @@ function nextMonth() {
   if (isCurrentMonth.value) return
   if (selectedMonthNum.value === 11) { selectedMonthNum.value = 0; selectedYearNum.value++ }
   else selectedMonthNum.value++
+  setMonthRange()
   applyFilters()
 }
-
-// ============================================================
-// Computed date range (month -> from/to)
-// ============================================================
-
-const fromDate = computed(() =>
-  dayjs().month(selectedMonthNum.value).year(selectedYearNum.value).startOf('month').format('YYYY-MM-DD')
-)
-const toDate = computed(() =>
-  dayjs().month(selectedMonthNum.value).year(selectedYearNum.value).endOf('month').format('YYYY-MM-DD')
-)
 
 // ============================================================
 // Active extra filter count (badge)
@@ -75,7 +87,6 @@ const toDate = computed(() =>
 const activeExtraFilterCount = computed(() => {
   let count = 0
   if (selectedResult.value !== 'All') count++
-  if (selectedTF.value !== 'All') count++
   if (selectedExit.value !== 'All') count++
   return count
 })
@@ -85,13 +96,25 @@ const activeExtraFilterCount = computed(() => {
 // ============================================================
 
 function applyFilters() {
+  // ไม่ส่ง interval — ดึงทุก TF แล้ว filter client-side
+  // chart ใช้ selectedInterval ของตัวเองแยกต่างหาก
   fetchTrades({
     symbol: selectedSymbol.value,
-    interval: selectedTF.value !== 'All' ? selectedTF.value : undefined,
     from: fromDate.value,
     to: toDate.value,
   })
 }
+
+// ดึงใหม่เมื่อ symbol หรือ from/to เปลี่ยน (interval ไม่ส่งไป API)
+watch(selectedSymbol, () => applyFilters())
+
+// Smart sync: ถ้า chart เปลี่ยน interval เป็น TF ที่ list รองรับ → sync มาด้วย
+const TRADES_VALID_INTERVALS = ['15m', '1h', '4h']
+watch(chartInterval, (iv) => {
+  if (TRADES_VALID_INTERVALS.includes(iv)) {
+    listInterval.value = iv
+  }
+})
 
 onMounted(() => applyFilters())
 
@@ -99,18 +122,44 @@ onMounted(() => applyFilters())
 // Client-side filtering + sort
 // ============================================================
 
+// Intervals ที่มีอยู่จริงใน data (เรียงตาม ALL_INTERVALS)
+const availableIntervals = computed(() =>
+  ALL_INTERVALS.filter(iv => allTrades.value.some(t => t.interval === iv))
+)
+
+// Reset listInterval ถ้า interval ที่เลือกไม่มีใน data ใหม่ (list เท่านั้น)
+watch(availableIntervals, (ivs) => {
+  if (ivs.length && !ivs.includes(listInterval.value)) {
+    listInterval.value = ivs[0]!
+  }
+})
+
+// Exit reasons ที่มีอยู่จริงใน data (เรียงตาม ALL_EXIT_REASONS)
+const availableExitReasons = computed(() =>
+  ALL_EXIT_REASONS.filter(r => allTrades.value.some(t => t.exitReason === r))
+)
+
+// Reset selectedExit ถ้า exit reason ที่เลือกไม่มีใน data ใหม่
+watch(availableExitReasons, (reasons) => {
+  if (selectedExit.value !== 'All' && !reasons.includes(selectedExit.value as typeof ALL_EXIT_REASONS[number])) {
+    selectedExit.value = 'All'
+  }
+})
+
 const filteredTrades = computed<ChartTrade[]>(() => {
   let list = [...allTrades.value]
 
-  // Result filter
+  // Interval filter — client-side (ใช้ listInterval)
+  list = list.filter(t => t.interval === listInterval.value)
+
   if (selectedResult.value === 'Win')  list = list.filter(t => (t.profitPips ?? 0) > 0)
   if (selectedResult.value === 'Loss') list = list.filter(t => (t.profitPips ?? 0) < 0)
 
-  // Exit reason filter
-  const exitVal = exitReasonMap[selectedExit.value]
-  if (exitVal) list = list.filter(t => t.exitReason === exitVal)
+  // Exit filter ใช้ API value โดยตรง
+  if (selectedExit.value && selectedExit.value !== 'All') {
+    list = list.filter(t => t.exitReason === selectedExit.value)
+  }
 
-  // Sort
   list.sort((a, b) =>
     selectedSort.value === 'newest'
       ? b.entryTimestamp - a.entryTimestamp
@@ -210,6 +259,8 @@ function pfColorClass(pf: number): string {
 function exitBadgeClass(reason: string | null): string {
   switch (reason) {
     case 'TP':               return 'exit-badge--tp'
+    case 'TP2':              return 'exit-badge--tp2'
+    case 'TRAIL_STOP':       return 'exit-badge--trail'
     case 'SL':               return 'exit-badge--sl'
     case 'OPPOSITE_SIGNAL':  return 'exit-badge--signal'
     case 'MANUAL':           return 'exit-badge--manual'
@@ -220,6 +271,8 @@ function exitBadgeClass(reason: string | null): string {
 function exitReasonLabel(reason: string | null): string {
   switch (reason) {
     case 'TP':               return 'TP'
+    case 'TP2':              return 'TP2'
+    case 'TRAIL_STOP':       return 'TRAIL'
     case 'SL':               return 'SL'
     case 'OPPOSITE_SIGNAL':  return 'SIGNAL EXIT'
     case 'MANUAL':           return 'MANUAL'
@@ -253,16 +306,11 @@ function retry() { applyFilters() }
 
     <div class="page-header-divider mb-5" />
 
-    <!-- ── SMC FVG Chart ── -->
-    <SmcFvgSection />
-
-    <div class="my-4" />
-
-    <!-- ── Zone B: Filters — Glass Card ── -->
+    <!-- ── Shared Filter Bar ── -->
     <div class="dark-card pa-4 mb-4">
 
-      <!-- Symbol filter -->
-      <div class="mb-4">
+      <!-- Symbol -->
+      <div class="mb-3">
         <div class="filter-label mb-2">SYMBOL</div>
         <div class="d-flex flex-wrap ga-2">
           <button
@@ -270,15 +318,28 @@ function retry() { applyFilters() }
             :key="sym"
             class="filter-pill"
             :class="{ 'filter-pill--active': selectedSymbol === sym }"
-            @click="selectedSymbol = sym; applyFilters()"
+            @click="selectedSymbol = sym"
           >{{ sym }}</button>
         </div>
       </div>
 
+      <!-- Interval — แสดงเฉพาะที่มีใน data (สำหรับ list filter) -->
+      <div v-if="availableIntervals.length" class="mb-3">
+        <div class="filter-label mb-2">TIMEFRAME</div>
+        <div class="d-flex flex-wrap ga-2">
+          <button
+            v-for="iv in availableIntervals"
+            :key="iv"
+            class="filter-pill"
+            :class="{ 'filter-pill--active': listInterval === iv }"
+            @click="listInterval = iv"
+          >{{ iv }}</button>
+        </div>
+      </div>
+
       <!-- Period navigator -->
-      <div class="mb-1">
-        <div class="filter-label mb-2">PERIOD</div>
-        <div class="d-flex flex-column align-center ga-2 mt-2">
+      <div class="filter-label mb-2">PERIOD</div>
+      <div class="d-flex flex-column align-center ga-2 mt-2">
           <div class="d-flex align-center ga-5">
             <button class="nav-arrow-btn" @click="prevMonth">
               <v-icon icon="mdi-chevron-left" size="18" />
@@ -303,7 +364,6 @@ function retry() { applyFilters() }
             </span>
           </button>
         </div>
-      </div>
 
       <!-- Expandable extra filters -->
       <v-expand-transition>
@@ -323,29 +383,24 @@ function retry() { applyFilters() }
             </div>
           </div>
 
-          <!-- Timeframe -->
-          <div class="mb-3">
-            <div class="filter-label mb-2">TIMEFRAME</div>
-            <div class="d-flex flex-wrap ga-2">
-              <button
-                v-for="tf in tfOptions" :key="tf"
-                class="filter-pill"
-                :class="{ 'filter-pill--active': selectedTF === tf }"
-                @click="selectedTF = tf; applyFilters()"
-              >{{ tf }}</button>
-            </div>
-          </div>
-
-          <!-- Exit Reason -->
-          <div class="mb-1">
+          <!-- Exit Reason — แสดงเฉพาะที่มีใน data -->
+          <div v-if="availableExitReasons.length" class="mb-1">
             <div class="filter-label mb-2">EXIT</div>
             <div class="d-flex flex-wrap ga-2">
+              <!-- All pill -->
               <button
-                v-for="ex in exitOptions" :key="ex"
                 class="filter-pill"
-                :class="{ 'filter-pill--active': selectedExit === ex }"
-                @click="selectedExit = ex"
-              >{{ ex }}</button>
+                :class="{ 'filter-pill--active': selectedExit === 'All' }"
+                @click="selectedExit = 'All'"
+              >All</button>
+              <!-- Dynamic exit reason pills -->
+              <button
+                v-for="reason in availableExitReasons"
+                :key="reason"
+                class="filter-pill"
+                :class="{ 'filter-pill--active': selectedExit === reason }"
+                @click="selectedExit = reason"
+              >{{ exitReasonDisplayLabel[reason] }}</button>
             </div>
           </div>
         </div>
@@ -363,6 +418,18 @@ function retry() { applyFilters() }
         </button>
       </div>
     </div>
+
+    <!-- ── SMC FVG Chart ── -->
+    <SmcFvgSection
+      :symbol="selectedSymbol"
+      :interval="chartInterval"
+      :from="fromDate"
+      :to="toDate"
+      class="mb-4"
+      @update:symbol="selectedSymbol = $event"
+      @update:interval="chartInterval = $event"
+      @update:from="fromDate = $event"
+    />
 
     <!-- ── Loading State ── -->
     <template v-if="loading">
@@ -736,10 +803,12 @@ function retry() { applyFilters() }
   border-radius: 5px;
   line-height: 1.6;
 }
-.exit-badge--tp     { background: rgba(16, 185, 129, 0.1);  color: rgb(52 211 153);  border: 1px solid rgba(16, 185, 129, 0.15); }
-.exit-badge--sl     { background: rgba(239, 68, 68, 0.1);   color: rgb(252 165 165); border: 1px solid rgba(239, 68, 68, 0.15); }
-.exit-badge--signal { background: rgba(59, 130, 246, 0.1);  color: rgb(147 197 253); border: 1px solid rgba(59, 130, 246, 0.15); }
-.exit-badge--manual { background: rgba(251, 140, 0, 0.1);   color: rgb(251 191 36);  border: 1px solid rgba(251, 140, 0, 0.15); }
+.exit-badge--tp     { background: rgba(16, 185, 129, 0.1);  color: rgb(52, 211, 153);  border: 1px solid rgba(16, 185, 129, 0.15); }
+.exit-badge--tp2    { background: rgba(6, 182, 212, 0.1);   color: rgb(103, 232, 249); border: 1px solid rgba(6, 182, 212, 0.15); }
+.exit-badge--trail  { background: rgba(167, 139, 250, 0.1); color: rgb(196, 181, 253); border: 1px solid rgba(167, 139, 250, 0.15); }
+.exit-badge--sl     { background: rgba(239, 68, 68, 0.1);   color: rgb(252, 165, 165); border: 1px solid rgba(239, 68, 68, 0.15); }
+.exit-badge--signal { background: rgba(59, 130, 246, 0.1);  color: rgb(147, 197, 253); border: 1px solid rgba(59, 130, 246, 0.15); }
+.exit-badge--manual { background: rgba(251, 140, 0, 0.1);   color: rgb(251, 191, 36);  border: 1px solid rgba(251, 140, 0, 0.15); }
 .exit-badge--default{ background: rgba(255, 255, 255, 0.04); color: rgba(148, 163, 184, 0.7); }
 
 /* ── Pips Hero ── */

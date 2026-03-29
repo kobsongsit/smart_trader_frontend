@@ -51,10 +51,15 @@ export function useFvg() {
     }
   }
 
+  function clearFvg() {
+    data.value = null
+  }
+
   return {
     data: readonly(data),
     loading: readonly(loading),
     error: readonly(error),
     fetchFvg,
+    clearFvg,
   }
 }

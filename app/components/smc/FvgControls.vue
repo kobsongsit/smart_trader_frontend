@@ -1,121 +1,21 @@
 <script setup lang="ts">
-import type { SymbolItem } from '../../../types/trading'
-
 // ─── Props & Emits ────────────────────────────────────────────
 const props = defineProps<{
-  symbols: SymbolItem[]
-  symbolsLoading: boolean
-  symbol: string
-  interval: string
-  from: string
-  to: string
   minBodyRatio: number
   minGapRatio: number
   loading: boolean
 }>()
 
 const emit = defineEmits<{
-  'update:symbol': [value: string]
-  'update:interval': [value: string]
-  'update:from': [value: string]
-  'update:to': [value: string]
   'update:minBodyRatio': [value: number]
   'update:minGapRatio': [value: number]
 }>()
-
-// ─── Interval options ─────────────────────────────────────────
-const intervalOptions = [
-  { title: '1m',  value: '1m'  },
-  { title: '5m',  value: '5m'  },
-  { title: '15m', value: '15m' },
-  { title: '1h',  value: '1h'  },
-  { title: '4h',  value: '4h'  },
-  { title: '1d',  value: '1d'  },
-  { title: '1mn', value: '1mn' },
-]
-
-// ─── Symbol options (เฉพาะ active) ───────────────────────────
-const symbolOptions = computed(() =>
-  props.symbols
-    .filter(s => s.isActive)
-    .map(s => ({ title: s.symbol, value: s.symbol, subtitle: s.name }))
-)
 </script>
 
 <template>
   <div class="fvg-controls">
 
-    <!-- Row 1: Symbol + Interval + Dates -->
-    <div class="controls-row">
-
-      <!-- Symbol Selector -->
-      <v-select
-        :model-value="symbol"
-        :items="symbolOptions"
-        item-title="title"
-        item-value="value"
-        label="Symbol"
-        density="compact"
-        variant="outlined"
-        hide-details
-        :loading="symbolsLoading"
-        :disabled="loading"
-        class="ctrl-select ctrl-symbol"
-        @update:model-value="emit('update:symbol', $event)"
-      >
-        <template #item="{ item, props: itemProps }">
-          <v-list-item v-bind="itemProps">
-            <template #subtitle>
-              <span class="text-caption text-label-muted">{{ item.raw.subtitle }}</span>
-            </template>
-          </v-list-item>
-        </template>
-      </v-select>
-
-      <!-- Interval Selector -->
-      <v-select
-        :model-value="interval"
-        :items="intervalOptions"
-        item-title="title"
-        item-value="value"
-        label="Timeframe"
-        density="compact"
-        variant="outlined"
-        hide-details
-        :disabled="loading"
-        class="ctrl-select ctrl-interval"
-        @update:model-value="emit('update:interval', $event)"
-      />
-
-      <!-- Date From -->
-      <v-text-field
-        :model-value="from"
-        type="date"
-        label="From"
-        density="compact"
-        variant="outlined"
-        hide-details
-        :disabled="loading"
-        class="ctrl-select ctrl-date"
-        @update:model-value="emit('update:from', $event)"
-      />
-
-      <!-- Date To -->
-      <v-text-field
-        :model-value="to"
-        type="date"
-        label="To"
-        density="compact"
-        variant="outlined"
-        hide-details
-        :disabled="loading"
-        class="ctrl-select ctrl-date"
-        @update:model-value="emit('update:to', $event)"
-      />
-
-    </div>
-
-    <!-- Row 2: Sliders -->
+    <!-- Sliders -->
     <div class="sliders-row">
 
       <!-- minBodyRatio slider -->
@@ -167,41 +67,10 @@ const symbolOptions = computed(() =>
 
 <style scoped>
 .fvg-controls {
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  padding: 10px 16px;
   border-bottom: 1px solid rgba(51, 65, 85, 0.5);
 }
 
-/* ─── Row 1: Inputs ─── */
-.controls-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: flex-start;
-}
-
-.ctrl-select {
-  min-width: 0;
-}
-
-.ctrl-symbol {
-  flex: 1.5;
-  min-width: 120px;
-}
-
-.ctrl-interval {
-  flex: 0.8;
-  min-width: 80px;
-}
-
-.ctrl-date {
-  flex: 1;
-  min-width: 120px;
-}
-
-/* ─── Row 2: Sliders ─── */
 .sliders-row {
   display: flex;
   gap: 16px;
@@ -210,7 +79,7 @@ const symbolOptions = computed(() =>
 
 .slider-item {
   flex: 1;
-  min-width: 200px;
+  min-width: 160px;
 }
 
 .slider-label {
