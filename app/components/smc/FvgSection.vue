@@ -264,15 +264,16 @@ onUnmounted(() => {
 }
 
 .fvg-title {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: rgb(226, 232, 240);
+  font-size: var(--ds-text-label);
+  font-weight: var(--ds-fw-bold);
+  letter-spacing: var(--ds-ls-caps);
+  color: var(--ds-text-primary);
+  text-transform: uppercase;
 }
 
 .fvg-subtitle {
-  font-size: 0.62rem;
-  color: rgb(100, 116, 139);
+  font-size: var(--ds-text-micro);
+  color: var(--ds-text-faint);
   margin-top: 1px;
 }
 
@@ -295,9 +296,9 @@ onUnmounted(() => {
 .legend-dot--bear { background: rgba(244, 67, 54, 0.7); margin-left: 8px; }
 
 .legend-txt {
-  font-size: 0.62rem;
-  font-weight: 600;
-  color: rgb(100, 116, 139);
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-semibold);
+  color: var(--ds-text-faint);
 }
 
 .fvg-error {

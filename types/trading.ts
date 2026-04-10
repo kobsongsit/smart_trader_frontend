@@ -40,16 +40,21 @@ export interface PortfolioData {
  * Open position data from GET /api/strategy/positions
  */
 export interface Position {
+  id?: number
   symbol: string
   interval: string
   action: 'BUY' | 'SELL'
+  strategyName?: string | null
   entryPrice: string
   currentPrice: string | null
   slPrice: string
   slLabel: string
+  tpPrice?: string | null
+  tpLabel?: string | null
   entryTime: string
   floatingPips: number | null
   slDistancePercent: number | null
+  maxHoldBars?: number | null
   duration: string | null
 }
 

@@ -86,17 +86,17 @@ const emit = defineEmits<{
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: rgb(148, 163, 184);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-semibold);
+  color: var(--ds-text-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   margin-bottom: 2px;
 }
 
 .slider-value {
-  font-size: 0.72rem;
-  color: rgb(74, 222, 128);
+  font-size: var(--ds-text-label);
+  color: var(--ds-success);
 }
 
 .slider-ctrl {

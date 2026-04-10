@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
+import { usePortfolio } from '../composables/usePortfolio'
+import { useOpenPositions } from '../composables/useOpenPositions'
+import { usePriceSummary } from '../composables/usePriceSummary'
 
 dayjs.extend(utc)
 
-const { fetchPortfolio } = usePortfolio()
+const { refresh: refreshPortfolio } = usePortfolio()
 const { fetchPositions } = useOpenPositions()
 const { data: priceSummary, loading: priceLoading, showTooltip, fetchAndShow: fetchPriceSummary } = usePriceSummary()
 
@@ -23,7 +27,8 @@ const tooltipStyle = computed(() => {
 
 async function handleRefresh() {
   isRefreshing.value = true
-  await Promise.all([fetchPortfolio(), fetchPositions()])
+  // refresh() จะใช้ lastParams อัตโนมัติ — ไม่ต้องรู้ว่า range ปัจจุบันคืออะไร
+  await Promise.all([refreshPortfolio(), fetchPositions()])
   isRefreshing.value = false
 }
 
@@ -73,8 +78,7 @@ function formatTime(isoString: string | null): string {
       </Teleport>
 
       <div class="flex-grow-1">
-        <div class="text-h5 font-weight-bold">Smart Trader</div>
-        <div class="text-caption text-label-muted mt-1">AI-Powered Trading Signal Dashboard</div>
+        <div class="text-h5 font-weight-bold">Dashboard</div>
       </div>
 
       <button class="refresh-btn" :class="{ 'refresh-btn--spinning': isRefreshing }" @click="handleRefresh">
@@ -91,6 +95,11 @@ function formatTime(isoString: string | null): string {
 
     <!-- Open Positions -->
     <TradingOpenPositions />
+
+    <div class="my-4" />
+
+    <!-- Position History -->
+    <TradingPositionHistory />
 
     <!-- Footer -->
     <div class="text-center mt-8">
@@ -122,24 +131,24 @@ function formatTime(isoString: string | null): string {
   background: rgba(6, 10, 19, 0.85);
   backdrop-filter: blur(24px) saturate(1.4);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
-  border: 1px solid rgba(74, 222, 128, 0.15);
-  border-radius: 12px;
-  padding: 10px 12px;
+  border: 1px solid var(--ds-success-border);
+  border-radius: var(--ds-radius-md);
+  padding: var(--ds-space-2) var(--ds-space-3);
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.5),
-    0 0 24px rgba(74, 222, 128, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    var(--ds-shadow-card-deep),
+    var(--ds-shadow-green-glow),
+    var(--ds-glass-inset);
 }
 
 .price-tooltip__header {
   display: flex;
   align-items: center;
-  font-size: 11px;
-  font-weight: 600;
-  color: #4ade80;
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-semibold);
+  color: var(--ds-success);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 8px;
+  letter-spacing: var(--ds-ls-caps);
+  margin-bottom: var(--ds-space-2);
   padding-bottom: 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -147,49 +156,49 @@ function formatTime(isoString: string | null): string {
 .price-tooltip__body {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ds-space-1);
 }
 
 .price-tooltip__row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  line-height: 1.6;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-text-label);
+  line-height: var(--ds-lh-relaxed);
 }
 
 .price-tooltip__symbol {
-  color: rgba(148, 163, 184, 0.7);
+  color: var(--ds-text-muted);
   width: 64px;
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--ds-text-caption);
 }
 
 .price-tooltip__price {
-  color: rgba(226, 232, 240, 0.95);
+  color: var(--ds-text-primary);
   flex: 1;
   text-align: right;
 }
 
 .price-tooltip__time {
-  color: rgba(148, 163, 184, 0.5);
-  font-size: 11px;
+  color: var(--ds-text-ghost);
+  font-size: var(--ds-text-caption);
   width: 40px;
   text-align: right;
 }
 
 .price-tooltip__stale {
-  color: #fbbf24;
-  font-size: 10px;
-  font-weight: 600;
+  color: var(--ds-warning);
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-semibold);
 }
 
 /* ─── Tooltip fade transition ─── */
 .tooltip-fade-enter-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity var(--ds-transition-fast), transform var(--ds-transition-fast);
 }
 .tooltip-fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity var(--ds-transition-normal), transform var(--ds-transition-normal);
 }
 .tooltip-fade-enter-from {
   opacity: 0;

@@ -207,38 +207,38 @@ const modeBadgeClass = computed(() =>
 }
 
 .bt-title {
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: rgb(226, 232, 240);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-bold);
+  letter-spacing: var(--ds-ls-caps);
+  color: var(--ds-text-primary);
 }
 
 .bt-tag {
-  font-size: 0.63rem;
-  font-weight: 700;
-  color: rgb(148, 163, 184);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-bold);
+  color: var(--ds-text-muted);
   background: rgba(51, 65, 85, 0.5);
-  border-radius: 4px;
+  border-radius: var(--ds-radius-2xs);
   padding: 1px 6px;
 }
 
 .bt-sep {
-  font-size: 0.6rem;
+  font-size: var(--ds-text-micro);
   color: rgb(71, 85, 105);
 }
 
 .bt-date {
-  font-size: 0.6rem;
-  color: rgb(100, 116, 139);
+  font-size: var(--ds-text-micro);
+  color: var(--ds-text-faint);
   font-family: 'JetBrains Mono', monospace;
 }
 
 .mode-badge {
-  font-size: 0.58rem;
-  font-weight: 700;
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-bold);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  border-radius: 4px;
+  border-radius: var(--ds-radius-2xs);
   padding: 2px 7px;
 }
 .mode-badge--prod {
@@ -261,8 +261,8 @@ const modeBadgeClass = computed(() =>
   padding: 20px 16px;
 }
 .bt-loading-txt {
-  font-size: 0.72rem;
-  color: rgb(148, 163, 184);
+  font-size: var(--ds-text-label);
+  color: var(--ds-text-muted);
   letter-spacing: 0.04em;
 }
 
@@ -272,8 +272,8 @@ const modeBadgeClass = computed(() =>
   align-items: center;
 }
 .bt-error-txt {
-  font-size: 0.68rem;
-  color: rgb(248, 113, 113);
+  font-size: var(--ds-text-caption);
+  color: var(--ds-error);
 }
 
 /* ─── Stats Grid ─── */
@@ -323,18 +323,18 @@ const modeBadgeClass = computed(() =>
 }
 
 .bt-val-unit {
-  font-size: 0.65rem;
-  font-weight: 600;
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-semibold);
   margin-left: 1px;
   opacity: 0.7;
 }
 
 .bt-lbl {
-  font-size: 0.57rem;
-  font-weight: 600;
-  color: rgb(100, 116, 139);
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-semibold);
+  color: var(--ds-text-faint);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ds-ls-caps-wide);
   text-align: center;
 }
 

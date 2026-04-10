@@ -798,10 +798,10 @@ onUnmounted(() => {
   appearance: none;
   background: rgba(30, 41, 59, 0.9);
   border: 1px solid rgba(51, 65, 85, 0.8);
-  border-radius: 6px;
-  color: rgb(226, 232, 240);
-  font-size: 0.7rem;
-  font-weight: 700;
+  border-radius: var(--ds-radius-xs);
+  color: var(--ds-text-primary);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-bold);
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.04em;
   padding: 3px 24px 3px 10px;
@@ -829,9 +829,9 @@ onUnmounted(() => {
   background: transparent;
   border: none;
   border-right: 1px solid rgba(51, 65, 85, 0.7);
-  color: rgb(100, 116, 139);
-  font-size: 0.63rem;
-  font-weight: 600;
+  color: var(--ds-text-faint);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-semibold);
   font-family: 'JetBrains Mono', monospace;
   cursor: pointer;
   transition: all 0.15s;
@@ -879,9 +879,9 @@ onUnmounted(() => {
 }
 
 .badge-txt {
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: rgb(148, 163, 184);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-semibold);
+  color: var(--ds-text-muted);
   letter-spacing: 0.05em;
 }
 
@@ -895,12 +895,12 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   padding: 3px 10px;
-  border-radius: 6px;
+  border-radius: var(--ds-radius-xs);
   border: 1px solid rgba(51, 65, 85, 0.7);
   background: transparent;
-  color: rgb(148, 163, 184);
-  font-size: 0.65rem;
-  font-weight: 600;
+  color: var(--ds-text-muted);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-semibold);
   font-family: 'Noto Sans Thai', sans-serif;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -1036,8 +1036,8 @@ onUnmounted(() => {
 }
 
 .toolbar-hint {
-  font-size: 0.62rem;
-  color: rgb(255, 213, 79);
+  font-size: var(--ds-text-micro);
+  color: var(--ds-warning);
   display: flex;
   align-items: center;
   animation: pulse-hint 1.5s ease-in-out infinite;
@@ -1082,8 +1082,8 @@ onUnmounted(() => {
 }
 
 .ohlcv-time {
-  font-size: 0.6rem;
-  color: rgb(100, 116, 139);
+  font-size: var(--ds-text-micro);
+  color: var(--ds-text-faint);
   font-family: 'JetBrains Mono', monospace;
   letter-spacing: 0.03em;
 }
@@ -1100,15 +1100,15 @@ onUnmounted(() => {
 }
 
 .ohlcv-label {
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: rgb(71, 85, 105);
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-bold);
+  color: var(--ds-text-faint);
   font-family: 'JetBrains Mono', monospace;
 }
 
 .ohlcv-val {
-  font-size: 0.65rem;
-  font-weight: 600;
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-semibold);
   font-family: 'JetBrains Mono', monospace;
 }
 

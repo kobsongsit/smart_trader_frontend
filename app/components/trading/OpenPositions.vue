@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { computed, onMounted } from 'vue'
 import type { Position } from '../../../types/trading'
+import { useOpenPositions } from '../../composables/useOpenPositions'
 
 // ============================================================
 // Composable
@@ -30,7 +32,7 @@ function formatPips(pips: number): string {
 
 /** Total floating P&L across all positions */
 const totalFloatingPips = computed(() => {
-  return positions.value.reduce((sum, p) => {
+  return positions.value.reduce((sum: number, p: Position) => {
     return sum + (p.floatingPips ?? 0)
   }, 0)
 })
@@ -54,36 +56,58 @@ function retry() {
 <template>
   <!-- Loading State -->
   <div v-if="loading" id="open-positions-section">
-    <!-- Section header skeleton -->
+
+    <!-- Section header — title คงจริง, badge/pips skeleton -->
     <div class="d-flex align-center ga-3 mb-4">
-      <v-skeleton-loader type="avatar" width="12" height="12" />
-      <v-skeleton-loader type="text" width="160" class="flex-grow-1" />
-      <v-skeleton-loader type="chip" width="80" />
+      <div class="ping-dot-wrap">
+        <span class="ping-ring" />
+        <span class="ping-dot" />
+      </div>
+      <span class="section-title flex-grow-1">OPEN POSITIONS</span>
+      <!-- pips + count badge — skeleton (dynamic) -->
+      <div class="sk-bar" style="height: 11px; width: 52px;" />
+      <div class="sk-bar" style="height: 20px; width: 28px; border-radius: 6px;" />
     </div>
 
-    <!-- Position card skeletons -->
-    <div
-      v-for="i in 2"
-      :key="i"
-      class="position-card mb-3"
-    >
-      <div class="pa-3">
-        <!-- Row 1: Header skeleton -->
+    <!-- Position card skeletons — 2 cards -->
+    <div v-for="i in 2" :key="i" class="position-card mb-3">
+      <div class="pa-3 pl-4">
+
+        <!-- Row 1: badge/symbol/duration/TF — ทั้งหมด dynamic -->
         <div class="d-flex align-center ga-2 mb-3">
-          <v-skeleton-loader type="chip" width="44" />
-          <v-skeleton-loader type="text" width="90" />
-          <v-spacer />
-          <v-skeleton-loader type="text" width="60" />
+          <div class="sk-bar" style="width: 36px; height: 18px; border-radius: 4px;" />
+          <div class="sk-bar" style="width: 80px; height: 13px;" />
+          <div class="flex-grow-1" />
+          <div class="sk-bar" style="width: 56px; height: 18px; border-radius: 6px;" />
+          <div class="sk-bar" style="width: 28px; height: 18px; border-radius: 6px;" />
         </div>
-        <!-- Row 2: Entry & SL skeleton -->
-        <div class="price-box pa-3">
-          <div class="d-flex justify-space-between">
-            <v-skeleton-loader type="text@2" width="80" />
-            <v-skeleton-loader type="text@2" width="80" />
+
+        <!-- Row 2: Price box — Entry / SL / TP skeleton -->
+        <div class="price-box">
+          <div class="d-flex">
+            <!-- Entry -->
+            <div class="flex-1 pa-2 px-3">
+              <div class="price-label mb-1">Entry</div>
+              <div class="sk-bar" style="width: 64px; height: 13px;" />
+            </div>
+            <div class="price-divider" />
+            <!-- SL -->
+            <div class="flex-1 pa-2 px-3">
+              <div class="price-label mb-1">SL</div>
+              <div class="sk-bar" style="width: 64px; height: 13px;" />
+            </div>
+            <div class="price-divider" />
+            <!-- TP -->
+            <div class="flex-1 pa-2 px-3">
+              <div class="price-label mb-1">TP</div>
+              <div class="sk-bar" style="width: 64px; height: 13px;" />
+            </div>
           </div>
         </div>
+
       </div>
     </div>
+
   </div>
 
   <!-- Error State -->
@@ -123,14 +147,14 @@ function retry() {
 
       <!-- Badges (only when positions exist) -->
       <div v-if="positions.length > 0" class="d-flex align-center ga-2">
-        <span class="count-badge font-mono font-weight-bold">
-          {{ positions.length }}
-        </span>
         <span
           class="text-caption font-weight-bold font-mono"
           :class="totalPlColorClass"
         >
           {{ formatPips(totalFloatingPips) }} pips
+        </span>
+        <span class="count-badge font-mono font-weight-bold">
+          {{ positions.length }}
         </span>
       </div>
     </div>
@@ -174,6 +198,12 @@ function retry() {
 
           <v-spacer />
 
+          <!-- Max hold bars -->
+          <span v-if="position.maxHoldBars != null" class="time-badge font-mono">
+            <v-icon icon="mdi-timer-outline" size="11" class="mr-1 text-label-muted" />
+            Max {{ position.maxHoldBars }}b
+          </span>
+
           <!-- Duration -->
           <span v-if="position.duration" class="time-badge font-mono">
             <v-icon icon="mdi-clock-outline" size="11" class="mr-1 text-label-muted" />
@@ -184,7 +214,7 @@ function retry() {
           <span class="tf-badge font-weight-medium font-mono">{{ position.interval }}</span>
         </div>
 
-        <!-- Row 2: Entry & SL -->
+        <!-- Row 2: Entry / SL / TP -->
         <div class="price-box">
           <div class="d-flex">
 
@@ -199,11 +229,20 @@ function retry() {
 
             <!-- SL -->
             <div class="flex-1 pa-2 px-3">
-              <div class="price-label mb-1 d-flex align-center justify-space-between">
-                <span>SL</span>
-                <span class="sl-type-badge">{{ position.slLabel }}</span>
-              </div>
+              <div class="price-label mb-1">SL</div>
               <div class="price-value font-mono text-error">{{ position.slPrice }}</div>
+            </div>
+
+            <!-- TP — always shown, "-" if null -->
+            <div class="price-divider" />
+            <div class="flex-1 pa-2 px-3">
+              <div class="price-label mb-1">TP</div>
+              <div
+                class="price-value font-mono"
+                :class="position.tpPrice ? 'text-success' : 'text-medium-emphasis'"
+              >
+                {{ position.tpPrice ?? '-' }}
+              </div>
             </div>
 
           </div>
@@ -215,13 +254,35 @@ function retry() {
 </template>
 
 <style scoped>
+/* ── Skeleton ── */
+@keyframes sk-shimmer {
+  0%, 100% { opacity: 0.35; }
+  50%       { opacity: 0.65; }
+}
+
+.sk-bar {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  animation: sk-shimmer 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.sk-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  animation: sk-shimmer 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
 /* ── Section Header ── */
 .section-title {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: var(--ds-text-label);
+  font-weight: var(--ds-fw-bold);
+  letter-spacing: var(--ds-ls-caps);
   text-transform: uppercase;
-  color: rgba(226, 232, 240, 0.9);
+  color: var(--ds-text-primary);
 }
 
 /* ── Animated Ping Dot ── */
@@ -239,7 +300,8 @@ function retry() {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: rgb(52 211 153 / 0.7);
+  background: var(--ds-success-text);
+  opacity: 0.7;
   animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
@@ -249,8 +311,8 @@ function retry() {
   border-radius: 50%;
   width: 10px;
   height: 10px;
-  background: rgb(16 185 129);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+  background: var(--ds-success-dim);
+  box-shadow: var(--ds-shadow-green-sm);
 }
 
 @keyframes ping {
@@ -262,33 +324,35 @@ function retry() {
 
 /* ── Count Badge — Glass ── */
 .count-badge {
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.15);
-  color: rgb(96 165 250);
+  background: var(--ds-info-bg);
+  border: 1px solid var(--ds-info-border);
+  color: var(--ds-info);
   padding: 1px 8px;
-  border-radius: 6px;
-  font-size: 0.7rem;
+  border-radius: var(--ds-radius-xs);
+  font-size: var(--ds-text-caption);
 }
 
 /* ── Position Card — Tier 1 Glass ── */
 .position-card {
   position: relative;
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+  background: var(--ds-glass-1-bg);
+  backdrop-filter: blur(var(--ds-glass-1-blur)) saturate(var(--ds-glass-1-sat));
+  -webkit-backdrop-filter: blur(var(--ds-glass-1-blur)) saturate(var(--ds-glass-1-sat));
+  border: 1px solid var(--ds-glass-2-border);
+  border-radius: var(--ds-radius-md);
   overflow: hidden;
   box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    0 4px 20px rgba(0, 0, 0, 0.30),
+    var(--ds-glass-inset);
+  transition:
+    border-color var(--ds-transition-normal),
+    box-shadow var(--ds-transition-normal);
 }
 
 .position-card:hover {
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.10);
   box-shadow:
-    0 8px 28px rgba(0, 0, 0, 0.4),
+    0 8px 28px rgba(0, 0, 0, 0.40),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
@@ -303,62 +367,78 @@ function retry() {
 }
 
 .position-card--buy::before {
-  background: rgb(16 185 129);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+  background: var(--ds-success-dim);
+  box-shadow: var(--ds-shadow-green-sm);
 }
 
 .position-card--sell::before {
-  background: rgb(239 68 68);
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+  background: var(--ds-error-dim);
+  box-shadow: var(--ds-shadow-red-sm);
 }
 
 /* ── Direction Badge — Glass ── */
 .direction-badge {
-  font-size: 0.6rem;
-  letter-spacing: 0.08em;
+  font-size: var(--ds-text-micro);
+  letter-spacing: var(--ds-ls-caps);
   padding: 2px 6px;
-  border-radius: 4px;
-  line-height: 1.4;
+  border-radius: var(--ds-radius-2xs);
+  line-height: var(--ds-lh-relaxed);
+  text-transform: uppercase;
 }
 
 .direction-badge--buy {
-  background: rgba(16, 185, 129, 0.1);
-  color: rgb(52 211 153);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: var(--ds-success-bg);
+  color: var(--ds-success-text);
+  border: 1px solid var(--ds-success-border);
 }
 
 .direction-badge--sell {
-  background: rgba(239, 68, 68, 0.1);
-  color: rgb(252 165 165);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: var(--ds-error-bg);
+  color: var(--ds-error-bright);
+  border: 1px solid var(--ds-error-border);
+}
+
+/* ── Strategy name badge ── */
+.strategy-badge {
+  font-size: var(--ds-text-micro);
+  color: var(--ds-text-muted);
+  background: var(--ds-neutral-bg);
+  border: 1px solid var(--ds-neutral-border);
+  padding: 2px 5px;
+  border-radius: var(--ds-radius-xs);
+  letter-spacing: 0;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── Time & TF badges — Glass ── */
 .time-badge {
   display: flex;
   align-items: center;
-  font-size: 0.68rem;
-  color: rgba(148, 163, 184, 0.7);
+  font-size: var(--ds-text-caption);
+  color: var(--ds-text-muted);
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.04);
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: var(--ds-radius-xs);
 }
 
 .tf-badge {
-  font-size: 0.68rem;
-  color: rgba(203, 213, 225, 0.8);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: var(--ds-text-caption);
+  color: var(--ds-text-secondary);
+  background: var(--ds-neutral-bg);
+  border: 1px solid var(--ds-neutral-border);
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: var(--ds-radius-xs);
 }
 
 /* ── Price Box — Deep Glass ── */
 .price-box {
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--ds-bg-deep);
   border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
+  border-radius: var(--ds-radius-sm);
   overflow: hidden;
 }
 
@@ -369,23 +449,23 @@ function retry() {
 }
 
 .price-label {
-  font-size: 0.65rem;
-  font-weight: 500;
-  color: rgba(148, 163, 184, 0.6);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-medium);
+  color: var(--ds-text-faint);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .price-value {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: rgba(226, 232, 240, 0.95);
+  font-size: var(--ds-text-body);
+  font-weight: var(--ds-fw-semibold);
+  color: var(--ds-text-primary);
 }
 
 /* ── SL type badge ── */
 .sl-type-badge {
-  font-size: 0.55rem;
-  color: rgba(100, 116, 139, 0.6);
+  font-size: var(--ds-text-micro);
+  color: var(--ds-text-faint);
   background: rgba(255, 255, 255, 0.04);
   padding: 1px 4px;
   border-radius: 3px;

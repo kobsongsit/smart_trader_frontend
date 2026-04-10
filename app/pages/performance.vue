@@ -487,44 +487,44 @@ async function handleRefresh() {
 
 /* ── Labels ── */
 .section-label {
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-bold);
+  letter-spacing: var(--ds-ls-caps-wide);
   text-transform: uppercase;
-  color: rgba(148, 163, 184, 0.6);
+  color: var(--ds-text-muted);
 }
 
 .subsection-label {
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-bold);
+  letter-spacing: var(--ds-ls-caps);
   text-transform: uppercase;
-  color: rgba(148, 163, 184, 0.6);
+  color: var(--ds-text-muted);
 }
 
 .oldest-label {
-  font-size: 0.6rem;
+  font-size: var(--ds-text-micro);
   color: rgba(100, 116, 139, 0.4);
-  font-weight: 500;
+  font-weight: var(--ds-fw-medium);
 }
 
 /* ── Cumulative ── */
 .cumulative-number {
   font-size: 2.2rem;
   line-height: 1;
-  font-weight: 700;
+  font-weight: var(--ds-fw-bold);
 }
 
 .unit-label {
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: rgba(148, 163, 184, 0.6);
+  font-size: var(--ds-text-label);
+  font-weight: var(--ds-fw-medium);
+  color: var(--ds-text-muted);
 }
 
 /* ── Bar chart ── */
 .month-label {
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-semibold);
   min-width: 28px;
 }
 
@@ -551,8 +551,8 @@ async function handleRefresh() {
 }
 
 .bar-value {
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-bold);
   min-width: 56px;
   text-align: right;
 }
@@ -587,54 +587,54 @@ async function handleRefresh() {
 }
 
 .stat-mini-value {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: rgba(226, 232, 240, 0.95);
-  line-height: 1.2;
+  font-size: var(--ds-text-stat);
+  font-weight: var(--ds-fw-bold);
+  color: var(--ds-text-primary);
+  line-height: var(--ds-lh-snug);
 }
 
 .stat-mini-label {
-  font-size: 0.6rem;
-  font-weight: 500;
-  color: rgba(148, 163, 184, 0.5);
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-medium);
+  color: var(--ds-text-ghost);
 }
 
 /* ── Best/Worst trade ── */
 .direction-badge {
-  font-size: 0.6rem;
-  font-weight: 700;
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-bold);
   letter-spacing: 0.06em;
   padding: 2px 5px;
-  border-radius: 4px;
-  line-height: 1.5;
+  border-radius: var(--ds-radius-2xs);
+  line-height: var(--ds-lh-normal);
 }
 
 .direction-badge--buy {
-  background: rgba(16, 185, 129, 0.1);
-  color: rgb(52 211 153);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: var(--ds-success-bg);
+  color: var(--ds-success-text);
+  border: 1px solid var(--ds-success-border);
 }
 
 .direction-badge--sell {
-  background: rgba(239, 68, 68, 0.1);
-  color: rgb(252 165 165);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: var(--ds-error-bg);
+  color: var(--ds-error-bright);
+  border: 1px solid var(--ds-error-border);
 }
 
 .trade-symbol {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: rgba(226, 232, 240, 0.9);
+  font-size: var(--ds-text-label);
+  font-weight: var(--ds-fw-bold);
+  color: var(--ds-text-primary);
 }
 
 .trade-pips {
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--ds-text-label);
+  font-weight: var(--ds-fw-bold);
 }
 
 .trade-meta {
-  font-size: 0.62rem;
-  color: rgba(148, 163, 184, 0.5);
+  font-size: var(--ds-text-micro);
+  color: var(--ds-text-ghost);
   letter-spacing: -0.01em;
 }
 
@@ -646,21 +646,21 @@ async function handleRefresh() {
 
 /* ── Breakdown rows ── */
 .breakdown-name {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: rgba(203, 213, 225, 0.8);
+  font-size: var(--ds-text-label);
+  font-weight: var(--ds-fw-bold);
+  color: var(--ds-text-secondary);
   min-width: 56px;
 }
 
 .breakdown-wl {
-  font-size: 0.62rem;
-  color: rgba(148, 163, 184, 0.5);
+  font-size: var(--ds-text-micro);
+  color: var(--ds-text-ghost);
   min-width: 44px;
 }
 
 .breakdown-pips {
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: var(--ds-text-label);
+  font-weight: var(--ds-fw-bold);
   min-width: 44px;
   text-align: right;
 }

@@ -135,9 +135,9 @@ function isActive(path: string): boolean {
 
 /* ── Label ── */
 .nav-label {
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-bold);
+  letter-spacing: var(--ds-ls-caps);
   font-family: 'Noto Sans Thai', sans-serif;
 }
 

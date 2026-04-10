@@ -603,22 +603,22 @@ function retry() { applyFilters() }
 
 /* ── Filter Labels ── */
 .filter-label {
-  font-size: 0.6rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-bold);
+  letter-spacing: var(--ds-ls-caps-wide);
   text-transform: uppercase;
-  color: rgba(148, 163, 184, 0.6);
+  color: var(--ds-text-muted);
 }
 
 /* ── Filter Pills — Glass ── */
 .filter-pill {
   background: rgba(255, 255, 255, 0.04);
-  color: rgba(203, 213, 225, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 9999px;
+  color: var(--ds-text-secondary);
+  border: 1px solid var(--ds-glass-2-border);
+  border-radius: var(--ds-radius-pill);
   padding: 3px 12px;
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-bold);
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -636,9 +636,9 @@ function retry() { applyFilters() }
 
 /* ── Month Navigator ── */
 .month-label-text {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: rgba(226, 232, 240, 0.9);
+  font-size: var(--ds-text-body);
+  font-weight: var(--ds-fw-bold);
+  color: var(--ds-text-primary);
   min-width: 90px;
   text-align: center;
 }
@@ -661,9 +661,9 @@ function retry() { applyFilters() }
 .more-filters-btn {
   background: transparent;
   border: none;
-  color: rgba(148, 163, 184, 0.5);
-  font-size: 0.65rem;
-  font-weight: 500;
+  color: var(--ds-text-ghost);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-medium);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -675,22 +675,22 @@ function retry() { applyFilters() }
 .more-filters-btn:hover { color: rgba(203, 213, 225, 0.8); }
 
 .extra-filter-badge {
-  background: rgba(74, 222, 128, 0.2);
-  color: #4ADE80;
-  font-size: 0.55rem;
-  font-weight: 700;
-  border-radius: 9999px;
+  background: var(--ds-success-bg);
+  color: var(--ds-success);
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-bold);
+  border-radius: var(--ds-radius-pill);
   padding: 0 5px;
-  line-height: 1.5;
+  line-height: var(--ds-lh-normal);
 }
 
 /* ── Sort Button ── */
 .sort-btn {
   background: transparent;
   border: none;
-  color: rgba(203, 213, 225, 0.7);
-  font-size: 0.68rem;
-  font-weight: 500;
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-medium);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -711,80 +711,80 @@ function retry() { applyFilters() }
   background: rgba(255, 255, 255, 0.05);
 }
 .stat-value {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: rgba(226, 232, 240, 0.95);
-  line-height: 1.2;
+  font-size: var(--ds-text-stat);
+  font-weight: var(--ds-fw-bold);
+  color: var(--ds-text-primary);
+  line-height: var(--ds-lh-snug);
 }
 .stat-label {
-  font-size: 0.6rem;
-  font-weight: 500;
-  color: rgba(148, 163, 184, 0.5);
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-medium);
+  color: var(--ds-text-ghost);
   letter-spacing: 0.04em;
   margin-top: 2px;
 }
 
 /* ── Direction Badge — Glass ── */
 .direction-badge {
-  font-size: 0.58rem;
-  font-weight: 700;
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-bold);
   letter-spacing: 0.06em;
   padding: 2px 6px;
-  border-radius: 4px;
-  line-height: 1.5;
+  border-radius: var(--ds-radius-2xs);
+  line-height: var(--ds-lh-normal);
 }
 .direction-badge--buy {
-  background: rgba(16, 185, 129, 0.1);
-  color: rgb(52 211 153);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: var(--ds-success-bg);
+  color: var(--ds-success-text);
+  border: 1px solid var(--ds-success-border);
 }
 .direction-badge--sell {
-  background: rgba(239, 68, 68, 0.1);
-  color: rgb(252 165 165);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: var(--ds-error-bg);
+  color: var(--ds-error-bright);
+  border: 1px solid var(--ds-error-border);
 }
 
 /* ── Trade Card Content ── */
 .trade-symbol {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: rgba(248, 250, 252, 0.95);
+  font-size: var(--ds-text-title);
+  font-weight: var(--ds-fw-bold);
+  color: var(--ds-text-primary);
 }
 
 .trade-strategy {
-  font-size: 0.6rem;
-  font-weight: 600;
-  color: rgba(148, 163, 184, 0.5);
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-semibold);
+  color: var(--ds-text-ghost);
   background: rgba(255, 255, 255, 0.04);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--ds-radius-2xs);
 }
 
 .trade-tf {
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: rgba(148, 163, 184, 0.7);
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-semibold);
+  color: var(--ds-text-muted);
 }
 .trade-duration {
-  font-size: 0.68rem;
-  color: rgba(148, 163, 184, 0.5);
+  font-size: var(--ds-text-caption);
+  color: var(--ds-text-ghost);
 }
 
 /* ── Price Display ── */
 .price-label {
-  font-size: 0.65rem;
-  font-weight: 500;
+  font-size: var(--ds-text-caption);
+  font-weight: var(--ds-fw-medium);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: rgba(148, 163, 184, 0.5);
+  color: var(--ds-text-ghost);
 }
 .price-value {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: rgba(226, 232, 240, 0.95);
+  font-size: var(--ds-text-body);
+  font-weight: var(--ds-fw-semibold);
+  color: var(--ds-text-primary);
 }
 .price-date {
-  font-size: 0.6rem;
+  font-size: var(--ds-text-micro);
   color: rgba(148, 163, 184, 0.4);
   margin-top: 2px;
 }
@@ -796,12 +796,12 @@ function retry() { applyFilters() }
 
 /* ── Exit Badges — Glass ── */
 .exit-badge {
-  font-size: 0.58rem;
-  font-weight: 700;
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-bold);
   letter-spacing: 0.06em;
   padding: 2px 7px;
   border-radius: 5px;
-  line-height: 1.6;
+  line-height: var(--ds-lh-relaxed);
 }
 .exit-badge--tp     { background: rgba(16, 185, 129, 0.1);  color: rgb(52, 211, 153);  border: 1px solid rgba(16, 185, 129, 0.15); }
 .exit-badge--tp2    { background: rgba(6, 182, 212, 0.1);   color: rgb(103, 232, 249); border: 1px solid rgba(6, 182, 212, 0.15); }

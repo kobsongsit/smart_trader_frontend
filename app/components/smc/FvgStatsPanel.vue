@@ -97,11 +97,11 @@ const fvgPerDay = computed(() => {
 }
 
 .stat-lbl {
-  font-size: 0.58rem;
-  font-weight: 600;
-  color: rgb(100, 116, 139);
+  font-size: var(--ds-text-micro);
+  font-weight: var(--ds-fw-semibold);
+  color: var(--ds-text-faint);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--ds-ls-caps-wide);
   text-align: center;
 }
 </style>
